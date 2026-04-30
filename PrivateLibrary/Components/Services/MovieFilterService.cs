@@ -1,6 +1,6 @@
-using MovieLibraryApp.Models;
+using PrivateLibrary.Models;
 
-namespace MovieLibraryApp.Services;
+namespace PrivateLibrary.Services;
 
 public class MovieFilterService
 {

@@ -1,4 +1,4 @@
-namespace MovieLibraryApp.Services;
+namespace PrivateLibrary.Services;
 
 public static class MovieMappings
 {

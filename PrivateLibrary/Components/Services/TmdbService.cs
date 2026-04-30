@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
-namespace MovieLibraryApp.Services;
+namespace PrivateLibrary.Services;
 
 public class TmdbService
 {

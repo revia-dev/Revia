@@ -7,25 +7,25 @@
     <div class="glass-card form-shell">
         <div class="form-grid">
             <div class="field">
-                abel>Titel</label>
+                <label>Titel</label>
                 <InputText class="form-control" @bind-Value="Model.Title" />
                 <ValidationMessage For="@(() => Model.Title)" />
             </div>
 
             <div class="field field-wide">
-                abel>Gegenstand</label>
+                <label>Gegenstand</label>
                 <InputText class="form-control" @bind-Value="Model.ItemName" />
                 <ValidationMessage For="@(() => Model.ItemName)" />
             </div>
 
             <div class="field">
-                abel>Kategorie</label>
+                <label>Kategorie</label>
                 <InputText class="form-control" @bind-Value="Model.Category" />
                 <ValidationMessage For="@(() => Model.Category)" />
             </div>
 
             <div class="field">
-                abel>Verleiher</label>
+                <label>Verleiher</label>
                 <InputSelect class="form-select" @bind-Value="Model.LenderId">
                     <option value="">Bitte wählen</option>
                     @foreach (var person in People)
@@ -37,7 +37,7 @@
             </div>
 
             <div class="field">
-                abel>Entleiher</label>
+                <label>Entleiher</label>
                 <InputSelect class="form-select" @bind-Value="Model.BorrowerId">
                     <option value="">Bitte wählen</option>
                     @foreach (var person in People)
@@ -49,25 +49,25 @@
             </div>
 
             <div class="field">
-                abel>Ausleihdatum</label>
+                <label>Ausleihdatum</label>
                 <InputDate class="form-control" @bind-Value="Model.LoanDate" />
                 <ValidationMessage For="@(() => Model.LoanDate)" />
             </div>
 
             <div class="field">
-                abel>Geplantes Rückgabedatum</label>
+                <label>Geplantes Rückgabedatum</label>
                 <InputDate class="form-control" @bind-Value="Model.DueDate" />
                 <ValidationMessage For="@(() => Model.DueDate)" />
             </div>
 
             <div class="field">
-                abel>Tatsächliche Rückgabe</label>
+                <label>Tatsächliche Rückgabe</label>
                 <InputDate class="form-control" @bind-Value="Model.ReturnedAt" />
                 <ValidationMessage For="@(() => Model.ReturnedAt)" />
             </div>
 
             <div class="field">
-                abel>Status</label>
+                <label>Status</label>
                 <InputSelect class="form-select" @bind-Value="Model.Status">
                     <option value="@LendingEntryStatus.Active">Aktiv</option>
                     <option value="@LendingEntryStatus.Overdue">Überfällig</option>
@@ -78,13 +78,13 @@
             </div>
 
             <div class="field field-wide">
-                abel>Beschreibung</label>
+                <label>Beschreibung</label>
                 <InputTextArea class="form-control" rows="4" @bind-Value="Model.Description" />
                 <ValidationMessage For="@(() => Model.Description)" />
             </div>
 
             <div class="field field-wide">
-                abel>Notizen</label>
+                <label>Notizen</label>
                 <InputTextArea class="form-control" rows="4" @bind-Value="Model.Notes" />
                 <ValidationMessage For="@(() => Model.Notes)" />
             </div>
