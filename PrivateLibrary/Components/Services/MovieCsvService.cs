@@ -2,7 +2,7 @@ using System.Globalization;
 using CsvHelper;
 using PrivateLibrary.Models;
 
-namespace MovieLibraryApp.Services;
+namespace PrivateLibrary.Services;
 
 public class MovieCsvService
 {

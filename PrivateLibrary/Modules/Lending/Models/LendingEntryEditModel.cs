@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace PrivateLibrary.Features.Lending.Models;
+namespace PrivateLibrary.Modules.Lending.Models;
 
 public sealed class LendingEntryEditModel : IValidatableObject
 {

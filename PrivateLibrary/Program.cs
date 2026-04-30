@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
-using Movie_Library.Components;
-using MovieLibraryApp.Services;
+using PrivateLibrary.Components;
+using PrivateLibrary.Services;
 using PrivateLibrary.Data;
-using PrivateLibrary.Features.Lending.Services;
+using PrivateLibrary.Modules.Lending.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Razor Components / Blazor
+// Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -26,15 +26,17 @@ builder.Services.AddScoped(sp =>
     };
 });
 
-// Neue Services
+// Neue EF-Core-/SQLite-Integration
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// Neue Fach-Services
 builder.Services.AddScoped<ILendingService, LendingService>();
 builder.Services.AddScoped<IPersonService, PersonService>();
 
 var app = builder.Build();
 
+// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);

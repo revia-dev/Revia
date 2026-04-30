@@ -1,6 +1,6 @@
-using PrivateLibrary.Features.Lending.Models;
+using PrivateLibrary.Modules.Lending.Models;
 
-namespace PrivateLibrary.Features.Lending.Services;
+namespace PrivateLibrary.Modules.Lending.Services;
 
 public interface IPersonService
 {

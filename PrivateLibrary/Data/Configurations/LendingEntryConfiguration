@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using PrivateLibrary.Features.Lending.Models;
+using PrivateLibrary.Modules.Lending.Models;
 
 namespace PrivateLibrary.Data.Configurations;
 

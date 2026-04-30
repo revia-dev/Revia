@@ -1,4 +1,4 @@
-namespace PrivateLibrary.Features.Lending.Models;
+namespace PrivateLibrary.Modules.Lending.Models;
 
 public enum LendingEntryStatus
 {

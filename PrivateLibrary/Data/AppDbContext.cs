@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using PrivateLibrary.Data.Configurations;
-using PrivateLibrary.Features.Lending.Models;
+using PrivateLibrary.Modules.Lending.Models;
 
 namespace PrivateLibrary.Data;
 
@@ -16,9 +15,7 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
-        modelBuilder.ApplyConfiguration(new PersonConfiguration());
-        modelBuilder.ApplyConfiguration(new LendingEntryConfiguration());
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

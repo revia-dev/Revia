@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace MovieLibraryApp.Models;
+namespace PrivateLibrary.Models;
 
 public class Film
 {

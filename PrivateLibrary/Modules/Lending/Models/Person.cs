@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
-namespace PrivateLibrary.Features.Lending.Models;
+namespace PrivateLibrary.Modules.Lending.Models;
 
 public sealed class Person
 {
@@ -40,11 +41,12 @@ public sealed class Person
     public string? Notes { get; set; }
 
     public DateTime CreatedAt { get; set; }
-
     public DateTime UpdatedAt { get; set; }
 
+    [InverseProperty(nameof(LendingEntry.Lender))]
     public ICollection<LendingEntry> LentEntries { get; set; } = new List<LendingEntry>();
 
+    [InverseProperty(nameof(LendingEntry.Borrower))]
     public ICollection<LendingEntry> BorrowedEntries { get; set; } = new List<LendingEntry>();
 
     public string DisplayName =>
