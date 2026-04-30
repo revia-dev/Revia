@@ -1,0 +1,54 @@
+@page "/lending/{Id:int}"
+@using PrivateLibrary.Features.Lending.Models
+@inject PrivateLibrary.Features.Lending.Services.ILendingService LendingService
+
+<PageTitle>Lending-Details</PageTitle>
+
+<div class="page-shell">
+    @if (_item is null)
+    {
+        <div class="glass-card empty-card">Eintrag nicht gefunden.</div>
+    }
+    else
+    {
+        <div class="glass-card detail-card">
+            <div class="detail-top">
+                <div>
+                    <h1>@_item.ItemName</h1>
+                    <p>@_item.Title</p>
+                </div>
+                <LendingStatusBadge Status="@_item.Status" />
+            </div>
+
+            <dl class="detail-grid">
+                <dt>Beschreibung</dt><dd>@_item.Description</dd>
+                <dt>Kategorie</dt><dd>@_item.Category</dd>
+                <dt>Verleiher</dt><dd>@_item.Lender?.DisplayName</dd>
+                <dt>Entleiher</dt><dd>@_item.Borrower?.DisplayName</dd>
+                <dt>Ausleihdatum</dt><dd>@_item.LoanDate.ToString("dd.MM.yyyy")</dd>
+                <dt>Geplant zurück</dt><dd>@(_item.DueDate.HasValue ? _item.DueDate.Value.ToString("dd.MM.yyyy") : "-")</dd>
+                <dt>Zurückgegeben</dt><dd>@(_item.ReturnedAt.HasValue ? _item.ReturnedAt.Value.ToString("dd.MM.yyyy") : "-")</dd>
+                <dt>Notizen</dt><dd>@_item.Notes</dd>
+                <dt>Erstellt</dt><dd>@_item.CreatedAt.ToString("dd.MM.yyyy HH:mm")</dd>
+                <dt>Geändert</dt><dd>@_item.UpdatedAt.ToString("dd.MM.yyyy HH:mm")</dd>
+            </dl>
+
+            <div class="actions">
+                <a class="btn btn-primary btn-modern" href="@($"/lending/edit/{_item.Id}")">Bearbeiten</a>
+                <a class="btn btn-secondary btn-modern" href="/lending">Zurück zur Liste</a>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private LendingEntry? _item;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _item = await LendingService.GetByIdAsync(Id);
+    }
+}

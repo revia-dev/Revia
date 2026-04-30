@@ -1,0 +1,113 @@
+@page "/lending"
+@using Microsoft.AspNetCore.Components
+@using PrivateLibrary.Features.Lending.Models
+@inject PrivateLibrary.Features.Lending.Services.ILendingService LendingService
+@inject NavigationManager Navigation
+
+<PageTitle>Lending</PageTitle>
+
+<div class="page-shell">
+    <div class="page-header glass-card">
+        <div>
+            <h1>Lending</h1>
+            <p>Verliehene und geliehene Gegenstände verwalten.</p>
+        </div>
+
+        <div class="header-actions">
+            <a class="btn btn-primary btn-modern" href="/lending/new">Neu anlegen</a>
+            <a class="btn btn-outline-secondary btn-modern" href="/lending/persons">Personen</a>
+        </div>
+    </div>
+
+    <div class="glass-card filter-bar">
+        abel>Status filtern</label>
+        <select class="form-select" @onchange="OnStatusChanged">
+            <option value="">Alle</option>
+            <option value="@LendingEntryStatus.Active" selected="@(StatusFilter == LendingEntryStatus.Active)">Aktiv</option>
+            <option value="@LendingEntryStatus.Overdue" selected="@(StatusFilter == LendingEntryStatus.Overdue)">Überfällig</option>
+            <option value="@LendingEntryStatus.Returned" selected="@(StatusFilter == LendingEntryStatus.Returned)">Zurückgegeben</option>
+        </select>
+    </div>
+
+    @if (_items is null)
+    {
+        <div class="glass-card loading-card">Lade Einträge...</div>
+    }
+    else if (_items.Count == 0)
+    {
+        <div class="glass-card empty-card">Keine Lending-Einträge vorhanden.</div>
+    }
+    else
+    {
+        <div class="glass-card table-card">
+            <table class="table lending-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Gegenstand</th>
+                        <th>Titel</th>
+                        <th>Verleiher</th>
+                        <th>Entleiher</th>
+                        <th>LoanDate</th>
+                        <th>DueDate</th>
+                        <th>ReturnedAt</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in _items)
+                    {
+                        <tr>
+                            <td>
+                                <div class="item-title">@item.ItemName</div>
+                                @if (!string.IsNullOrWhiteSpace(item.Category))
+                                {
+                                    <div class="muted">@item.Category</div>
+                                }
+                            </td>
+                            <td>@item.Title</td>
+                            <td>@item.Lender?.DisplayName</td>
+                            <td>@item.Borrower?.DisplayName</td>
+                            <td>@item.LoanDate.ToString("dd.MM.yyyy")</td>
+                            <td>@(item.DueDate.HasValue ? item.DueDate.Value.ToString("dd.MM.yyyy") : "-")</td>
+                            <td>@(item.ReturnedAt.HasValue ? item.ReturnedAt.Value.ToString("dd.MM.yyyy") : "-")</td>
+                            <td><LendingStatusBadge Status="@item.Status" /></td>
+                            <td class="actions">
+                                <a class="btn btn-sm btn-outline-primary" href="@($"/lending/{item.Id}")">Details</a>
+                                <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/edit/{item.Id}")">Bearbeiten</a>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(item.Id)">Löschen</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<LendingEntry>? _items;
+    private LendingEntryStatus? StatusFilter;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _items = await LendingService.GetAllAsync(StatusFilter);
+    }
+
+    private async Task OnStatusChanged(ChangeEventArgs args)
+    {
+        var value = args.Value?.ToString();
+        StatusFilter = Enum.TryParse<LendingEntryStatus>(value, out var parsed) ? parsed : null;
+        await LoadAsync();
+    }
+
+    private void ConfirmDelete(int id)
+    {
+        Navigation.NavigateTo($"/lending/delete/{id}");
+    }
+}

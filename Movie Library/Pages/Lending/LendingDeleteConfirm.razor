@@ -1,0 +1,69 @@
+@page "/lending/delete/{Id:int}"
+@page "/lending/persons/delete/{Id:int}"
+@using PrivateLibrary.Features.Lending.Models
+@inject PrivateLibrary.Features.Lending.Services.ILendingService LendingService
+@inject PrivateLibrary.Features.Lending.Services.IPersonService PersonService
+@inject NavigationManager Navigation
+
+<PageTitle>Löschen bestätigen</PageTitle>
+
+<div class="page-shell">
+    <div class="glass-card">
+        <h1>Löschen bestätigen</h1>
+        <p>@Message</p>
+
+        <div class="actions">
+            <button class="btn btn-danger btn-modern" @onclick="DeleteAsync">Löschen</button>
+            <a class="btn btn-secondary btn-modern" href="@BackUrl">Abbrechen</a>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="alert alert-warning mt-3">@_error</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private string? _error;
+    private bool _isPersonRoute;
+    private string BackUrl => _isPersonRoute ? "/lending/persons" : "/lending";
+    private string Message => _isPersonRoute
+        ? "Möchten Sie diese Person wirklich löschen?"
+        : "Möchten Sie diesen Lending-Eintrag wirklich löschen?";
+
+    protected override void OnInitialized()
+    {
+        _isPersonRoute = Navigation.Uri.Contains("/lending/persons/delete/");
+    }
+
+    private async Task DeleteAsync()
+    {
+        _error = null;
+
+        if (_isPersonRoute)
+        {
+            var deleted = await PersonService.DeleteAsync(Id);
+            if (!deleted)
+            {
+                _error = "Person kann nicht gelöscht werden, wenn noch Lending-Einträge darauf verweisen.";
+                return;
+            }
+
+            Navigation.NavigateTo("/lending/persons");
+            return;
+        }
+
+        var result = await LendingService.DeleteAsync(Id);
+        if (!result)
+        {
+            _error = "Eintrag konnte nicht gelöscht werden.";
+            return;
+        }
+
+        Navigation.NavigateTo("/lending");
+    }
+}

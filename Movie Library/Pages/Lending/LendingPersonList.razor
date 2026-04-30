@@ -1,0 +1,65 @@
+@page "/lending/persons"
+@using PrivateLibrary.Features.Lending.Models
+@inject PrivateLibrary.Features.Lending.Services.IPersonService PersonService
+@inject NavigationManager Navigation
+
+<PageTitle>Personen</PageTitle>
+
+<div class="page-shell">
+    <div class="glass-card page-header">
+        <div>
+            <h1>Personen</h1>
+            <p>Verleiher und Entleiher verwalten.</p>
+        </div>
+        <a class="btn btn-primary btn-modern" href="/lending/persons/new">Neu anlegen</a>
+    </div>
+
+    @if (_people is null)
+    {
+        <div class="glass-card loading-card">Lade Personen...</div>
+    }
+    else if (_people.Count == 0)
+    {
+        <div class="glass-card empty-card">Noch keine Personen vorhanden.</div>
+    }
+    else
+    {
+        <div class="glass-card table-card">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Kontakt</th>
+                        <th>Ort</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var person in _people)
+                    {
+                        <tr>
+                            <td>
+                                <div class="item-title">@person.DisplayName</div>
+                            </td>
+                            <td>@person.Email<br />@person.Phone</td>
+                            <td>@person.PostalCode @person.City</td>
+                            <td class="actions">
+                                <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/persons/edit/{person.Id}")">Bearbeiten</a>
+                                <a class="btn btn-sm btn-outline-danger" href="@($"/lending/persons/delete/{person.Id}")">Löschen</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<Person>? _people;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _people = await PersonService.GetAllAsync();
+    }
+}
