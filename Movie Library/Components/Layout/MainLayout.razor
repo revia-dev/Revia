@@ -1,0 +1,34 @@
+﻿@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <div class="app-shell-glow app-shell-glow-a"></div>
+    <div class="app-shell-glow app-shell-glow-b"></div>
+
+    <div class="app-layout">
+        <aside class="app-sidebar">
+            <NavMenu />
+        </aside>
+
+        <main class="app-main">
+            <header class="app-topbar">
+                <div class="app-topbar-copy">
+                    <div class="app-topbar-eyebrow">Movie Library</div>
+                    <h1 class="app-topbar-title">Dein persönliches Filmarchiv</h1>
+                </div>
+
+                <div class="app-topbar-actions">
+                    <div class="app-status-pill">
+                        <span class="status-dot"></span>
+                        <span>Ready</span>
+                    </div>
+                </div>
+            </header>
+
+            <section class="app-content-shell">
+                <div class="app-content">
+                    @Body
+                </div>
+            </section>
+        </main>
+    </div>
+</div>

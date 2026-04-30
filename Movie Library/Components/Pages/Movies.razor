@@ -1,0 +1,250 @@
+@page "/movies"
+@rendermode InteractiveServer
+@using MovieLibraryApp.Models
+@inject MovieLibraryApp.Services.MovieCsvService CsvService
+@inject MovieLibraryApp.Services.MovieFilterService FilterService
+@inject MovieLibraryApp.Services.TmdbService TmdbService
+@inject MovieLibraryApp.Services.PosterResolverService PosterResolver
+
+<PageTitle>Movie Library</PageTitle>
+
+<div class="movies-shell">
+    <div class="movies-background-orb movies-background-orb-a"></div>
+    <div class="movies-background-orb movies-background-orb-b"></div>
+
+    <section class="movies-toolbar">
+        <div class="movies-toolbar-top">
+            <div>
+                <p class="movies-eyebrow">Movie Library</p>
+                <h1>Deine Filmsammlung</h1>
+            </div>
+
+            <button type="button"
+                    class="liquid-button liquid-button-secondary"
+                    @onclick="ToggleFilters">
+                @(isFilterVisible ? "Filter schließen" : "Filter öffnen")
+            </button>
+        </div>
+
+        <div class="movies-toolbar-controls">
+            <input class="liquid-search"
+                   @bind="titleSearch"
+                   @bind:event="oninput"
+                   placeholder="Nach Titel oder Tags suchen..." />
+
+            <div class="movies-stats">
+                <span class="stat-pill">@filteredFilme.Count Treffer</span>
+                <span class="stat-pill">@filme.Count Gesamt</span>
+            </div>
+        </div>
+    </section>
+
+    @if (isFilterVisible)
+    {
+        <section class="movies-filter-panel">
+            <div class="filter-group-header">
+                <h3>Filter</h3>
+
+                <button type="button"
+                        class="text-button"
+                        @onclick="ClearFilters">
+                    Zurücksetzen
+                </button>
+            </div>
+
+            @foreach (var group in filterData)
+            {
+                <div class="filter-block">
+                    <h4>@group.Title</h4>
+
+                    <div class="filter-tags">
+                        @foreach (var tag in group.Tags)
+                        {
+                            var isSelected = selectedTags.Contains(tag);
+
+                            <button type="button"
+                                    class="filter-chip @(isSelected ? "is-selected" : "")"
+                                    @onclick="() => ToggleTag(tag)">
+                                @tag.Name
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </section>
+    }
+
+    @if (isLoading)
+    {
+        <section class="loading-panel">
+            <div class="loading-card">
+                <div class="spinner"></div>
+                <p>Lade Filme und Poster ...</p>
+                <small>@progressIndex / @filme.Count</small>
+            </div>
+        </section>
+    }
+    else if (!filteredFilme.Any())
+    {
+        <section class="empty-state-panel">
+            <div class="empty-state-card">
+                <h3>Keine Filme gefunden</h3>
+                <p>Prüfe deinen Suchbegriff oder entferne aktive Filter.</p>
+            </div>
+        </section>
+    }
+    else
+    {
+        <section class="movie-grid-section">
+            <div class="movie-grid">
+                @foreach (var film in filteredFilme)
+                {
+                    <button type="button"
+                            class="movie-card"
+                            @onclick="() => SelectFilm(film)">
+                        <div class="movie-poster-wrap">
+                            <img src="@PosterResolver.ResolvePosterUrl(film)"
+                                 alt="@(film.Titel ?? "Unbekannt")"
+                                 class="movie-poster" />
+
+                            <div class="movie-card-overlay movie-card-overlay-hover">
+                                <div class="movie-card-title">
+                                    @(film.Titel ?? "Unbekannt")
+                                </div>
+
+                                <div class="movie-card-meta">
+                                    @if (!string.IsNullOrWhiteSpace(film.Jahr))
+                                    {
+                                        <span>@film.Jahr</span>
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(film.Fsk))
+                                    {
+                                        <span>FSK @film.Fsk</span>
+                                    }
+                                </div>
+
+                                @if (film.Tags?.Any() == true)
+                                {
+                                    <div class="movie-card-tags">
+                                        @foreach (var tag in film.Tags.Take(3))
+                                        {
+                                            <span>@tag</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </button>
+                }
+            </div>
+        </section>
+    }
+</div>
+
+@if (selectedFilm is not null)
+{
+    <MovieDetail Film="selectedFilm"
+                 RelatedFilms="relatedFilms"
+                 OnClose="CloseDetail"
+                 OnFilmSelected="SelectFilm" />
+}
+
+@code {
+    private List<Film> filme = new();
+    private List<Film> filteredFilme = new();
+    private List<FilterGroup> filterData = new();
+    private HashSet<FilterTag> selectedTags = new();
+
+    private Film? selectedFilm;
+    private List<Film> relatedFilms = new();
+
+    private bool isLoading;
+    private int progressIndex;
+    private bool isFilterVisible;
+
+    private string _titleSearch = string.Empty;
+
+    private string titleSearch
+    {
+        get => _titleSearch;
+        set
+        {
+            if (_titleSearch == value)
+                return;
+
+            _titleSearch = value;
+            ApplyFilters();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+
+        filme = await CsvService.LoadMoviesFromWwwrootAsync();
+
+        for (int i = 0; i < filme.Count; i++)
+        {
+            progressIndex = i + 1;
+
+            if (filme[i].TmdbId is int tmdbId)
+            {
+                filme[i].PosterPath = await TmdbService.FetchPosterPathAsync(tmdbId, filme[i].Kategorie);
+            }
+        }
+
+        filterData = FilterService.BuildFilterData(filme);
+        ApplyFilters();
+
+        isLoading = false;
+    }
+
+    private void ToggleFilters()
+    {
+        isFilterVisible = !isFilterVisible;
+    }
+
+    private void ToggleTag(FilterTag tag)
+    {
+        if (selectedTags.Contains(tag))
+            selectedTags.Remove(tag);
+        else
+            selectedTags.Add(tag);
+
+        ApplyFilters();
+    }
+
+    private void ClearFilters()
+    {
+        selectedTags.Clear();
+        titleSearch = string.Empty;
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        filteredFilme = FilterService.ApplyFilters(filme, titleSearch, selectedTags);
+    }
+
+    private void SelectFilm(Film film)
+    {
+        selectedFilm = film;
+
+        var bundleTags = film.Tags?
+            .Where(t => t.StartsWith("#"))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase)
+            ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        relatedFilms = filme
+            .Where(m => m.Id != film.Id &&
+                        (m.Tags?.Any(tag => bundleTags.Contains(tag)) ?? false))
+            .ToList();
+    }
+
+    private void CloseDetail()
+    {
+        selectedFilm = null;
+        relatedFilms.Clear();
+    }
+}

@@ -1,0 +1,112 @@
+@using MovieLibraryApp.Models
+@inject MovieLibraryApp.Services.PosterResolverService PosterResolver
+
+@if (Film is not null)
+{
+    <div class="movie-detail-backdrop" @onclick="HandleClose"></div>
+
+    <section class="movie-detail-panel" role="dialog" aria-modal="true" aria-labelledby="movie-detail-title">
+        <header class="movie-detail-header">
+            <div class="movie-detail-heading">
+                <p class="movie-detail-eyebrow">Movie Details</p>
+                <h3 id="movie-detail-title">@DisplayTitle</h3>
+
+                @if (!string.IsNullOrWhiteSpace(Film.Jahr))
+                {
+                    <p class="movie-detail-subtitle">Erscheinungsjahr: @Film.Jahr</p>
+                }
+            </div>
+
+            <button type="button"
+                    class="movie-detail-close"
+                    aria-label="Detailansicht schließen"
+                    @onclick="HandleClose">
+                ✕
+            </button>
+        </header>
+
+        <div class="movie-detail-body">
+            <div class="movie-detail-poster-col">
+                <div class="movie-detail-poster-shell">
+                    <img src="@PosterUrl" alt="@DisplayTitle" class="movie-detail-poster" />
+                </div>
+            </div>
+
+            <div class="movie-detail-info-col">
+                <div class="movie-detail-info-card">
+                    @if (!string.IsNullOrWhiteSpace(Film.Fsk))
+                    {
+                        <p><strong>FSK:</strong> @Film.Fsk</p>
+                    }
+
+                    @if (Film.Anbieter?.Any() == true)
+                    {
+                        <p><strong>Anbieter:</strong> @string.Join(", ", Film.Anbieter)</p>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(Film.Kategorie))
+                    {
+                        <p><strong>Kategorie:</strong> @Film.Kategorie</p>
+                    }
+
+                    @if (Film.Tags?.Any() == true)
+                    {
+                        <div class="movie-detail-taglist">
+                            @foreach (var tag in Film.Tags)
+                            {
+                                <span>@tag</span>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Film.Handlung))
+                {
+                    <div class="movie-detail-info-card">
+                        <h4>Handlung</h4>
+                        <p>@Film.Handlung</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (RelatedFilms?.Any() == true)
+        {
+            <section class="movie-detail-related">
+                <h4>Weitere Filme in dieser Reihe</h4>
+
+                <div class="movie-detail-related-grid">
+                    @foreach (var related in RelatedFilms)
+                    {
+                        <button type="button"
+                                class="movie-detail-related-card @(related.Id == Film.Id ? "is-active" : "")"
+                                @onclick="() => SelectRelated(related)">
+                            <img src="@PosterResolver.ResolvePosterUrl(related)" alt="@related.Titel" />
+                            <span>@(related.Titel ?? "Unbekannt")</span>
+                        </button>
+                    }
+                </div>
+            </section>
+        }
+    </section>
+}
+
+@code {
+    [Parameter] public Film? Film { get; set; }
+    [Parameter] public List<Film> RelatedFilms { get; set; } = new();
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<Film> OnFilmSelected { get; set; }
+
+    private string DisplayTitle => Film?.Titel ?? "Unbekannt";
+
+    private string PosterUrl
+        => Film is null
+            ? "/images/placeholder.png"
+            : (PosterResolver.ResolvePosterUrl(Film) ?? "/images/placeholder.png");
+
+    private Task HandleClose()
+        => OnClose.HasDelegate ? OnClose.InvokeAsync() : Task.CompletedTask;
+
+    private Task SelectRelated(Film film)
+        => OnFilmSelected.HasDelegate ? OnFilmSelected.InvokeAsync(film) : Task.CompletedTask;
+}
