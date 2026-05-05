@@ -6,22 +6,20 @@ namespace PrivateLibrary.Modules.Lending.Services;
 
 public sealed class LendingService : ILendingService
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
 
-    public LendingService(AppDbContext db)
+    public LendingService(IDbContextFactory<AppDbContext> dbFactory)
     {
-        _db = db;
+        _dbFactory = dbFactory;
     }
 
     public async Task<IReadOnlyList<LendingEntry>> GetAllAsync(LendingEntryStatus? statusFilter = null, CancellationToken cancellationToken = default)
     {
-        var query = _db.LendingEntries
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var items = await db.LendingEntries
             .AsNoTracking()
             .Include(x => x.Lender)
             .Include(x => x.Borrower)
-            .AsQueryable();
-
-        var items = await query
             .OrderByDescending(x => x.LoanDate)
             .ThenByDescending(x => x.Id)
             .ToListAsync(cancellationToken);
@@ -41,7 +39,8 @@ public sealed class LendingService : ILendingService
 
     public async Task<LendingEntry?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        var entry = await _db.LendingEntries
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var entry = await db.LendingEntries
             .Include(x => x.Lender)
             .Include(x => x.Borrower)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -56,18 +55,20 @@ public sealed class LendingService : ILendingService
 
     public async Task<LendingEntry> CreateAsync(LendingEntry entry, CancellationToken cancellationToken = default)
     {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         entry.CreatedAt = DateTime.UtcNow;
         entry.UpdatedAt = DateTime.UtcNow;
         entry.Status = CalculateStatus(entry);
 
-        _db.LendingEntries.Add(entry);
-        await _db.SaveChangesAsync(cancellationToken);
+        db.LendingEntries.Add(entry);
+        await db.SaveChangesAsync(cancellationToken);
         return entry;
     }
 
     public async Task<LendingEntry?> UpdateAsync(LendingEntry entry, CancellationToken cancellationToken = default)
     {
-        var existing = await _db.LendingEntries.FirstOrDefaultAsync(x => x.Id == entry.Id, cancellationToken);
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var existing = await db.LendingEntries.FirstOrDefaultAsync(x => x.Id == entry.Id, cancellationToken);
         if (existing is null)
         {
             return null;
@@ -86,20 +87,21 @@ public sealed class LendingService : ILendingService
         existing.Status = CalculateStatus(entry);
         existing.UpdatedAt = DateTime.UtcNow;
 
-        await _db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
         return existing;
     }
 
     public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-        var entry = await _db.LendingEntries.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var entry = await db.LendingEntries.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (entry is null)
         {
             return false;
         }
 
-        _db.LendingEntries.Remove(entry);
-        await _db.SaveChangesAsync(cancellationToken);
+        db.LendingEntries.Remove(entry);
+        await db.SaveChangesAsync(cancellationToken);
         return true;
     }
 

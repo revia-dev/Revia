@@ -6,16 +6,17 @@ namespace PrivateLibrary.Modules.Lending.Services;
 
 public sealed class PersonService : IPersonService
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
 
-    public PersonService(AppDbContext db)
+    public PersonService(IDbContextFactory<AppDbContext> dbFactory)
     {
-        _db = db;
+        _dbFactory = dbFactory;
     }
 
     public async Task<IReadOnlyList<Person>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await _db.People
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        return await db.People
             .AsNoTracking()
             .OrderBy(x => x.LastName)
             .ThenBy(x => x.FirstName)
@@ -25,12 +26,14 @@ public sealed class PersonService : IPersonService
 
     public async Task<Person?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        return await _db.People.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        return await db.People.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Person>> GetLookupAsync(CancellationToken cancellationToken = default)
     {
-        return await _db.People
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        return await db.People
             .AsNoTracking()
             .OrderBy(x => x.LastName)
             .ThenBy(x => x.FirstName)
@@ -46,17 +49,19 @@ public sealed class PersonService : IPersonService
 
     public async Task<Person> CreateAsync(Person person, CancellationToken cancellationToken = default)
     {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         person.CreatedAt = DateTime.UtcNow;
         person.UpdatedAt = DateTime.UtcNow;
 
-        _db.People.Add(person);
-        await _db.SaveChangesAsync(cancellationToken);
+        db.People.Add(person);
+        await db.SaveChangesAsync(cancellationToken);
         return person;
     }
 
     public async Task<Person?> UpdateAsync(Person person, CancellationToken cancellationToken = default)
     {
-        var existing = await _db.People.FirstOrDefaultAsync(x => x.Id == person.Id, cancellationToken);
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var existing = await db.People.FirstOrDefaultAsync(x => x.Id == person.Id, cancellationToken);
         if (existing is null)
         {
             return null;
@@ -74,26 +79,27 @@ public sealed class PersonService : IPersonService
         existing.Notes = person.Notes;
         existing.UpdatedAt = DateTime.UtcNow;
 
-        await _db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
         return existing;
     }
 
     public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-        var hasReferences = await _db.LendingEntries.AnyAsync(x => x.LenderId == id || x.BorrowerId == id, cancellationToken);
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var hasReferences = await db.LendingEntries.AnyAsync(x => x.LenderId == id || x.BorrowerId == id, cancellationToken);
         if (hasReferences)
         {
             return false;
         }
 
-        var person = await _db.People.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var person = await db.People.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (person is null)
         {
             return false;
         }
 
-        _db.People.Remove(person);
-        await _db.SaveChangesAsync(cancellationToken);
+        db.People.Remove(person);
+        await db.SaveChangesAsync(cancellationToken);
         return true;
     }
 }

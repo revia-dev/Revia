@@ -27,12 +27,12 @@ builder.Services.AddScoped(sp =>
 });
 
 // Neue EF-Core-/SQLite-Integration
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Neue Fach-Services
-builder.Services.AddScoped<ILendingService, LendingService>();
-builder.Services.AddScoped<IPersonService, PersonService>();
+builder.Services.AddTransient<ILendingService, LendingService>();
+builder.Services.AddTransient<IPersonService, PersonService>();
 
 var app = builder.Build();
 
