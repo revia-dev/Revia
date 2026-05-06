@@ -9,6 +9,7 @@ public interface ILendingService
     Task<LendingEntry> CreateAsync(LendingEntry entry, CancellationToken cancellationToken = default);
     Task<LendingEntry?> UpdateAsync(LendingEntry entry, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default);
+    Task<LendingDashboardStats> GetDashboardStatsAsync(CancellationToken cancellationToken = default);
     LendingEntryStatus CalculateStatus(LendingEntry entry);
     void ApplyCalculatedStatus(LendingEntry entry);
 }

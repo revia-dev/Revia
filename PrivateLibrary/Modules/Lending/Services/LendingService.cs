@@ -105,6 +105,33 @@ public sealed class LendingService : ILendingService
         return true;
     }
 
+    public async Task<LendingDashboardStats> GetDashboardStatsAsync(CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+
+        var allEntries = await db.LendingEntries
+            .AsNoTracking()
+            .Include(x => x.Lender)
+            .Include(x => x.Borrower)
+            .OrderByDescending(x => x.LoanDate)
+            .ToListAsync(cancellationToken);
+
+        foreach (var e in allEntries)
+            e.Status = CalculateStatus(e);
+
+        var totalPersons = await db.People.CountAsync(cancellationToken);
+
+        return new LendingDashboardStats
+        {
+            TotalActive   = allEntries.Count(e => e.Status == LendingEntryStatus.Active),
+            TotalOverdue  = allEntries.Count(e => e.Status == LendingEntryStatus.Overdue),
+            TotalReturned = allEntries.Count(e => e.Status == LendingEntryStatus.Returned),
+            TotalPersons  = totalPersons,
+            RecentEntries = allEntries.Take(5).ToList(),
+            OverdueEntries = allEntries.Where(e => e.Status == LendingEntryStatus.Overdue).ToList()
+        };
+    }
+
     public LendingEntryStatus CalculateStatus(LendingEntry entry)
     {
         if (entry.ReturnedAt.HasValue)

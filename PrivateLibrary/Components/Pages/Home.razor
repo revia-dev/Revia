@@ -1,7 +1,184 @@
-﻿@page "/"
+@page "/"
+@using PrivateLibrary.Modules.Lending.Models
+@inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dashboard</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="page-shell">
+    <div class="page-header glass-card">
+        <div>
+            <h1>Dashboard</h1>
+            <p>Übersicht über alle Ausleihen und Personen.</p>
+        </div>
+        <div class="header-actions">
+            <a class="btn btn-primary btn-modern" href="/lending/new">Neu anlegen</a>
+            <a class="btn btn-outline-secondary btn-modern" href="/lending">Alle Ausleihen</a>
+        </div>
+    </div>
 
-Welcome to your new app.
+    @if (_stats is null)
+    {
+        <div class="glass-card loading-card">Lade Dashboard...</div>
+    }
+    else
+    {
+        <div class="dashboard-kpis">
+            <div class="kpi-card kpi-active">
+                <div class="kpi-value">@_stats.TotalActive</div>
+                <div class="kpi-label">Aktive Ausleihen</div>
+            </div>
+            <div class="kpi-card kpi-overdue">
+                <div class="kpi-value">@_stats.TotalOverdue</div>
+                <div class="kpi-label">Überfällig</div>
+            </div>
+            <div class="kpi-card kpi-returned">
+                <div class="kpi-value">@_stats.TotalReturned</div>
+                <div class="kpi-label">Zurückgegeben</div>
+            </div>
+            <div class="kpi-card kpi-persons">
+                <div class="kpi-value">@_stats.TotalPersons</div>
+                <div class="kpi-label">Personen</div>
+            </div>
+        </div>
+
+        @if (_stats.OverdueEntries.Count > 0)
+        {
+            <div class="glass-card dashboard-section">
+                <h2 class="section-title overdue-title">⚠ Überfällige Ausleihen</h2>
+                <table class="table lending-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Gegenstand</th>
+                            <th>Entleiher</th>
+                            <th>Fällig seit</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in _stats.OverdueEntries)
+                        {
+                            <tr class="row-overdue">
+                                <td>@item.ItemName</td>
+                                <td>@item.Borrower?.DisplayName</td>
+                                <td>@(item.DueDate.HasValue ? item.DueDate.Value.ToString("dd.MM.yyyy") : "-")</td>
+                                <td>
+                                    <a class="btn btn-sm btn-outline-primary" href="@($"/lending/edit/{item.Id}")">Bearbeiten</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="glass-card dashboard-section">
+            <h2 class="section-title">Zuletzt hinzugefügt</h2>
+            @if (_stats.RecentEntries.Count == 0)
+            {
+                <p class="empty-hint">Noch keine Ausleihen vorhanden. <a href="/lending/new">Jetzt anlegen</a>.</p>
+            }
+            else
+            {
+                <table class="table lending-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Gegenstand</th>
+                            <th>Verleiher</th>
+                            <th>Entleiher</th>
+                            <th>Ausleihdatum</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in _stats.RecentEntries)
+                        {
+                            <tr>
+                                <td>@item.ItemName</td>
+                                <td>@item.Lender?.DisplayName</td>
+                                <td>@item.Borrower?.DisplayName</td>
+                                <td>@item.LoanDate.ToString("dd.MM.yyyy")</td>
+                                <td><LendingStatusBadge Status="@item.Status" /></td>
+                                <td>
+                                    <a class="btn btn-sm btn-outline-primary" href="@($"/lending/{item.Id}")">Details</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <div class="dashboard-footer">
+                    <a href="/lending" class="btn btn-outline-secondary btn-modern">Alle Ausleihen anzeigen →</a>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .dashboard-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .kpi-card {
+        background: var(--glass-bg, rgba(255,255,255,0.08));
+        border: 1px solid var(--glass-border, rgba(255,255,255,0.15));
+        border-radius: 12px;
+        padding: 1.5rem 1rem;
+        text-align: center;
+    }
+
+    .kpi-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.4rem;
+    }
+
+    .kpi-label {
+        font-size: 0.85rem;
+        opacity: 0.7;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .kpi-active .kpi-value   { color: #4caf81; }
+    .kpi-overdue .kpi-value  { color: #e05c5c; }
+    .kpi-returned .kpi-value { color: #7a9fcb; }
+    .kpi-persons .kpi-value  { color: #b07fd4; }
+
+    .dashboard-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .overdue-title { color: #e05c5c; }
+
+    .row-overdue td { color: #e05c5c; }
+
+    .empty-hint {
+        opacity: 0.6;
+        padding: 1rem 0;
+    }
+
+    .dashboard-footer {
+        margin-top: 1rem;
+        text-align: right;
+    }
+</style>
+
+@code {
+    private LendingDashboardStats? _stats;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _stats = await LendingService.GetDashboardStatsAsync();
+    }
+}
