@@ -4,15 +4,14 @@
 @inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
 @inject NavigationManager Navigation
 
-<PageTitle>Lending</PageTitle>
+<PageTitle>Ausleihen</PageTitle>
 
 <div class="page-shell">
     <div class="page-header glass-card">
         <div>
-            <h1>Lending</h1>
+            <h1>Ausleihen</h1>
             <p>Verliehene und geliehene Gegenstände verwalten.</p>
         </div>
-
         <div class="header-actions">
             <a class="btn btn-primary btn-modern" href="/lending/new">Neu anlegen</a>
             <a class="btn btn-outline-secondary btn-modern" href="/lending/persons">Personen</a>
@@ -23,9 +22,11 @@
         <label>Status filtern</label>
         <select class="form-select" @onchange="OnStatusChanged">
             <option value="">Alle</option>
-            <option value="@LendingEntryStatus.Active" selected="@(StatusFilter == LendingEntryStatus.Active)">Aktiv</option>
-            <option value="@LendingEntryStatus.Overdue" selected="@(StatusFilter == LendingEntryStatus.Overdue)">Überfällig</option>
-            <option value="@LendingEntryStatus.Returned" selected="@(StatusFilter == LendingEntryStatus.Returned)">Zurückgegeben</option>
+            <option value="@LendingEntryStatus.Active">Aktiv</option>
+            <option value="@LendingEntryStatus.Overdue">Überfällig</option>
+            <option value="@LendingEntryStatus.Returned">Zurückgegeben</option>
+            <option value="@LendingEntryStatus.Lost">Verloren</option>
+            <option value="@LendingEntryStatus.GivenAway">Verschenkt</option>
         </select>
     </div>
 
@@ -35,7 +36,10 @@
     }
     else if (_items.Count == 0)
     {
-        <div class="glass-card empty-card">Keine Lending-Einträge vorhanden.</div>
+        <div class="glass-card empty-card">
+            <p>Keine Ausleihen vorhanden.</p>
+            <a class="btn btn-primary btn-modern" href="/lending/new">Erste Ausleihe anlegen</a>
+        </div>
     }
     else
     {
@@ -44,12 +48,11 @@
                 <thead>
                     <tr>
                         <th>Gegenstand</th>
-                        <th>Titel</th>
                         <th>Verleiher</th>
                         <th>Entleiher</th>
-                        <th>LoanDate</th>
-                        <th>DueDate</th>
-                        <th>ReturnedAt</th>
+                        <th>Ausleihdatum</th>
+                        <th>Fällig am</th>
+                        <th>Rückgabe</th>
                         <th>Status</th>
                         <th></th>
                     </tr>
@@ -57,23 +60,25 @@
                 <tbody>
                     @foreach (var item in _items)
                     {
-                        <tr>
+                        <tr class="table-row-clickable @(item.Status == LendingEntryStatus.Overdue ? "row-overdue" : "")" @onclick="() => OnRowClick(item.Id)">
                             <td>
                                 <div class="item-title">@item.ItemName</div>
                                 @if (!string.IsNullOrWhiteSpace(item.Category))
                                 {
-                                    <div class="muted">@item.Category</div>
+                                    <div class="text-muted small">@item.Category</div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(item.Title))
+                                {
+                                    <div class="text-muted small">@item.Title</div>
                                 }
                             </td>
-                            <td>@item.Title</td>
                             <td>@item.Lender?.DisplayName</td>
                             <td>@item.Borrower?.DisplayName</td>
                             <td>@item.LoanDate.ToString("dd.MM.yyyy")</td>
                             <td>@(item.DueDate.HasValue ? item.DueDate.Value.ToString("dd.MM.yyyy") : "-")</td>
                             <td>@(item.ReturnedAt.HasValue ? item.ReturnedAt.Value.ToString("dd.MM.yyyy") : "-")</td>
                             <td><LendingStatusBadge Status="@item.Status" /></td>
-                            <td class="actions">
-                                <a class="btn btn-sm btn-outline-primary" href="@($"/lending/{item.Id}")">Details</a>
+                            <td class="actions" @onclick:stopPropagation="true">
                                 <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/edit/{item.Id}")">Bearbeiten</a>
                                 <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(item.Id)">Löschen</button>
                             </td>
@@ -84,6 +89,19 @@
         </div>
     }
 </div>
+
+<style>
+    .table-row-clickable {
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+    }
+    .table-row-clickable:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    .row-overdue td:not(.actions) {
+        color: #e05c5c;
+    }
+</style>
 
 @code {
     private IReadOnlyList<LendingEntry>? _items;
@@ -106,8 +124,13 @@
         await LoadAsync();
     }
 
+    private void OnRowClick(int id)
+    {
+        Navigation.NavigateTo("/lending/" + id);
+    }
+
     private void ConfirmDelete(int id)
     {
-        Navigation.NavigateTo($"/lending/delete/{id}");
+        Navigation.NavigateTo("/lending/delete/" + id);
     }
 }
