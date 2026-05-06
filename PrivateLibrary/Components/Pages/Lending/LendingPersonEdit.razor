@@ -3,6 +3,7 @@
 @using PrivateLibrary.Modules.Lending.Models
 @using Microsoft.AspNetCore.Components.Forms
 @inject PrivateLibrary.Modules.Lending.Services.IPersonService PersonService
+@inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
 @inject NavigationManager Navigation
 
 <PageTitle>@(_id.HasValue ? "Person bearbeiten" : "Neue Person")</PageTitle>
@@ -145,6 +146,7 @@
         else
             await PersonService.UpdateAsync(entity);
 
+        ToastService.Success(_id.HasValue ? "Änderungen gespeichert." : "Person erfolgreich angelegt.");
         Navigation.NavigateTo("/lending/persons");
     }
 }

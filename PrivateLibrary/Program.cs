@@ -33,6 +33,7 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 // Neue Fach-Services
 builder.Services.AddTransient<ILendingService, LendingService>();
 builder.Services.AddTransient<IPersonService, PersonService>();
+builder.Services.AddScoped<PrivateLibrary.Modules.Lending.Services.ToastService>();
 
 var app = builder.Build();
 

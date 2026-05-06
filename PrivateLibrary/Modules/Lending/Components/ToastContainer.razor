@@ -1,0 +1,52 @@
+@using PrivateLibrary.Modules.Lending.Services
+@inject ToastService ToastService
+@implements IDisposable
+
+@foreach (var toast in _toasts)
+{
+    <div class="toast-item toast-@toast.Type.ToString().ToLower() @(toast.Visible ? "toast-visible" : "")"
+         role="alert" aria-live="polite">
+        <span class="toast-icon">
+            @if (toast.Type == ToastType.Success) { <span>✓</span> }
+            else if (toast.Type == ToastType.Error) { <span>✕</span> }
+            else { <span>ℹ</span> }
+        </span>
+        <span class="toast-text">@toast.Text</span>
+    </div>
+}
+
+@code {
+    private readonly List<ActiveToast> _toasts = new();
+
+    protected override void OnInitialized()
+        => ToastService.OnShow += HandleShow;
+
+    private void HandleShow(ToastMessage msg)
+    {
+        var toast = new ActiveToast(msg.Text, msg.Type);
+        _toasts.Add(toast);
+        InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await Task.Delay(50);
+            toast.Visible = true;
+            StateHasChanged();
+            await Task.Delay(3500);
+            toast.Visible = false;
+            StateHasChanged();
+            await Task.Delay(400);
+            _toasts.Remove(toast);
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+        => ToastService.OnShow -= HandleShow;
+
+    private class ActiveToast(string text, ToastType type)
+    {
+        public string Text { get; } = text;
+        public ToastType Type { get; } = type;
+        public bool Visible { get; set; }
+    }
+}

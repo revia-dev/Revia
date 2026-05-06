@@ -4,14 +4,15 @@
 @using Microsoft.AspNetCore.Components.Forms
 @inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
 @inject PrivateLibrary.Modules.Lending.Services.IPersonService PersonService
+@inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
 @inject NavigationManager Navigation
 
-<PageTitle>@(_id.HasValue ? "Lending bearbeiten" : "Neuer Lending-Eintrag")</PageTitle>
+<PageTitle>@(_id.HasValue ? "Ausleih-Eintrag bearbeiten" : "Neuer Ausleih-Eintrag")</PageTitle>
 
 <div class="page-shell">
     <div class="glass-card page-header">
         <div>
-            <h1>@(_id.HasValue ? "Lending bearbeiten" : "Neuer Lending-Eintrag")</h1>
+            <h1>@(_id.HasValue ? "Ausleih-Eintrag bearbeiten" : "Neuer Ausleih-Eintrag")</h1>
             <p>Eintrag erfassen oder bearbeiten.</p>
         </div>
         <a class="btn btn-outline-secondary btn-modern" href="/lending/persons/new">Neue Person</a>
@@ -177,12 +178,14 @@
         if (entity.Id == 0)
         {
             var created = await LendingService.CreateAsync(entity);
-            Navigation.NavigateTo($"/lending/{created.Id}");
+            ToastService.Success("Eintrag erfolgreich angelegt.");
+            Navigation.NavigateTo("/lending/" + created.Id);
         }
         else
         {
             await LendingService.UpdateAsync(entity);
-            Navigation.NavigateTo($"/lending/{entity.Id}");
+            ToastService.Success("Änderungen gespeichert.");
+            Navigation.NavigateTo("/lending/" + entity.Id);
         }
     }
 }
