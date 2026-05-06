@@ -37,6 +37,14 @@ builder.Services.AddScoped<PrivateLibrary.Modules.Lending.Services.ToastService>
 
 var app = builder.Build();
 
+// Datenbank automatisch migrieren beim Start
+using (var scope = app.Services.CreateScope())
+{
+    var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+    await using var db = await dbContextFactory.CreateDbContextAsync();
+    await db.Database.MigrateAsync();
+}
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
