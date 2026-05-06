@@ -12,3 +12,7 @@ obj/
 # Rider / VS Code
 .idea/
 .vscode/
+
+# macOS
+.DS_Store
+**/.DS_Store
