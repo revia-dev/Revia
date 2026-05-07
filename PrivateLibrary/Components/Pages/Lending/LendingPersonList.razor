@@ -6,25 +6,25 @@
 <PageTitle>Personen</PageTitle>
 
 <div class="page-shell">
-    <div class="glass-card page-header">
+    <div class="page-header glass-card">
         <div>
             <h1>Personen</h1>
             <p>Verleiher und Entleiher verwalten.</p>
         </div>
-        <a class="btn btn-primary btn-modern" href="/lending/persons/new">Neu anlegen</a>
+        <a class="btn btn-primary" href="/lending/persons/new">Neu anlegen</a>
     </div>
 
     @if (_people is null)
     {
-        <div class="glass-card loading-card">Lade Personen...</div>
+        <div class="glass-card ui-section">Lade Personen...</div>
     }
     else if (_people.Count == 0)
     {
-        <div class="glass-card empty-card">Noch keine Personen vorhanden.</div>
+        <div class="glass-card ui-section">Noch keine Personen vorhanden.</div>
     }
     else
     {
-        <div class="glass-card table-card">
+        <div class="glass-card ui-section ui-stack">
             <div class="toolbar">
                 <div class="search-box">
                     <label class="search-label" for="person-search">Suche</label>
@@ -40,38 +40,58 @@
 
             @if (!FilteredPeople.Any())
             {
-                <div class="empty-filter-state">
-                    Keine Personen zum aktuellen Suchbegriff gefunden.
-                </div>
+                <div class="glass-card ui-section">Keine Personen zum aktuellen Suchbegriff gefunden.</div>
             }
             else
             {
-                <table class="table align-middle">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Kontakt</th>
-                            <th>Ort</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var person in FilteredPeople)
-                        {
+                <div class="ui-table-wrap ui-desktop-table">
+                    <table class="table ui-data-table align-middle">
+                        <thead>
                             <tr>
-                                <td>
-                                    <div class="item-title">@person.DisplayName</div>
-                                </td>
-                                <td>@person.Email<br />@person.Phone</td>
-                                <td>@person.PostalCode @person.City</td>
-                                <td class="actions">
-                                    <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/persons/edit/{person.Id}")">Bearbeiten</a>
-                                    <a class="btn btn-sm btn-outline-danger" href="@($"/lending/persons/delete/{person.Id}")">Löschen</a>
-                                </td>
+                                <th>Name</th>
+                                <th>Kontakt</th>
+                                <th>Ort</th>
+                                <th></th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach (var person in FilteredPeople)
+                            {
+                                <tr>
+                                    <td><div class="item-title">@person.DisplayName</div></td>
+                                    <td>@ValueOrFallback(person.Email)<br />@ValueOrFallback(person.Phone)</td>
+                                    <td>@FormatLocation(person)</td>
+                                    <td class="actions">
+                                        <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/persons/edit/{person.Id}")">Bearbeiten</a>
+                                        <a class="btn btn-sm btn-outline-danger" href="@($"/lending/persons/delete/{person.Id}")">Löschen</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="ui-mobile-cards">
+                    @foreach (var person in FilteredPeople)
+                    {
+                        <article class="ui-mobile-card">
+                            <div class="ui-mobile-card-head">
+                                <div>
+                                    <div class="ui-mobile-card-title">@person.DisplayName</div>
+                                    <div class="ui-mobile-card-subtitle">@FormatLocation(person)</div>
+                                </div>
+                            </div>
+                            <div class="ui-mobile-meta">
+                                <div class="ui-mobile-meta-row"><span>E-Mail</span><span>@ValueOrFallback(person.Email)</span></div>
+                                <div class="ui-mobile-meta-row"><span>Telefon</span><span>@ValueOrFallback(person.Phone)</span></div>
+                            </div>
+                            <div class="table-actions">
+                                <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/persons/edit/{person.Id}")">Bearbeiten</a>
+                                <a class="btn btn-sm btn-outline-danger" href="@($"/lending/persons/delete/{person.Id}")">Löschen</a>
+                            </div>
+                        </article>
+                    }
+                </div>
             }
         </div>
     }
@@ -97,4 +117,13 @@
     private bool Matches(string? value)
         => !string.IsNullOrWhiteSpace(value)
            && value.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase);
+
+    private static string ValueOrFallback(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private static string FormatLocation(Person person)
+    {
+        var location = $"{person.PostalCode} {person.City}".Trim();
+        return string.IsNullOrWhiteSpace(location) ? "-" : location;
+    }
 }

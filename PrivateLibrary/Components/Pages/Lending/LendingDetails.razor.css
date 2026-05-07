@@ -1,14 +1,26 @@
+:root {
+    --page-bg: #ffffff;
+    --page-panel-bg: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --page-bg: #000000;
+        --page-panel-bg: #000000;
+    }
+}
+
 .page-shell {
     display: grid;
     gap: 1rem;
+    background: var(--page-bg);
 }
 
 .glass-card {
-    background: rgba(255, 255, 255, .72);
-    backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, .45);
+    background: var(--page-panel-bg);
+    border: 1px solid var(--border);
     border-radius: 24px;
-    box-shadow: 0 18px 40px rgba(15, 23, 42, .08);
+    box-shadow: none;
     padding: 1.25rem;
 }
 
@@ -26,7 +38,7 @@
 
 .detail-top p {
     margin: .35rem 0 0;
-    color: #64748b;
+    color: var(--text-muted);
 }
 
 .detail-grid {
@@ -38,12 +50,12 @@
 
 .detail-grid dt {
     font-weight: 700;
-    color: #475569;
+    color: var(--text-soft);
 }
 
 .detail-grid dd {
     margin: 0;
-    color: #0f172a;
+    color: var(--text);
 }
 
 .actions {
@@ -58,13 +70,14 @@
 }
 
 .btn-success {
-    background: linear-gradient(135deg, #16a34a, #15803d);
-    border: none;
+    background: var(--success);
+    border: 1px solid var(--success);
     color: #fff;
 }
 
 .btn-success:hover {
-    background: linear-gradient(135deg, #15803d, #166534);
+    background: color-mix(in srgb, var(--success) 88%, #000 12%);
+    border-color: color-mix(in srgb, var(--success) 88%, #000 12%);
     color: #fff;
 }
 

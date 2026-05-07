@@ -1,6 +1,31 @@
+:root {
+    --page-bg: #ffffff;
+    --page-panel-bg: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --page-bg: #000000;
+        --page-panel-bg: #000000;
+    }
+}
+
 .page-shell {
     display: grid;
     gap: 1rem;
+    background: var(--page-bg);
+}
+
+.page-header,
+.filter-bar,
+.table-card,
+.loading-card,
+.empty-card,
+.glass-card {
+    background: var(--page-panel-bg);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    box-shadow: none;
 }
 
 .page-header,
@@ -9,14 +34,6 @@
 .loading-card,
 .empty-card {
     padding: 1.25rem;
-}
-
-.glass-card {
-    background: rgba(255, 255, 255, .72);
-    backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, .45);
-    border-radius: 24px;
-    box-shadow: 0 18px 40px rgba(15, 23, 42, .08);
 }
 
 .page-header {
@@ -34,7 +51,7 @@
 
 .page-header p {
     margin: .35rem 0 0;
-    color: #64748b;
+    color: var(--text-muted);
 }
 
 .header-actions,
@@ -67,12 +84,12 @@
 
 .filter-bar label {
     font-weight: 600;
-    color: #334155;
+    color: var(--text);
 }
 
 .result-count {
     margin-left: auto;
-    color: #64748b;
+    color: var(--text-muted);
     font-size: .95rem;
     white-space: nowrap;
 }
@@ -82,7 +99,7 @@
 }
 
 .lending-table th {
-    color: #475569;
+    color: var(--text-soft);
     font-size: .85rem;
     font-weight: 700;
 }
@@ -92,6 +109,6 @@
 }
 
 .muted {
-    color: #64748b;
+    color: var(--text-muted);
     font-size: .9rem;
 }
