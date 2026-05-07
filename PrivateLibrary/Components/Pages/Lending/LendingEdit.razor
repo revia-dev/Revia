@@ -78,16 +78,16 @@
                     <div class="field">
                         <label>Tatsächliche Rückgabe</label>
                         <InputDate class="form-control" @bind-Value="_model.ReturnedAt" />
+                        <ValidationMessage For="@(() => _model.ReturnedAt)" />
                     </div>
                     <div class="field">
                         <label>Status</label>
                         <InputSelect class="form-select" @bind-Value="_model.Status">
                             <option value="@LendingEntryStatus.Active">Aktiv</option>
-                            <option value="@LendingEntryStatus.Overdue">Überfällig</option>
-                            <option value="@LendingEntryStatus.Returned">Zurückgegeben</option>
                             <option value="@LendingEntryStatus.Lost">Verloren</option>
                             <option value="@LendingEntryStatus.GivenAway">Verschenkt</option>
                         </InputSelect>
+                        <small class="text-muted">Überfällig und Zurückgegeben werden automatisch anhand der Daten gesetzt.</small>
                     </div>
                     <div class="field field-wide">
                         <label>Beschreibung</label>
