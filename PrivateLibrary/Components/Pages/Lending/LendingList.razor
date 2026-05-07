@@ -19,15 +19,29 @@
     </div>
 
     <div class="glass-card filter-bar">
-        <label>Status filtern</label>
-        <select class="form-select" @onchange="OnStatusChanged">
-            <option value="">Alle</option>
-            <option value="@LendingEntryStatus.Active">Aktiv</option>
-            <option value="@LendingEntryStatus.Overdue">Überfällig</option>
-            <option value="@LendingEntryStatus.Returned">Zurückgegeben</option>
-            <option value="@LendingEntryStatus.Lost">Verloren</option>
-            <option value="@LendingEntryStatus.GivenAway">Verschenkt</option>
-        </select>
+        <div class="filter-field search-field">
+            <label for="lending-search">Suche</label>
+            <input id="lending-search"
+                   class="form-control"
+                   type="search"
+                   placeholder="Gegenstand, Titel, Kategorie oder Person durchsuchen"
+                   @bind="_searchTerm"
+                   @bind:event="oninput" />
+        </div>
+
+        <div class="filter-field status-field">
+            <label for="status-filter">Status filtern</label>
+            <select id="status-filter" class="form-select" @onchange="OnStatusChanged">
+                <option value="">Alle</option>
+                <option value="@LendingEntryStatus.Active">Aktiv</option>
+                <option value="@LendingEntryStatus.Overdue">Überfällig</option>
+                <option value="@LendingEntryStatus.Returned">Zurückgegeben</option>
+                <option value="@LendingEntryStatus.Lost">Verloren</option>
+                <option value="@LendingEntryStatus.GivenAway">Verschenkt</option>
+            </select>
+        </div>
+
+        <div class="result-count">@FilteredItems.Count() Einträge</div>
     </div>
 
     @if (_items is null)
@@ -39,6 +53,12 @@
         <div class="glass-card empty-card">
             <p>Keine Ausleihen vorhanden.</p>
             <a class="btn btn-primary btn-modern" href="/lending/new">Erste Ausleihe anlegen</a>
+        </div>
+    }
+    else if (!FilteredItems.Any())
+    {
+        <div class="glass-card empty-card">
+            <p>Keine Ausleihen zum aktuellen Suchbegriff gefunden.</p>
         </div>
     }
     else
@@ -58,7 +78,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var item in _items)
+                    @foreach (var item in FilteredItems)
                     {
                         <tr class="table-row-clickable @(item.Status == LendingEntryStatus.Overdue ? "row-overdue" : "")" @onclick="() => OnRowClick(item.Id)">
                             <td>
@@ -106,6 +126,15 @@
 @code {
     private IReadOnlyList<LendingEntry>? _items;
     private LendingEntryStatus? StatusFilter;
+    private string _searchTerm = string.Empty;
+
+    private IEnumerable<LendingEntry> FilteredItems => (_items ?? Array.Empty<LendingEntry>())
+        .Where(item => string.IsNullOrWhiteSpace(_searchTerm)
+            || Matches(item.ItemName)
+            || Matches(item.Title)
+            || Matches(item.Category)
+            || Matches(item.Lender?.DisplayName)
+            || Matches(item.Borrower?.DisplayName));
 
     protected override async Task OnInitializedAsync()
     {
@@ -123,6 +152,10 @@
         StatusFilter = Enum.TryParse<LendingEntryStatus>(value, out var parsed) ? parsed : null;
         await LoadAsync();
     }
+
+    private bool Matches(string? value)
+        => !string.IsNullOrWhiteSpace(value)
+           && value.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase);
 
     private void OnRowClick(int id)
     {
