@@ -42,6 +42,39 @@
             </article>
         </section>
 
+        <section class="glass-card ui-section ui-stack dashboard-chart-section">
+            <div>
+                <h2 class="ui-section-title">Statusverteilung</h2>
+                <p class="section-subtitle">Vergleich von aktiven und bereits zurückgegebenen Ausleihen.</p>
+            </div>
+
+            <div class="dashboard-chart-layout">
+                <div class="dashboard-chart-bars" role="img" aria-label="Diagramm mit aktiven und zurückgegebenen Ausleihen">
+                    <div class="dashboard-chart-bar-group">
+                        <div class="dashboard-chart-value">@_stats.TotalActive</div>
+                        <div class="dashboard-chart-bar dashboard-chart-bar-active" style="height: @GetChartHeight(_stats.TotalActive)%"></div>
+                        <div class="dashboard-chart-label">Aktiv</div>
+                    </div>
+                    <div class="dashboard-chart-bar-group">
+                        <div class="dashboard-chart-value">@_stats.TotalReturned</div>
+                        <div class="dashboard-chart-bar dashboard-chart-bar-returned" style="height: @GetChartHeight(_stats.TotalReturned)%"></div>
+                        <div class="dashboard-chart-label">Zurückgegeben</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-chart-summary">
+                    <div class="dashboard-chart-summary-item">
+                        <span class="dashboard-chart-dot dashboard-chart-dot-active"></span>
+                        <span>@GetShareText(_stats.TotalActive) aktiv</span>
+                    </div>
+                    <div class="dashboard-chart-summary-item">
+                        <span class="dashboard-chart-dot dashboard-chart-dot-returned"></span>
+                        <span>@GetShareText(_stats.TotalReturned) zurückgegeben</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         @if (_stats.OverdueEntries.Count > 0)
         {
             <section class="glass-card ui-section ui-stack">
@@ -186,6 +219,99 @@
     }
 </div>
 
+<style>
+    .dashboard-chart-layout {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+        align-items: center;
+    }
+
+    .dashboard-chart-bars {
+        display: flex;
+        align-items: end;
+        justify-content: center;
+        gap: 2rem;
+        min-height: 260px;
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        background: var(--surface-soft);
+    }
+
+    .dashboard-chart-bar-group {
+        display: grid;
+        gap: 0.75rem;
+        justify-items: center;
+        width: min(140px, 100%);
+    }
+
+    .dashboard-chart-value {
+        font-size: 1.4rem;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+    }
+
+    .dashboard-chart-bar {
+        width: 100%;
+        min-height: 18px;
+        border-radius: 22px 22px 10px 10px;
+        align-self: end;
+    }
+
+    .dashboard-chart-bar-active {
+        background: var(--accent);
+    }
+
+    .dashboard-chart-bar-returned {
+        background: var(--success);
+    }
+
+    .dashboard-chart-label {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        text-align: center;
+    }
+
+    .dashboard-chart-summary {
+        display: grid;
+        gap: 0.75rem;
+        align-content: start;
+    }
+
+    .dashboard-chart-summary-item {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: var(--surface-soft);
+        color: var(--text);
+    }
+
+    .dashboard-chart-dot {
+        width: 0.85rem;
+        height: 0.85rem;
+        border-radius: 999px;
+        flex: 0 0 auto;
+    }
+
+    .dashboard-chart-dot-active {
+        background: var(--accent);
+    }
+
+    .dashboard-chart-dot-returned {
+        background: var(--success);
+    }
+
+    @@media (max-width: 900px) {
+        .dashboard-chart-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
 @code {
     private LendingDashboardStats? _stats;
 
@@ -232,6 +358,39 @@
 
         ToastService.Success("Eintrag als zurückgegeben markiert.");
         await LoadAsync();
+    }
+
+    private int GetChartHeight(int value)
+    {
+        if (_stats is null)
+        {
+            return 0;
+        }
+
+        var max = Math.Max(_stats.TotalActive, _stats.TotalReturned);
+        if (max <= 0)
+        {
+            return 18;
+        }
+
+        return Math.Max(18, (int)Math.Round((double)value / max * 100));
+    }
+
+    private string GetShareText(int value)
+    {
+        if (_stats is null)
+        {
+            return "0 %";
+        }
+
+        var total = _stats.TotalActive + _stats.TotalReturned;
+        if (total <= 0)
+        {
+            return "0 %";
+        }
+
+        var percentage = (double)value / total * 100;
+        return $"{Math.Round(percentage, 1):0.#} %";
     }
 
     private static string FormatDate(DateTime? value)
