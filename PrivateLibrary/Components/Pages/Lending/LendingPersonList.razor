@@ -1,6 +1,5 @@
 @page "/lending/persons"
 @using PrivateLibrary.Modules.Lending.Models
-@using PrivateLibrary.Modules.Lending.Models
 @inject PrivateLibrary.Modules.Lending.Services.IPersonService PersonService
 @inject NavigationManager Navigation
 
@@ -26,41 +25,76 @@
     else
     {
         <div class="glass-card table-card">
-            <table class="table align-middle">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Kontakt</th>
-                        <th>Ort</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var person in _people)
-                    {
+            <div class="toolbar">
+                <div class="search-box">
+                    <label class="search-label" for="person-search">Suche</label>
+                    <input id="person-search"
+                           class="form-control search-input"
+                           type="search"
+                           placeholder="Name, E-Mail, Telefon oder Ort durchsuchen"
+                           @bind="_searchTerm"
+                           @bind:event="oninput" />
+                </div>
+                <div class="result-count">@FilteredPeople.Count() Personen</div>
+            </div>
+
+            @if (!FilteredPeople.Any())
+            {
+                <div class="empty-filter-state">
+                    Keine Personen zum aktuellen Suchbegriff gefunden.
+                </div>
+            }
+            else
+            {
+                <table class="table align-middle">
+                    <thead>
                         <tr>
-                            <td>
-                                <div class="item-title">@person.DisplayName</div>
-                            </td>
-                            <td>@person.Email<br />@person.Phone</td>
-                            <td>@person.PostalCode @person.City</td>
-                            <td class="actions">
-                                <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/persons/edit/{person.Id}")">Bearbeiten</a>
-                                <a class="btn btn-sm btn-outline-danger" href="@($"/lending/persons/delete/{person.Id}")">Löschen</a>
-                            </td>
+                            <th>Name</th>
+                            <th>Kontakt</th>
+                            <th>Ort</th>
+                            <th></th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var person in FilteredPeople)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="item-title">@person.DisplayName</div>
+                                </td>
+                                <td>@person.Email<br />@person.Phone</td>
+                                <td>@person.PostalCode @person.City</td>
+                                <td class="actions">
+                                    <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/persons/edit/{person.Id}")">Bearbeiten</a>
+                                    <a class="btn btn-sm btn-outline-danger" href="@($"/lending/persons/delete/{person.Id}")">Löschen</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
         </div>
     }
 </div>
 
 @code {
     private IReadOnlyList<Person>? _people;
+    private string _searchTerm = string.Empty;
+
+    private IEnumerable<Person> FilteredPeople => (_people ?? Array.Empty<Person>())
+        .Where(person => string.IsNullOrWhiteSpace(_searchTerm)
+            || Matches(person.DisplayName)
+            || Matches(person.Email)
+            || Matches(person.Phone)
+            || Matches($"{person.PostalCode} {person.City}")
+            || Matches(person.City));
 
     protected override async Task OnInitializedAsync()
     {
         _people = await PersonService.GetAllAsync();
     }
+
+    private bool Matches(string? value)
+        => !string.IsNullOrWhiteSpace(value)
+           && value.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase);
 }
