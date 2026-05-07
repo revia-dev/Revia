@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Components
 @using PrivateLibrary.Modules.Lending.Models
 @inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
+@inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
 @inject NavigationManager Navigation
 
 <PageTitle>Ausleihen</PageTitle>
@@ -99,6 +100,10 @@
                             <td>@(item.ReturnedAt.HasValue ? item.ReturnedAt.Value.ToString("dd.MM.yyyy") : "-")</td>
                             <td><LendingStatusBadge Status="@item.Status" /></td>
                             <td class="actions" @onclick:stopPropagation="true">
+                                @if (CanBeMarkedAsReturned(item))
+                                {
+                                    <button class="btn btn-sm btn-success" @onclick="() => MarkAsReturnedAsync(item)">Zurückgegeben</button>
+                                }
                                 <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/edit/{item.Id}")">Bearbeiten</a>
                                 <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(item.Id)">Löschen</button>
                             </td>
@@ -120,6 +125,16 @@
     }
     .row-overdue td:not(.actions) {
         color: #e05c5c;
+    }
+    .btn-success {
+        background: #198754;
+        border-color: #198754;
+        color: #fff;
+    }
+    .btn-success:hover {
+        background: #157347;
+        border-color: #157347;
+        color: #fff;
     }
 </style>
 
@@ -156,6 +171,41 @@
     private bool Matches(string? value)
         => !string.IsNullOrWhiteSpace(value)
            && value.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase);
+
+    private static bool CanBeMarkedAsReturned(LendingEntry item)
+        => !item.ReturnedAt.HasValue
+           && item.Status is not LendingEntryStatus.Returned
+           && item.Status is not LendingEntryStatus.GivenAway
+           && item.Status is not LendingEntryStatus.Lost;
+
+    private async Task MarkAsReturnedAsync(LendingEntry item)
+    {
+        var updatedEntry = new LendingEntry
+        {
+            Id = item.Id,
+            Title = item.Title,
+            Description = item.Description,
+            ItemName = item.ItemName,
+            Category = item.Category,
+            LenderId = item.LenderId,
+            BorrowerId = item.BorrowerId,
+            LoanDate = item.LoanDate,
+            DueDate = item.DueDate,
+            ReturnedAt = DateTime.Today,
+            Notes = item.Notes,
+            Status = item.Status
+        };
+
+        var updated = await LendingService.UpdateAsync(updatedEntry);
+        if (updated is null)
+        {
+            ToastService.Error("Der Eintrag konnte nicht aktualisiert werden.");
+            return;
+        }
+
+        ToastService.Success("Eintrag als zurückgegeben markiert.");
+        await LoadAsync();
+    }
 
     private void OnRowClick(int id)
     {

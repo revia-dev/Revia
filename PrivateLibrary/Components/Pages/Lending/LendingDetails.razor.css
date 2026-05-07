@@ -56,3 +56,20 @@
 .btn-modern {
     border-radius: 999px;
 }
+
+.btn-success {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    border: none;
+    color: #fff;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #15803d, #166534);
+    color: #fff;
+}
+
+@media (max-width: 768px) {
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
