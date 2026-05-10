@@ -10,6 +10,12 @@ public interface ILendingService
     Task<LendingEntry?> UpdateAsync(LendingEntry entry, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default);
     Task<LendingDashboardStats> GetDashboardStatsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<LendingCategory>> GetCategoriesAsync(CancellationToken cancellationToken = default);
+    Task<LendingCategory?> GetCategoryByIdAsync(int id, CancellationToken cancellationToken = default);
+    Task<LendingCategory> GetOrCreateCategoryAsync(string name, CancellationToken cancellationToken = default);
+    Task<LendingCategory> CreateCategoryAsync(LendingCategory category, CancellationToken cancellationToken = default);
+    Task<LendingCategory?> UpdateCategoryAsync(LendingCategory category, CancellationToken cancellationToken = default);
+    Task<bool> DeleteCategoryAsync(int id, CancellationToken cancellationToken = default);
     LendingEntryStatus CalculateStatus(LendingEntry entry);
     void ApplyCalculatedStatus(LendingEntry entry);
 }

@@ -12,12 +12,18 @@ public sealed class LendingEntryEditModel : IValidatableObject
     [StringLength(2000)]
     public string? Description { get; set; }
 
-    [Required]
+    [Obsolete("Use ItemNames instead.")]
     [StringLength(200)]
     public string ItemName { get; set; } = string.Empty;
 
+    [Obsolete("Use SelectedCategoryIds instead.")]
     [StringLength(100)]
     public string? Category { get; set; }
+
+    public List<string> ItemNames { get; set; } = new();
+    public List<int> SelectedCategoryIds { get; set; } = new();
+    public string NewItemName { get; set; } = string.Empty;
+    public string NewCategoryName { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Bitte einen Verleiher auswählen.")]
     public int? LenderId { get; set; }
@@ -58,6 +64,13 @@ public sealed class LendingEntryEditModel : IValidatableObject
             yield return new ValidationResult(
                 "Verleiher und Entleiher dürfen nicht identisch sein.",
                 new[] { nameof(LenderId), nameof(BorrowerId) });
+        }
+
+        if (ItemNames.Count == 0 || ItemNames.All(string.IsNullOrWhiteSpace))
+        {
+            yield return new ValidationResult(
+                "Mindestens ein Gegenstand muss angegeben werden.",
+                new[] { nameof(ItemNames), nameof(ItemName) });
         }
     }
 }

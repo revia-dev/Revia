@@ -16,15 +16,33 @@
         <div class="glass-card detail-card">
             <div class="detail-top">
                 <div>
-                    <h1>@_item.ItemName</h1>
-                    <p>@_item.Title</p>
+                    <h1>@PrimaryItemLabel(_item)</h1>
+                    @if (AdditionalItems(_item).Any())
+                    {
+                        <p>@string.Join(", ", AdditionalItems(_item))</p>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_item.Title))
+                    {
+                        <p>@_item.Title</p>
+                    }
                 </div>
                 <LendingStatusBadge Status="@_item.Status" />
             </div>
 
+            @if (GetCategoryNames(_item).Any())
+            {
+                <div class="detail-tags">
+                    @foreach (var category in GetCategoryNames(_item))
+                    {
+                        <span class="detail-tag">@category</span>
+                    }
+                </div>
+            }
+
             <dl class="detail-grid">
+                <dt>Gegenstände</dt><dd>@ItemsSummary(_item)</dd>
                 <dt>Beschreibung</dt><dd>@ValueOrFallback(_item.Description)</dd>
-                <dt>Kategorie</dt><dd>@ValueOrFallback(_item.Category)</dd>
+                <dt>Kategorien</dt><dd>@CategorySummary(_item)</dd>
                 <dt>Verleiher</dt><dd>@ValueOrFallback(_item.Lender?.DisplayName)</dd>
                 <dt>Entleiher</dt><dd>@ValueOrFallback(_item.Borrower?.DisplayName)</dd>
                 <dt>Ausleihdatum</dt><dd>@_item.LoanDate.ToString("dd.MM.yyyy")</dd>
@@ -48,6 +66,26 @@
         </div>
     }
 </div>
+
+<style>
+    .detail-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .45rem;
+        margin: 1rem 0 1.25rem;
+    }
+
+    .detail-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: .25rem .65rem;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: .82rem;
+        font-weight: 600;
+    }
+</style>
 
 @code {
     [Parameter]
@@ -86,7 +124,21 @@
             DueDate = _item.DueDate,
             ReturnedAt = DateTime.Today,
             Notes = _item.Notes,
-            Status = _item.Status
+            Status = _item.Status,
+            Items = _item.Items
+                .OrderBy(x => x.SortOrder)
+                .Select(x => new LendingItem
+                {
+                    Name = x.Name,
+                    SortOrder = x.SortOrder
+                })
+                .ToList(),
+            CategoryLinks = _item.CategoryLinks
+                .Select(x => new LendingEntryCategory
+                {
+                    LendingCategoryId = x.LendingCategoryId
+                })
+                .ToList()
         };
 
         var updated = await LendingService.UpdateAsync(updatedEntry);
@@ -102,4 +154,39 @@
 
     private static string ValueOrFallback(string? value)
         => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private static string PrimaryItemLabel(LendingEntry item)
+        => item.Items.OrderBy(x => x.SortOrder).Select(x => x.Name).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+           ?? ValueOrFallback(item.ItemName);
+
+    private static IReadOnlyList<string> AdditionalItems(LendingEntry item)
+        => item.Items.OrderBy(x => x.SortOrder)
+            .Select(x => x.Name)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Skip(1)
+            .ToList();
+
+    private static IReadOnlyList<string> GetCategoryNames(LendingEntry item)
+        => item.CategoryLinks
+            .Select(x => x.LendingCategory?.Name)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .Cast<string>()
+            .ToList();
+
+    private static string ItemsSummary(LendingEntry item)
+    {
+        var items = item.Items.OrderBy(x => x.SortOrder)
+            .Select(x => x.Name)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        return items.Count == 0 ? ValueOrFallback(item.ItemName) : string.Join(", ", items);
+    }
+
+    private static string CategorySummary(LendingEntry item)
+    {
+        var categories = GetCategoryNames(item);
+        return categories.Count == 0 ? ValueOrFallback(item.Category) : string.Join(", ", categories);
+    }
 }

@@ -17,6 +17,31 @@ namespace PrivateLibrary.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.7");
 
+            modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("LendingCategories", (string)null);
+                });
+
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -72,9 +97,56 @@ namespace PrivateLibrary.Migrations
 
                     b.HasIndex("BorrowerId");
 
-                    b.HasIndex("LenderId");
+                    b.HasIndex("DueDate");
 
-                    b.ToTable("LendingEntries");
+                    b.HasIndex("LoanDate");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("LenderId", "BorrowerId");
+
+                    b.ToTable("LendingEntries", (string)null);
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingEntryCategory", b =>
+                {
+                    b.Property<int>("LendingEntryId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LendingCategoryId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("LendingEntryId", "LendingCategoryId");
+
+                    b.HasIndex("LendingCategoryId");
+
+                    b.ToTable("LendingEntryCategories", (string)null);
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LendingEntryId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LendingEntryId");
+
+                    b.HasIndex("LendingEntryId", "SortOrder");
+
+                    b.ToTable("LendingItems", (string)null);
                 });
 
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.Person", b =>
@@ -133,7 +205,9 @@ namespace PrivateLibrary.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("People");
+                    b.HasIndex("LastName", "FirstName");
+
+                    b.ToTable("People", (string)null);
                 });
 
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingEntry", b =>
@@ -141,18 +215,60 @@ namespace PrivateLibrary.Migrations
                     b.HasOne("PrivateLibrary.Modules.Lending.Models.Person", "Borrower")
                         .WithMany("BorrowedEntries")
                         .HasForeignKey("BorrowerId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("PrivateLibrary.Modules.Lending.Models.Person", "Lender")
                         .WithMany("LentEntries")
                         .HasForeignKey("LenderId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Borrower");
 
                     b.Navigation("Lender");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingEntryCategory", b =>
+                {
+                    b.HasOne("PrivateLibrary.Modules.Lending.Models.LendingCategory", "LendingCategory")
+                        .WithMany("EntryLinks")
+                        .HasForeignKey("LendingCategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PrivateLibrary.Modules.Lending.Models.LendingEntry", "LendingEntry")
+                        .WithMany("CategoryLinks")
+                        .HasForeignKey("LendingEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LendingCategory");
+
+                    b.Navigation("LendingEntry");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingItem", b =>
+                {
+                    b.HasOne("PrivateLibrary.Modules.Lending.Models.LendingEntry", "LendingEntry")
+                        .WithMany("Items")
+                        .HasForeignKey("LendingEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LendingEntry");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingCategory", b =>
+                {
+                    b.Navigation("EntryLinks");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingEntry", b =>
+                {
+                    b.Navigation("CategoryLinks");
+
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.Person", b =>

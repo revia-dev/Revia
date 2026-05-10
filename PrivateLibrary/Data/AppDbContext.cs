@@ -11,6 +11,9 @@ public class AppDbContext : DbContext
 
     public DbSet<Person> People => Set<Person>();
     public DbSet<LendingEntry> LendingEntries => Set<LendingEntry>();
+    public DbSet<LendingItem> LendingItems => Set<LendingItem>();
+    public DbSet<LendingCategory> LendingCategories => Set<LendingCategory>();
+    public DbSet<LendingEntryCategory> LendingEntryCategories => Set<LendingEntryCategory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,6 +55,15 @@ public class AppDbContext : DbContext
                 if (entry.State == EntityState.Added)
                 {
                     lendingEntry.CreatedAt = DateTime.UtcNow;
+                }
+            }
+
+            if (entry.Entity is LendingCategory lendingCategory)
+            {
+                lendingCategory.UpdatedAt = DateTime.UtcNow;
+                if (entry.State == EntityState.Added)
+                {
+                    lendingCategory.CreatedAt = DateTime.UtcNow;
                 }
             }
         }

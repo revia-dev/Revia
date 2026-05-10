@@ -12,10 +12,11 @@ public sealed class LendingEntry : IValidatableObject
     [StringLength(2000)]
     public string? Description { get; set; }
 
-    [Required]
+    [Obsolete("Use Items instead.")]
     [StringLength(200)]
     public string ItemName { get; set; } = string.Empty;
 
+    [Obsolete("Use CategoryLinks instead.")]
     [StringLength(100)]
     public string? Category { get; set; }
 
@@ -45,6 +46,9 @@ public sealed class LendingEntry : IValidatableObject
 
     public DateTime UpdatedAt { get; set; }
 
+    public ICollection<LendingItem> Items { get; set; } = new List<LendingItem>();
+    public ICollection<LendingEntryCategory> CategoryLinks { get; set; } = new List<LendingEntryCategory>();
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (DueDate.HasValue && DueDate.Value.Date < LoanDate.Date)
@@ -67,5 +71,13 @@ public sealed class LendingEntry : IValidatableObject
                 "Verleiher und Entleiher dürfen nicht identisch sein.",
                 new[] { nameof(LenderId), nameof(BorrowerId) });
         }
+
+        if (Items.Count == 0 || Items.All(x => string.IsNullOrWhiteSpace(x.Name)))
+        {
+            yield return new ValidationResult(
+                "Mindestens ein Gegenstand muss angegeben werden.",
+                new[] { nameof(Items), nameof(ItemName) });
+        }
     }
 }
+
