@@ -25,6 +25,11 @@
             </button>
         </header>
 
+        <div class="movie-detail-actions">
+            <button type="button" class="liquid-button liquid-button-secondary" @onclick="HandleEdit">Bearbeiten</button>
+            <button type="button" class="liquid-button liquid-button-secondary" @onclick="HandleDelete">Löschen</button>
+        </div>
+
         <div class="movie-detail-body">
             <div class="movie-detail-poster-col">
                 <div class="movie-detail-poster-shell">
@@ -96,6 +101,8 @@
     [Parameter] public List<Film> RelatedFilms { get; set; } = new();
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<Film> OnFilmSelected { get; set; }
+    [Parameter] public EventCallback<Film> OnEdit { get; set; }
+    [Parameter] public EventCallback<Film> OnDelete { get; set; }
 
     private string DisplayTitle => Film?.Titel ?? "Unbekannt";
 
@@ -109,4 +116,10 @@
 
     private Task SelectRelated(Film film)
         => OnFilmSelected.HasDelegate ? OnFilmSelected.InvokeAsync(film) : Task.CompletedTask;
+
+    private Task HandleEdit()
+        => Film is not null && OnEdit.HasDelegate ? OnEdit.InvokeAsync(Film) : Task.CompletedTask;
+
+    private Task HandleDelete()
+        => Film is not null && OnDelete.HasDelegate ? OnDelete.InvokeAsync(Film) : Task.CompletedTask;
 }

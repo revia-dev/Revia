@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Text;
 using CsvHelper;
+using CsvHelper.Configuration;
 using PrivateLibrary.Models;
 
 namespace PrivateLibrary.Services;
@@ -7,10 +9,12 @@ namespace PrivateLibrary.Services;
 public class MovieCsvService
 {
     private readonly HttpClient _http;
+    private readonly IWebHostEnvironment _environment;
 
-    public MovieCsvService(HttpClient http)
+    public MovieCsvService(HttpClient http, IWebHostEnvironment environment)
     {
         _http = http;
+        _environment = environment;
     }
 
     public async Task<List<Film>> LoadMoviesFromWwwrootAsync()
@@ -19,10 +23,55 @@ public class MovieCsvService
         return await LoadMoviesAsync(stream);
     }
 
+    public async Task<List<Film>> LoadMoviesFromFileAsync()
+    {
+        var path = GetCsvPath();
+        await using var stream = File.OpenRead(path);
+        return await LoadMoviesAsync(stream);
+    }
+
+    public async Task SaveMoviesToFileAsync(IEnumerable<Film> films)
+    {
+        var path = GetCsvPath();
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+        await using var stream = File.Create(path);
+        await using var writer = new StreamWriter(stream, new UTF8Encoding(true));
+        await using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
+        {
+            Delimiter = ";"
+        });
+
+        csv.WriteField("Id");
+        csv.WriteField("TMDB Id");
+        csv.WriteField("Titel");
+        csv.WriteField("Jahr");
+        csv.WriteField("FSK");
+        csv.WriteField("Anbieter");
+        csv.WriteField("Kategorie");
+        csv.WriteField("Tags");
+        await csv.NextRecordAsync();
+
+        foreach (var film in films.OrderBy(x => x.Titel, StringComparer.OrdinalIgnoreCase))
+        {
+            csv.WriteField(film.Id.ToString());
+            csv.WriteField(film.TmdbId?.ToString() ?? string.Empty);
+            csv.WriteField(film.Titel ?? string.Empty);
+            csv.WriteField(film.Jahr ?? string.Empty);
+            csv.WriteField(film.Fsk ?? string.Empty);
+            csv.WriteField(string.Join(", ", (film.Anbieter ?? new List<string>()).Where(x => !string.IsNullOrWhiteSpace(x))));
+            csv.WriteField(film.Kategorie ?? string.Empty);
+            csv.WriteField(string.Join(", ", (film.Tags ?? new List<string>()).Where(x => !string.IsNullOrWhiteSpace(x))));
+            await csv.NextRecordAsync();
+        }
+
+        await writer.FlushAsync();
+    }
+
     public async Task<List<Film>> LoadMoviesAsync(Stream csvStream)
     {
         using var reader = new StreamReader(csvStream);
-        using var csv = new CsvReader(reader, new CsvHelper.Configuration.CsvConfiguration(CultureInfo.InvariantCulture)
+        using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
         {
             Delimiter = ";",
             BadDataFound = null,
@@ -37,9 +86,10 @@ public class MovieCsvService
 
         while (await csv.ReadAsync())
         {
+            var idString = TryGetField(csv, "Id");
             var tmdbIdString = csv.GetField("TMDB Id");
-            if (!int.TryParse(tmdbIdString, out var tmdbId))
-                continue;
+            var id = Guid.TryParse(idString, out var parsedId) ? parsedId : Guid.NewGuid();
+            int? tmdbId = int.TryParse(tmdbIdString, out var parsedTmdbId) ? parsedTmdbId : null;
 
             var titel = csv.GetField("Titel");
             var jahr = csv.GetField("Jahr");
@@ -65,6 +115,7 @@ public class MovieCsvService
 
             result.Add(new Film
             {
+                Id = id,
                 Titel = titel,
                 Jahr = jahr,
                 TmdbId = tmdbId,
@@ -78,5 +129,20 @@ public class MovieCsvService
         return result
             .OrderBy(f => f.Titel, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private string GetCsvPath()
+        => Path.Combine(_environment.WebRootPath, "data", "movies.csv");
+
+    private static string? TryGetField(CsvReader csv, string fieldName)
+    {
+        try
+        {
+            return csv.GetField(fieldName);
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
