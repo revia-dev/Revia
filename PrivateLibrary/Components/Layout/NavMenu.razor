@@ -16,28 +16,33 @@
                 <span class="nav-link-text">Dashboard</span>
             </NavLink>
 
-            <NavLink class="nav-link-item" href="movies">
-                <span class="nav-link-text">Filme</span>
-            </NavLink>
+            <div class="nav-group">
+                <NavLink class="nav-link-item" href="movies">
+                    <span class="nav-link-text">Filme</span>
+                </NavLink>
 
-            <NavLink class="nav-link-item" href="watchlist">
-                <span class="nav-link-text">Watchlist</span>
-            </NavLink>
+                <div class="nav-sub-links">
+                    <NavLink class="nav-link-item nav-link-sub-item" href="watchlist">
+                        <span class="nav-link-text">Watchlist</span>
+                    </NavLink>
 
-            <NavLink class="nav-link-item" href="genres">
-                <span class="nav-link-text">Genres</span>
-            </NavLink>
+                </div>
+            </div>
+
+            <div class="nav-group">
+                <NavLink class="nav-link-item" href="/lending">
+                    <span class="nav-link-text">Ausleihen</span>
+                </NavLink>
+
+                <div class="nav-sub-links">
+                    <NavLink class="nav-link-item nav-link-sub-item" href="/lending/persons">
+                        <span class="nav-link-text">Personen</span>
+                    </NavLink>
+                </div>
+            </div>
 
             <NavLink class="nav-link-item" href="settings">
                 <span class="nav-link-text">Einstellungen</span>
-            </NavLink>
-
-            <NavLink class="nav-link-item" href="/lending">
-                <span class="nav-link-text">Ausleihen</span>
-            </NavLink>
-
-            <NavLink class="nav-link-item" href="/lending/persons">
-                <span class="nav-link-text">Personen</span>
             </NavLink>
         </nav>
     </aside>

@@ -78,7 +78,20 @@
 .nav-links {
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
+    gap: 0.75rem;
+}
+
+.nav-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.nav-sub-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-left: 0.9rem;
 }
 
 .nav-link-item {
@@ -111,6 +124,23 @@
     font-size: 0.95rem;
     font-weight: 600;
     letter-spacing: 0.01em;
+}
+
+.nav-link-sub-item {
+    min-height: 42px;
+    padding: 0.65rem 0.85rem;
+    border-radius: 12px;
+}
+
+.nav-link-sub-item .nav-link-text {
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--text-soft);
+}
+
+.nav-link-sub-item:hover .nav-link-text,
+.nav-link-sub-item.active .nav-link-text {
+    color: var(--text);
 }
 
 .nav-link-item:focus-visible {
