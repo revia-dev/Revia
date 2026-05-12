@@ -1,18 +1,20 @@
 :root {
-    --movie-detail-bg: #ffffff;
-    --movie-detail-surface: #ffffff;
+    --movie-detail-bg: rgba(255, 255, 255, 0.94);
+    --movie-detail-surface: rgba(255, 255, 255, 0.9);
     --movie-detail-text: #171717;
     --movie-detail-text-muted: #666666;
-    --movie-detail-backdrop-color: rgba(0, 0, 0, 0.65);
+    --movie-detail-backdrop-color: rgba(6, 6, 6, 0.8);
+    --movie-detail-backdrop-tint: rgba(255, 255, 255, 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --movie-detail-bg: #000000;
-        --movie-detail-surface: #000000;
+        --movie-detail-bg: rgba(10, 10, 10, 0.94);
+        --movie-detail-surface: rgba(16, 16, 16, 0.9);
         --movie-detail-text: #f5f5f3;
         --movie-detail-text-muted: #b8b8b2;
-        --movie-detail-backdrop-color: rgba(0, 0, 0, 0.82);
+        --movie-detail-backdrop-color: rgba(0, 0, 0, 0.88);
+        --movie-detail-backdrop-tint: rgba(0, 0, 0, 0.18);
     }
 }
 
@@ -20,9 +22,11 @@
     position: fixed;
     inset: 0;
     z-index: 80;
-    background: var(--movie-detail-backdrop-color);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background:
+        linear-gradient(180deg, var(--movie-detail-backdrop-tint), var(--movie-detail-backdrop-tint)),
+        var(--movie-detail-backdrop-color);
+    backdrop-filter: blur(12px) saturate(0.55) brightness(0.58);
+    -webkit-backdrop-filter: blur(12px) saturate(0.55) brightness(0.58);
 }
 
 .movie-detail-panel {
@@ -37,9 +41,9 @@
     overflow: auto;
     padding: 1.15rem;
     border-radius: 30px;
-    border: 1px solid var(--border);
+    border: 1px solid color-mix(in srgb, var(--movie-detail-text) 10%, transparent);
     background: var(--movie-detail-bg);
-    box-shadow: none;
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.28);
     color: var(--movie-detail-text);
 }
 
@@ -97,9 +101,9 @@
 .movie-detail-poster-shell,
 .movie-detail-info-card,
 .movie-detail-related-card {
-    border: 1px solid var(--border);
+    border: 1px solid color-mix(in srgb, var(--movie-detail-text) 10%, transparent);
     background: var(--movie-detail-surface);
-    box-shadow: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
 }
