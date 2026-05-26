@@ -26,6 +26,9 @@
                         <span class="nav-link-text">Watchlist</span>
                     </NavLink>
 
+                    <NavLink class="nav-link-item nav-link-sub-item" href="genres">
+                        <span class="nav-link-text">Genres</span>
+                    </NavLink>
                 </div>
             </div>
 
@@ -45,5 +48,22 @@
                 <span class="nav-link-text">Einstellungen</span>
             </NavLink>
         </nav>
+
+        <div class="nav-auth-state">
+            <AuthorizeView>
+                <Authorized>
+                    <div class="nav-auth-copy">
+                        <div class="nav-auth-label">Angemeldet als</div>
+                        <div class="nav-auth-name">@context.User.Identity?.Name</div>
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <div class="nav-auth-copy">
+                        <div class="nav-auth-label">Standard-Admin</div>
+                        <div class="nav-auth-name">admin</div>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
     </aside>
 </div>

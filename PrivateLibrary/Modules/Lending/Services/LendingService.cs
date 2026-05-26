@@ -6,17 +6,16 @@ namespace PrivateLibrary.Modules.Lending.Services;
 
 public sealed class LendingService : ILendingService
 {
-    private readonly IDbContextFactory<AppDbContext> _dbFactory;
+    private readonly AppDbContext _db;
 
-    public LendingService(IDbContextFactory<AppDbContext> dbFactory)
+    public LendingService(AppDbContext db)
     {
-        _dbFactory = dbFactory;
+        _db = db;
     }
 
     public async Task<IReadOnlyList<LendingEntry>> GetAllAsync(LendingEntryStatus? statusFilter = null, CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        var items = await db.LendingEntries
+        var items = await _db.LendingEntries
             .AsNoTracking()
             .Include(x => x.Lender)
             .Include(x => x.Borrower)
@@ -43,8 +42,7 @@ public sealed class LendingService : ILendingService
 
     public async Task<LendingEntry?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        var entry = await db.LendingEntries
+        var entry = await _db.LendingEntries
             .Include(x => x.Lender)
             .Include(x => x.Borrower)
             .Include(x => x.Items.OrderBy(i => i.SortOrder))
@@ -63,23 +61,20 @@ public sealed class LendingService : ILendingService
 
     public async Task<LendingEntry> CreateAsync(LendingEntry entry, CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-
-        await AttachCategoriesAsync(db, entry, cancellationToken);
+        await AttachCategoriesAsync(_db, entry, cancellationToken);
         NormalizeLegacyFields(entry);
         entry.CreatedAt = DateTime.UtcNow;
         entry.UpdatedAt = DateTime.UtcNow;
         entry.Status = CalculateStatus(entry);
 
-        db.LendingEntries.Add(entry);
-        await db.SaveChangesAsync(cancellationToken);
+        _db.LendingEntries.Add(entry);
+        await _db.SaveChangesAsync(cancellationToken);
         return entry;
     }
 
     public async Task<LendingEntry?> UpdateAsync(LendingEntry entry, CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        var existing = await db.LendingEntries
+        var existing = await _db.LendingEntries
             .Include(x => x.Items)
             .Include(x => x.CategoryLinks)
             .FirstOrDefaultAsync(x => x.Id == entry.Id, cancellationToken);
@@ -119,34 +114,31 @@ public sealed class LendingService : ILendingService
             });
         }
 
-        await AttachCategoriesAsync(db, existing, cancellationToken);
+        await AttachCategoriesAsync(_db, existing, cancellationToken);
         NormalizeLegacyFields(existing);
         existing.Status = CalculateStatus(existing);
         existing.UpdatedAt = DateTime.UtcNow;
 
-        await db.SaveChangesAsync(cancellationToken);
+        await _db.SaveChangesAsync(cancellationToken);
         return existing;
     }
 
     public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        var entry = await db.LendingEntries.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var entry = await _db.LendingEntries.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (entry is null)
         {
             return false;
         }
 
-        db.LendingEntries.Remove(entry);
-        await db.SaveChangesAsync(cancellationToken);
+        _db.LendingEntries.Remove(entry);
+        await _db.SaveChangesAsync(cancellationToken);
         return true;
     }
 
     public async Task<LendingDashboardStats> GetDashboardStatsAsync(CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-
-        var allEntries = await db.LendingEntries
+        var allEntries = await _db.LendingEntries
             .AsNoTracking()
             .Include(x => x.Lender)
             .Include(x => x.Borrower)
@@ -162,7 +154,7 @@ public sealed class LendingService : ILendingService
             e.Status = CalculateStatus(e);
         }
 
-        var totalPersons = await db.People.CountAsync(cancellationToken);
+        var totalPersons = await _db.People.CountAsync(cancellationToken);
 
         return new LendingDashboardStats
         {
@@ -177,8 +169,7 @@ public sealed class LendingService : ILendingService
 
     public async Task<IReadOnlyList<LendingCategory>> GetCategoriesAsync(CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        return await db.LendingCategories
+        return await _db.LendingCategories
             .AsNoTracking()
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
@@ -186,18 +177,16 @@ public sealed class LendingService : ILendingService
 
     public async Task<LendingCategory?> GetCategoryByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        return await db.LendingCategories
+        return await _db.LendingCategories
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
     public async Task<LendingCategory> GetOrCreateCategoryAsync(string name, CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var normalizedName = name.Trim();
 
-        var existing = await db.LendingCategories
+        var existing = await _db.LendingCategories
             .FirstOrDefaultAsync(x => x.Name.ToLower() == normalizedName.ToLower(), cancellationToken);
 
         if (existing is not null)
@@ -212,14 +201,13 @@ public sealed class LendingService : ILendingService
             UpdatedAt = DateTime.UtcNow
         };
 
-        db.LendingCategories.Add(category);
-        await db.SaveChangesAsync(cancellationToken);
+        _db.LendingCategories.Add(category);
+        await _db.SaveChangesAsync(cancellationToken);
         return category;
     }
 
     public async Task<LendingCategory> CreateCategoryAsync(LendingCategory category, CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var normalizedName = (category.Name ?? string.Empty).Trim();
 
         if (string.IsNullOrWhiteSpace(normalizedName))
@@ -227,7 +215,7 @@ public sealed class LendingService : ILendingService
             throw new InvalidOperationException("Der Kategoriename darf nicht leer sein.");
         }
 
-        var existing = await db.LendingCategories
+        var existing = await _db.LendingCategories
             .FirstOrDefaultAsync(x => x.Name.ToLower() == normalizedName.ToLower(), cancellationToken);
 
         if (existing is not null)
@@ -239,15 +227,14 @@ public sealed class LendingService : ILendingService
         category.CreatedAt = DateTime.UtcNow;
         category.UpdatedAt = DateTime.UtcNow;
 
-        db.LendingCategories.Add(category);
-        await db.SaveChangesAsync(cancellationToken);
+        _db.LendingCategories.Add(category);
+        await _db.SaveChangesAsync(cancellationToken);
         return category;
     }
 
     public async Task<LendingCategory?> UpdateCategoryAsync(LendingCategory category, CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        var existing = await db.LendingCategories.FirstOrDefaultAsync(x => x.Id == category.Id, cancellationToken);
+        var existing = await _db.LendingCategories.FirstOrDefaultAsync(x => x.Id == category.Id, cancellationToken);
         if (existing is null)
         {
             return null;
@@ -259,7 +246,7 @@ public sealed class LendingService : ILendingService
             throw new InvalidOperationException("Der Kategoriename darf nicht leer sein.");
         }
 
-        var duplicateExists = await db.LendingCategories
+        var duplicateExists = await _db.LendingCategories
             .AnyAsync(x => x.Id != category.Id && x.Name.ToLower() == normalizedName.ToLower(), cancellationToken);
         if (duplicateExists)
         {
@@ -269,14 +256,13 @@ public sealed class LendingService : ILendingService
         existing.Name = normalizedName;
         existing.UpdatedAt = DateTime.UtcNow;
 
-        await db.SaveChangesAsync(cancellationToken);
+        await _db.SaveChangesAsync(cancellationToken);
         return existing;
     }
 
     public async Task<bool> DeleteCategoryAsync(int id, CancellationToken cancellationToken = default)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        var category = await db.LendingCategories
+        var category = await _db.LendingCategories
             .Include(x => x.EntryLinks)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
@@ -290,8 +276,8 @@ public sealed class LendingService : ILendingService
             throw new InvalidOperationException("Die Kategorie wird noch von Ausleihen verwendet und kann nicht gelöscht werden.");
         }
 
-        db.LendingCategories.Remove(category);
-        await db.SaveChangesAsync(cancellationToken);
+        _db.LendingCategories.Remove(category);
+        await _db.SaveChangesAsync(cancellationToken);
         return true;
     }
 

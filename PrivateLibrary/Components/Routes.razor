@@ -1,6 +1,17 @@
 <Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(PrivateLibrary.Components.Pages.NotFound)">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                <LayoutView Layout="typeof(Layout.MainLayout)">
+                    <div class="page-shell">
+                        <div class="glass-card ui-section ui-stack">
+                            <h1>Zugriff verweigert</h1>
+                            <p>Du bist nicht berechtigt, diese Seite aufzurufen.</p>
+                        </div>
+                    </div>
+                </LayoutView>
+            </NotAuthorized>
+        </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>

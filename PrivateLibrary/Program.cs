@@ -1,17 +1,27 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PrivateLibrary.Components;
-using PrivateLibrary.Services;
 using PrivateLibrary.Data;
 using PrivateLibrary.Modules.Lending.Services;
+using PrivateLibrary.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Bisherige Services
+builder.Services.AddCascadingAuthenticationState();
+
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultScheme = IdentityConstants.ApplicationScheme;
+        options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
+    })
+    .AddIdentityCookies();
+
+builder.Services.AddAuthorization();
+
 builder.Services.AddHttpClient<TmdbService>();
 builder.Services.AddScoped<MovieCsvService>();
 builder.Services.AddScoped<MovieFilterService>();
@@ -26,26 +36,41 @@ builder.Services.AddScoped(sp =>
     };
 });
 
-// Neue EF-Core-/SQLite-Integration
-builder.Services.AddDbContextFactory<AppDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Neue Fach-Services
+builder.Services
+    .AddIdentityCore<ApplicationUser>(options =>
+    {
+        options.User.RequireUniqueEmail = false;
+        options.Password.RequireDigit = false;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequiredLength = 8;
+    })
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddSignInManager()
+    .AddDefaultTokenProviders();
+
 builder.Services.AddTransient<ILendingService, LendingService>();
 builder.Services.AddTransient<IPersonService, PersonService>();
 builder.Services.AddScoped<PrivateLibrary.Modules.Lending.Services.ToastService>();
 
 var app = builder.Build();
 
-// Datenbank automatisch migrieren beim Start
 using (var scope = app.Services.CreateScope())
 {
-    var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-    await using var db = await dbContextFactory.CreateDbContextAsync();
-    await db.Database.MigrateAsync();
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await dbContext.Database.MigrateAsync();
+
+    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+    await IdentitySeeder.SeedAsync(userManager, roleManager);
 }
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -54,6 +79,8 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();

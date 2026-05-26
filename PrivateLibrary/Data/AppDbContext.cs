@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PrivateLibrary.Modules.Lending.Models;
 
 namespace PrivateLibrary.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext : IdentityDbContext<ApplicationUser>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -19,6 +21,17 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
+        modelBuilder.Entity<ApplicationUser>(builder =>
+        {
+            builder.Property(x => x.IsSystemUser)
+                .HasDefaultValue(false);
+        });
+
+        modelBuilder.Entity<IdentityRole>(builder =>
+        {
+            builder.Property(x => x.Name).HasMaxLength(256);
+        });
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

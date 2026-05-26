@@ -13,6 +13,20 @@
                     <div class="app-topbar-eyebrow">Private Library</div>
                     <h1 class="app-topbar-title">Filmarchiv und Ausleihen</h1>
                 </div>
+
+                <AuthorizeView>
+                    <Authorized>
+                        <div class="app-topbar-user">
+                            <span class="app-topbar-user-label">Angemeldet</span>
+                            <span class="app-topbar-user-name">@context.User.Identity?.Name</span>
+                        </div>
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="app-topbar-user">
+                            <span class="app-topbar-user-label">Nicht angemeldet</span>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
             </header>
 
             <section class="app-content-shell">
