@@ -1,0 +1,128 @@
+@page "/admin"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Administration</PageTitle>
+
+<div class="admin-page">
+    <div class="admin-header">
+        <div>
+            <div class="admin-eyebrow">Geschützter Bereich</div>
+            <h1>Administration</h1>
+            <p>Diese Seite ist der erste Admin-Testbereich für rollenbasierte Autorisierung in PrivateLibrary.</p>
+        </div>
+    </div>
+
+    <AuthorizeView Roles="Admin">
+        <Authorized>
+            <div class="admin-grid">
+                <section class="admin-card">
+                    <h2>Zugriff bestätigt</h2>
+                    <p>Der aktuell angemeldete Benutzer hat die Rolle <strong>Admin</strong>.</p>
+                    <p class="admin-meta">Benutzer: @context.User.Identity?.Name</p>
+                </section>
+
+                <section class="admin-card">
+                    <h2>Aktueller Stand</h2>
+                    <ul>
+                        <li>Identity ist in der Anwendung registriert.</li>
+                        <li>Rollen-Seeding ist vorbereitet.</li>
+                        <li>Routing unterstützt geschützte Seiten.</li>
+                    </ul>
+                </section>
+
+                <section class="admin-card">
+                    <h2>Nächste Ausbaustufen</h2>
+                    <ul>
+                        <li>Benutzerliste für Admins.</li>
+                        <li>Rollenzuweisung im UI.</li>
+                        <li>Admin-only Aktionen in einzelnen Modulen.</li>
+                    </ul>
+                </section>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <div class="admin-card admin-card-warning">
+                <h2>Kein Zugriff</h2>
+                <p>Diese Seite darf nur von Benutzern mit der Rolle Admin geöffnet werden.</p>
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
+
+<style>
+    .admin-page {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .admin-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 1rem;
+    }
+
+    .admin-eyebrow {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #7c6f64;
+        margin-bottom: 0.35rem;
+    }
+
+    .admin-header h1 {
+        margin: 0;
+        font-size: 2rem;
+        color: #2b2118;
+    }
+
+    .admin-header p {
+        margin: 0.5rem 0 0;
+        color: #5a5148;
+        max-width: 48rem;
+    }
+
+    .admin-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1rem;
+    }
+
+    .admin-card {
+        background: rgba(255,255,255,0.72);
+        border: 1px solid rgba(90,81,72,0.12);
+        border-radius: 20px;
+        padding: 1.25rem;
+        box-shadow: 0 12px 30px rgba(33,24,16,0.08);
+        backdrop-filter: blur(14px);
+    }
+
+    .admin-card h2 {
+        margin-top: 0;
+        margin-bottom: 0.75rem;
+        font-size: 1.05rem;
+        color: #2b2118;
+    }
+
+    .admin-card p,
+    .admin-card li {
+        color: #4d443d;
+    }
+
+    .admin-card ul {
+        margin: 0;
+        padding-left: 1.1rem;
+    }
+
+    .admin-meta {
+        margin-top: 0.75rem;
+        font-size: 0.95rem;
+        color: #6b5f55;
+    }
+
+    .admin-card-warning {
+        border-color: rgba(163, 80, 52, 0.28);
+        background: rgba(255, 245, 240, 0.85);
+    }
+</style>

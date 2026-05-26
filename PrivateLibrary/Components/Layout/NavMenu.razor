@@ -44,6 +44,14 @@
                 </div>
             </div>
 
+            <AuthorizeView Roles="Admin">
+                <Authorized>
+                    <NavLink class="nav-link-item" href="/admin">
+                        <span class="nav-link-text">Administration</span>
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
+
             <NavLink class="nav-link-item" href="settings">
                 <span class="nav-link-text">Einstellungen</span>
             </NavLink>
