@@ -1,5 +1,23 @@
 @inherits LayoutComponentBase
 @using PrivateLibrary.Modules.Lending.Components
+@using Microsoft.AspNetCore.Antiforgery
+@using Microsoft.AspNetCore.Http
+@using Microsoft.AspNetCore.Identity
+@inject IAntiforgery Antiforgery
+@inject IHttpContextAccessor HttpContextAccessor
+
+@code {
+    private string? _antiforgeryToken;
+
+    protected override void OnInitialized()
+    {
+        var httpContext = HttpContextAccessor.HttpContext;
+        if (httpContext is not null)
+        {
+            _antiforgeryToken = Antiforgery.GetAndStoreTokens(httpContext).RequestToken;
+        }
+    }
+}
 
 <div class="app-shell">
     <div class="app-layout">
@@ -16,14 +34,30 @@
 
                 <AuthorizeView>
                     <Authorized>
-                        <div class="app-topbar-user">
-                            <span class="app-topbar-user-label">Angemeldet</span>
-                            <span class="app-topbar-user-name">@context.User.Identity?.Name</span>
+                        <div class="app-topbar-actions">
+                            <div class="app-topbar-user">
+                                <span class="app-topbar-user-label">Angemeldet</span>
+                                <span class="app-topbar-user-name">@context.User.Identity?.Name</span>
+                            </div>
+
+                            <form method="post" action="/account/logout" class="app-auth-form">
+                                <input type="hidden" name="__RequestVerificationToken" value="@_antiforgeryToken" />
+                                <input type="hidden" name="returnUrl" value="/" />
+                                <button type="submit" class="app-auth-button app-auth-button-secondary">Logout</button>
+                            </form>
                         </div>
                     </Authorized>
                     <NotAuthorized>
-                        <div class="app-topbar-user">
-                            <span class="app-topbar-user-label">Nicht angemeldet</span>
+                        <div class="app-topbar-actions">
+                            <div class="app-topbar-user">
+                                <span class="app-topbar-user-label">Nicht angemeldet</span>
+                            </div>
+
+                            <form method="post" action="/account/dev-admin-login" class="app-auth-form">
+                                <input type="hidden" name="__RequestVerificationToken" value="@_antiforgeryToken" />
+                                <input type="hidden" name="returnUrl" value="/admin" />
+                                <button type="submit" class="app-auth-button">Als Admin anmelden</button>
+                            </form>
                         </div>
                     </NotAuthorized>
                 </AuthorizeView>
