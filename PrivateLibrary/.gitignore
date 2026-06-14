@@ -1,8 +1,12 @@
-/wwwroot/data/
-
 # Build outputs
 bin/
 obj/
+
+# SQLite databases (created at runtime via migrations)
+*.db
+*.db-shm
+*.db-wal
+Data/*.db
 
 # User-specific files
 *.user
@@ -16,3 +20,6 @@ obj/
 # macOS
 .DS_Store
 **/.DS_Store
+
+# ASP.NET Core user secrets
+secrets.json

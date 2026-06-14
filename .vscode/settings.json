@@ -1,3 +1,4 @@
 {
-    "dotnet.defaultSolution": "PrivatLibrary.slnx"
+    "dotnet.defaultSolution": "PrivatLibrary.slnx",
+    "claudeCode.useTerminal": true
 }
