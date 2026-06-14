@@ -38,7 +38,13 @@ public class MovieCsvService
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
         await using var stream = File.Create(path);
-        await using var writer = new StreamWriter(stream, new UTF8Encoding(true));
+        await WriteMoviesAsync(stream, films);
+    }
+
+    /// <summary>Writes the films to the given stream in the canonical CSV format.</summary>
+    public async Task WriteMoviesAsync(Stream target, IEnumerable<Film> films)
+    {
+        await using var writer = new StreamWriter(target, new UTF8Encoding(true), leaveOpen: true);
         await using var csv = new CsvWriter(writer, new CsvConfiguration(CultureInfo.InvariantCulture)
         {
             Delimiter = ";"

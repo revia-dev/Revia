@@ -44,6 +44,7 @@ builder.Services.AddAuthorizationBuilder()
 builder.Services.AddHttpClient<TmdbService>();
 builder.Services.AddHttpClient<MovieCsvService>();
 builder.Services.AddScoped<MovieFilterService>();
+builder.Services.AddScoped<MovieService>();
 builder.Services.AddScoped<PosterResolverService>();
 builder.Services.AddHostedService<PosterBackfillService>();
 
@@ -112,6 +113,11 @@ using (var scope = app.Services.CreateScope())
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
     await IdentitySeeder.SeedAsync(userManager, roleManager, dbContext, config);
+
+    // One-time import of the legacy movies.csv into the Movies table.
+    var movieCsvService = scope.ServiceProvider.GetRequiredService<MovieCsvService>();
+    var movieLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("MovieSeeder");
+    await MovieSeeder.ImportCsvIfEmptyAsync(dbContext, movieCsvService, movieLogger);
 
     // Bootstrap movies.csv to writable location if configured and not yet present
     var writableCsvPath = config["Movies:CsvPath"];

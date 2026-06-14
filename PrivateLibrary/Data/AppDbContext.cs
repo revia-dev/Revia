@@ -12,6 +12,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     }
 
     public DbSet<Household> Households => Set<Household>();
+    public DbSet<Movie> Movies => Set<Movie>();
     public DbSet<LendingEntry> LendingEntries => Set<LendingEntry>();
     public DbSet<LendingItem> LendingItems => Set<LendingItem>();
     public DbSet<LendingCategory> LendingCategories => Set<LendingCategory>();
@@ -51,6 +52,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<LendingEntry>(builder =>
         {
             builder.HasIndex(x => x.HouseholdId);
+        });
+
+        modelBuilder.Entity<Movie>(builder =>
+        {
+            builder.HasIndex(x => x.HouseholdId);
+            builder.HasIndex(x => new { x.HouseholdId, x.Titel });
         });
 
         modelBuilder.Entity<IdentityRole>(builder =>

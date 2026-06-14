@@ -1,7 +1,13 @@
-using PrivateLibrary.Models;
+using Microsoft.EntityFrameworkCore;
+using PrivateLibrary.Data;
 
 namespace PrivateLibrary.Services;
 
+/// <summary>
+/// Fills in missing poster paths for movies that have a TMDB id but no stored poster.
+/// Runs once shortly after startup and writes the results straight to the database, so
+/// the movie page never needs to call TMDB while loading.
+/// </summary>
 public sealed class PosterBackfillService(
     IServiceProvider services,
     ILogger<PosterBackfillService> logger) : BackgroundService
@@ -11,48 +17,47 @@ public sealed class PosterBackfillService(
         await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
 
         using var scope = services.CreateScope();
-        var csvService = scope.ServiceProvider.GetRequiredService<MovieCsvService>();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var tmdbService = scope.ServiceProvider.GetRequiredService<TmdbService>();
 
-        List<Film> films;
+        List<Movie> missing;
         try
         {
-            films = await csvService.LoadMoviesFromFileAsync();
+            missing = await db.Movies
+                .Where(m => m.TmdbId != null && (m.PosterPath == null || m.PosterPath == ""))
+                .ToListAsync(stoppingToken);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Poster backfill: CSV could not be loaded.");
+            logger.LogWarning(ex, "Poster backfill: movies could not be loaded.");
             return;
         }
 
-        var missing = films
-            .Where(f => f.TmdbId.HasValue && string.IsNullOrWhiteSpace(f.PosterPath))
-            .ToList();
-
         if (missing.Count == 0)
+        {
             return;
+        }
 
         logger.LogInformation("Poster backfill: fetching {Count} missing posters.", missing.Count);
 
         var changed = false;
-        foreach (var film in missing)
+        foreach (var movie in missing)
         {
             if (stoppingToken.IsCancellationRequested) break;
 
             try
             {
-                var path = await tmdbService.FetchPosterPathAsync(film.TmdbId!.Value, film.Kategorie);
+                var path = await tmdbService.FetchPosterPathAsync(movie.TmdbId!.Value, movie.Kategorie);
                 if (!string.IsNullOrWhiteSpace(path))
                 {
-                    var target = films.First(f => f.Id == film.Id);
-                    target.PosterPath = path;
+                    movie.PosterPath = path;
                     changed = true;
                 }
                 await Task.Delay(120, stoppingToken);
             }
             catch (Exception ex)
             {
-                logger.LogDebug(ex, "Poster backfill: could not fetch poster for {Title}.", film.Titel);
+                logger.LogDebug(ex, "Poster backfill: could not fetch poster for {Title}.", movie.Titel);
             }
         }
 
@@ -60,12 +65,12 @@ public sealed class PosterBackfillService(
         {
             try
             {
-                await csvService.SaveMoviesToFileAsync(films);
-                logger.LogInformation("Poster backfill: CSV updated.");
+                await db.SaveChangesAsync(stoppingToken);
+                logger.LogInformation("Poster backfill: database updated.");
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Poster backfill: could not save CSV.");
+                logger.LogWarning(ex, "Poster backfill: could not save changes.");
             }
         }
     }

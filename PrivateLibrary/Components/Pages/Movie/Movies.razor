@@ -2,7 +2,7 @@
 @rendermode InteractiveServer
 @using PrivateLibrary.Models
 @using PrivateLibrary.Services
-@inject PrivateLibrary.Services.MovieCsvService CsvService
+@inject PrivateLibrary.Services.MovieService MovieService
 @inject PrivateLibrary.Services.MovieFilterService FilterService
 @inject PrivateLibrary.Services.TmdbService TmdbService
 @inject PrivateLibrary.Services.PosterResolverService PosterResolver
@@ -32,6 +32,10 @@
                         @onclick="CreateMovie">
                     Neuer Datensatz
                 </button>
+
+                <a class="btn btn-outline-secondary" href="/movies/export.csv" target="_blank" rel="noopener">
+                    CSV-Export
+                </a>
             </div>
         </div>
 
@@ -294,17 +298,10 @@
     {
         isLoading = true;
         progressIndex = 0;
-        filme = await CsvService.LoadMoviesFromFileAsync();
 
-        for (int i = 0; i < filme.Count; i++)
-        {
-            progressIndex = i + 1;
-
-            if (filme[i].TmdbId is int tmdbId)
-            {
-                filme[i].PosterPath = await TmdbService.FetchPosterPathAsync(tmdbId, filme[i].Kategorie);
-            }
-        }
+        // Posters are stored in the DB, so loading no longer needs any TMDB calls.
+        filme = await MovieService.GetAllAsync();
+        progressIndex = filme.Count;
 
         filterData = FilterService.BuildFilterData(filme);
         ApplyFilters();
@@ -396,16 +393,12 @@
         }
 
         var updatedFilm = editModel.ToFilm();
-        var existingIndex = filme.FindIndex(x => x.Id == updatedFilm.Id);
 
-        if (existingIndex >= 0)
+        // Keep the existing poster when editing; (re)fetch it from TMDB when an id is set.
+        var existing = filme.FirstOrDefault(x => x.Id == updatedFilm.Id);
+        if (existing is not null)
         {
-            updatedFilm.PosterPath = filme[existingIndex].PosterPath;
-            filme[existingIndex] = updatedFilm;
-        }
-        else
-        {
-            filme.Add(updatedFilm);
+            updatedFilm.PosterPath = existing.PosterPath;
         }
 
         if (updatedFilm.TmdbId is int tmdbId)
@@ -413,16 +406,11 @@
             updatedFilm.PosterPath = await TmdbService.FetchPosterPathAsync(tmdbId, updatedFilm.Kategorie);
         }
 
-        await CsvService.SaveMoviesToFileAsync(filme);
+        var saved = await MovieService.UpsertAsync(updatedFilm);
         await ReloadMoviesAsync();
         CloseEditor();
 
-        var savedFilm = filme.FirstOrDefault(x =>
-            x.Id == updatedFilm.Id ||
-            (updatedFilm.TmdbId.HasValue && x.TmdbId == updatedFilm.TmdbId) ||
-            (string.Equals(x.Titel, updatedFilm.Titel, StringComparison.OrdinalIgnoreCase)
-             && string.Equals(x.Jahr, updatedFilm.Jahr, StringComparison.OrdinalIgnoreCase)));
-
+        var savedFilm = filme.FirstOrDefault(x => x.Id == saved.Id);
         if (savedFilm is not null)
         {
             SelectFilm(savedFilm);
@@ -431,14 +419,7 @@
 
     private async Task DeleteFromDetailsAsync(Film film)
     {
-        var existing = filme.FirstOrDefault(x => x.Id == film.Id);
-        if (existing is null)
-        {
-            return;
-        }
-
-        filme.Remove(existing);
-        await CsvService.SaveMoviesToFileAsync(filme);
+        await MovieService.DeleteAsync(film.Id);
         CloseDetail();
         await ReloadMoviesAsync();
     }

@@ -293,6 +293,48 @@ namespace PrivateLibrary.Migrations
                     b.ToTable("Households");
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.Movie", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Anbieter")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Fsk")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Jahr")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kategorie")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PosterPath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tags")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Titel")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("TmdbId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId");
+
+                    b.HasIndex("HouseholdId", "Titel");
+
+                    b.ToTable("Movies");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingCategory", b =>
                 {
                     b.Property<int>("Id")
