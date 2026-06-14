@@ -8,11 +8,13 @@ namespace PrivateLibrary.Modules.Lending.Services;
 public sealed class PersonService(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
-    CurrentUserContext currentUser) : IPersonService
+    CurrentUserContext currentUser,
+    IPersonPhotoStorage photoStorage) : IPersonService
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;
     private readonly RoleManager<IdentityRole> _roleManager = roleManager;
     private readonly CurrentUserContext _currentUser = currentUser;
+    private readonly IPersonPhotoStorage _photoStorage = photoStorage;
 
     public async Task<IReadOnlyList<ApplicationUser>> GetAllAsync(CancellationToken cancellationToken = default)
     {
@@ -108,6 +110,106 @@ public sealed class PersonService(
         }
 
         return user;
+    }
+
+    public async Task<ApplicationUser> CreateLoginlessAsync(ApplicationUser user, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        user.HouseholdId ??= await _currentUser.RequireHouseholdIdAsync();
+        user.IsLoginless = true;
+        user.EmailConfirmed = true;
+        user.Email = string.IsNullOrWhiteSpace(user.Email) ? null : user.Email.Trim();
+
+        // A loginless person still needs a unique UserName for Identity, but no password.
+        user.UserName = string.IsNullOrWhiteSpace(user.UserName)
+            ? $"person-{Guid.NewGuid():N}"
+            : user.UserName.Trim();
+
+        var result = await _userManager.CreateAsync(user);
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(string.Join(", ", result.Errors.Select(x => x.Description)));
+        }
+
+        return user;
+    }
+
+    public async Task<PersonOperationResult> SetProfilePhotoAsync(string userId, Stream content, string contentType, string? originalName, CancellationToken cancellationToken = default)
+    {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
+        var user = await _userManager.Users.FirstOrDefaultAsync(x => x.Id == userId && x.HouseholdId == householdId, cancellationToken);
+        if (user is null)
+        {
+            return new PersonOperationResult(false, "Person wurde nicht gefunden.");
+        }
+
+        var extension = ExtensionForContentType(contentType, originalName);
+        var fileName = await _photoStorage.SaveAsync(content, extension, cancellationToken);
+        var previous = user.ProfilePhotoFileName;
+
+        user.ProfilePhotoFileName = fileName;
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            _photoStorage.Delete(fileName);
+            return new PersonOperationResult(false, string.Join(", ", updateResult.Errors.Select(x => x.Description)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(previous))
+        {
+            _photoStorage.Delete(previous);
+        }
+
+        return new PersonOperationResult(true);
+    }
+
+    public async Task<PersonOperationResult> RemoveProfilePhotoAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
+        var user = await _userManager.Users.FirstOrDefaultAsync(x => x.Id == userId && x.HouseholdId == householdId, cancellationToken);
+        if (user is null)
+        {
+            return new PersonOperationResult(false, "Person wurde nicht gefunden.");
+        }
+
+        var previous = user.ProfilePhotoFileName;
+        if (string.IsNullOrWhiteSpace(previous))
+        {
+            return new PersonOperationResult(true);
+        }
+
+        user.ProfilePhotoFileName = null;
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            return new PersonOperationResult(false, string.Join(", ", updateResult.Errors.Select(x => x.Description)));
+        }
+
+        _photoStorage.Delete(previous);
+        return new PersonOperationResult(true);
+    }
+
+    private static string ExtensionForContentType(string contentType, string? originalName)
+    {
+        var ext = contentType?.ToLowerInvariant() switch
+        {
+            "image/jpeg" or "image/jpg" => ".jpg",
+            "image/png" => ".png",
+            "image/webp" => ".webp",
+            "image/gif" => ".gif",
+            "image/heic" => ".heic",
+            "image/heif" => ".heif",
+            _ => null
+        };
+
+        if (ext is not null)
+        {
+            return ext;
+        }
+
+        var fromName = Path.GetExtension(originalName ?? string.Empty);
+        return string.IsNullOrWhiteSpace(fromName) ? ".img" : fromName.ToLowerInvariant();
     }
 
     public async Task<PersonOperationResult> SetPasswordAsync(string userId, string newPassword, CancellationToken cancellationToken = default)
@@ -224,10 +326,19 @@ public sealed class PersonService(
             }
         }
 
+        var photoFileName = user.ProfilePhotoFileName;
         var result = await _userManager.DeleteAsync(user);
-        return result.Succeeded
-            ? new PersonOperationResult(true)
-            : new PersonOperationResult(false, string.Join(", ", result.Errors.Select(x => x.Description)));
+        if (!result.Succeeded)
+        {
+            return new PersonOperationResult(false, string.Join(", ", result.Errors.Select(x => x.Description)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(photoFileName))
+        {
+            _photoStorage.Delete(photoFileName);
+        }
+
+        return new PersonOperationResult(true);
     }
 
     public async Task<PersonOperationResult> CreateRoleAsync(string roleName, CancellationToken cancellationToken = default)

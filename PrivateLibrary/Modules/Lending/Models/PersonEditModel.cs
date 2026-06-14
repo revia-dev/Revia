@@ -17,14 +17,16 @@ public sealed class PersonEditModel : IValidatableObject
     [StringLength(100)]
     public string? Nickname { get; set; }
 
-    [Required]
     [StringLength(200)]
     [EmailAddress]
     public string Email { get; set; } = string.Empty;
 
-    [Required]
     [StringLength(100)]
     public string UserName { get; set; } = string.Empty;
+
+    /// <summary>When true this person is a pure data record without login (no
+    /// username/password required) and cannot sign in.</summary>
+    public bool IsLoginless { get; set; }
 
     [StringLength(50)]
     public string? Phone { get; set; }
@@ -59,11 +61,28 @@ public sealed class PersonEditModel : IValidatableObject
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        if (IsNew && string.IsNullOrWhiteSpace(Password))
+        if (!IsLoginless)
         {
-            yield return new ValidationResult(
-                "Bitte ein Passwort eingeben.",
-                new[] { nameof(Password) });
+            if (string.IsNullOrWhiteSpace(UserName))
+            {
+                yield return new ValidationResult(
+                    "Bitte einen Benutzernamen eingeben.",
+                    new[] { nameof(UserName) });
+            }
+
+            if (string.IsNullOrWhiteSpace(Email))
+            {
+                yield return new ValidationResult(
+                    "Bitte eine E-Mail-Adresse eingeben.",
+                    new[] { nameof(Email) });
+            }
+
+            if (IsNew && string.IsNullOrWhiteSpace(Password))
+            {
+                yield return new ValidationResult(
+                    "Bitte ein Passwort eingeben.",
+                    new[] { nameof(Password) });
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(Password) && Password != ConfirmPassword)

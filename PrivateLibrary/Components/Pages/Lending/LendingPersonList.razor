@@ -100,8 +100,22 @@
                             {
                                 <tr>
                                     <td>
-                                        <div class="item-title">@DisplayName(user)</div>
-                                        <div class="text-muted small">@ValueOrFallback(user.UserName)</div>
+                                        <div class="person-cell">
+                                            <span class="person-avatar">
+                                                @if (!string.IsNullOrWhiteSpace(user.ProfilePhotoFileName))
+                                                {
+                                                    <img src="@($"/persons/photo/{user.Id}")" alt="" loading="lazy" />
+                                                }
+                                                else
+                                                {
+                                                    <span class="person-avatar-initials">@Initials(user)</span>
+                                                }
+                                            </span>
+                                            <span>
+                                                <div class="item-title">@DisplayName(user)</div>
+                                                <div class="text-muted small">@ValueOrFallback(user.UserName)</div>
+                                            </span>
+                                        </div>
                                     </td>
                                     <td>@ValueOrFallback(user.Email)<br />@ValueOrFallback(user.Phone)</td>
                                     <td>@FormatLocation(user)</td>
@@ -109,6 +123,10 @@
                                         @if (user.IsSystemUser)
                                         {
                                             <span class="badge text-bg-dark">System</span>
+                                        }
+                                        else if (user.IsLoginless)
+                                        {
+                                            <span class="badge text-bg-info">Ohne Login</span>
                                         }
                                         else
                                         {
@@ -232,6 +250,14 @@
 
     private static string DisplayName(ApplicationUser user)
         => string.IsNullOrWhiteSpace(user.DisplayName) ? ValueOrFallback(user.Email) : user.DisplayName;
+
+    private static string Initials(ApplicationUser user)
+    {
+        var first = user.FirstName?.Trim();
+        var last = user.LastName?.Trim();
+        var initials = $"{(first?.Length > 0 ? first[0] : ' ')}{(last?.Length > 0 ? last[0] : ' ')}".Trim();
+        return string.IsNullOrWhiteSpace(initials) ? "?" : initials.ToUpperInvariant();
+    }
 
     private static string FormatLocation(ApplicationUser user)
     {

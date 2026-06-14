@@ -85,6 +85,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 builder.Services.AddSingleton<ILendingPhotoStorage, LendingPhotoStorage>();
+builder.Services.AddSingleton<IPersonPhotoStorage, PersonPhotoStorage>();
 builder.Services.AddTransient<ILendingService, LendingService>();
 builder.Services.AddTransient<IPersonService, PersonService>();
 builder.Services.AddScoped<ToastService>();

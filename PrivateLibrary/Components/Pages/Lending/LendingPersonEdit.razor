@@ -3,6 +3,7 @@
 @using PrivateLibrary.Data
 @using PrivateLibrary.Modules.Lending.Models
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 @inject PrivateLibrary.Modules.Lending.Services.IPersonService PersonService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -30,6 +31,17 @@
 
             <div class="glass-card form-shell">
                 <div class="form-grid">
+                    <div class="field field-wide">
+                        <label class="checkbox-field">
+                            <InputCheckbox @bind-Value="_model.IsLoginless" disabled="@(!_model.IsNew)" />
+                            <span>Person ohne Login (kein Benutzername/Passwort, kann sich nicht anmelden)</span>
+                        </label>
+                        @if (!_model.IsNew && _model.IsLoginless)
+                        {
+                            <small class="text-muted">Diese Person ist ein reiner Datensatz ohne Anmeldung.</small>
+                        }
+                    </div>
+
                     <div class="field">
                         <label>Vorname *</label>
                         <InputText class="form-control" @bind-Value="_model.FirstName" />
@@ -44,16 +56,19 @@
                         <label>Spitzname</label>
                         <InputText class="form-control" @bind-Value="_model.Nickname" />
                     </div>
-                    <div class="field">
-                        <label>Benutzername *</label>
-                        <InputText class="form-control" @bind-Value="_model.UserName" autocomplete="off" />
-                        <ValidationMessage For="@(() => _model.UserName)" />
-                    </div>
-                    <div class="field">
-                        <label>E-Mail *</label>
-                        <InputText class="form-control" @bind-Value="_model.Email" />
-                        <ValidationMessage For="@(() => _model.Email)" />
-                    </div>
+                    @if (!_model.IsLoginless)
+                    {
+                        <div class="field">
+                            <label>Benutzername *</label>
+                            <InputText class="form-control" @bind-Value="_model.UserName" autocomplete="off" />
+                            <ValidationMessage For="@(() => _model.UserName)" />
+                        </div>
+                        <div class="field">
+                            <label>E-Mail *</label>
+                            <InputText class="form-control" @bind-Value="_model.Email" />
+                            <ValidationMessage For="@(() => _model.Email)" />
+                        </div>
+                    }
                     <div class="field">
                         <label>Telefon</label>
                         <InputText class="form-control" @bind-Value="_model.Phone" />
@@ -79,20 +94,23 @@
                         <InputTextArea class="form-control" rows="3" @bind-Value="_model.Notes" />
                     </div>
 
-                    <div class="field">
-                        <label>@(_model.IsNew ? "Passwort *" : "Neues Passwort")</label>
-                        <InputText type="password" class="form-control" @bind-Value="_model.Password" autocomplete="new-password" />
-                        <ValidationMessage For="@(() => _model.Password)" />
-                        @if (!_model.IsNew)
-                        {
-                            <small class="text-muted">Leer lassen, um das Passwort nicht zu ändern.</small>
-                        }
-                    </div>
-                    <div class="field">
-                        <label>Passwort bestätigen</label>
-                        <InputText type="password" class="form-control" @bind-Value="_model.ConfirmPassword" autocomplete="new-password" />
-                        <ValidationMessage For="@(() => _model.ConfirmPassword)" />
-                    </div>
+                    @if (!_model.IsLoginless)
+                    {
+                        <div class="field">
+                            <label>@(_model.IsNew ? "Passwort *" : "Neues Passwort")</label>
+                            <InputText type="password" class="form-control" @bind-Value="_model.Password" autocomplete="new-password" />
+                            <ValidationMessage For="@(() => _model.Password)" />
+                            @if (!_model.IsNew)
+                            {
+                                <small class="text-muted">Leer lassen, um das Passwort nicht zu ändern.</small>
+                            }
+                        </div>
+                        <div class="field">
+                            <label>Passwort bestätigen</label>
+                            <InputText type="password" class="form-control" @bind-Value="_model.ConfirmPassword" autocomplete="new-password" />
+                            <ValidationMessage For="@(() => _model.ConfirmPassword)" />
+                        </div>
+                    }
 
                     @if (_model.CanManageRoles)
                     {
@@ -109,6 +127,41 @@
                         </div>
                     }
                 </div>
+
+                @if (!_model.IsNew)
+                {
+                    <div class="profile-photo-section">
+                        <h2 class="ui-section-title">Profilbild</h2>
+                        <div class="profile-photo-row">
+                            <div class="profile-photo-preview">
+                                @if (_hasPhoto)
+                                {
+                                    <img src="@($"/persons/photo/{_id}?v={_photoVersion}")" alt="Profilbild" />
+                                }
+                                else
+                                {
+                                    <div class="profile-photo-placeholder">Kein Bild</div>
+                                }
+                            </div>
+                            <div class="profile-photo-controls">
+                                <InputFile OnChange="OnProfilePhotoSelectedAsync" accept="image/*" class="form-control" />
+                                @if (_uploadingPhoto)
+                                {
+                                    <div class="photo-empty"><span class="spinner spinner-sm"></span> Bild wird hochgeladen ...</div>
+                                }
+                                @if (_hasPhoto)
+                                {
+                                    <button type="button" class="btn btn-secondary btn-modern" @onclick="RemoveProfilePhotoAsync">Bild entfernen</button>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(_photoError))
+                                {
+                                    <div class="login-error">@_photoError</div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary btn-modern">
                         @(_id is not null ? "Änderungen speichern" : "Benutzer anlegen")
@@ -126,6 +179,13 @@
     private string? _id;
     private PersonEditModel? _model;
     private bool _canManageRoles;
+
+    private bool _hasPhoto;
+    private int _photoVersion = 1;
+    private bool _uploadingPhoto;
+    private string? _photoError;
+
+    private const long MaxPhotoBytes = 15 * 1024 * 1024;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -159,10 +219,13 @@
                 City = user.City,
                 Notes = user.Notes,
                 IsSystemUser = user.IsSystemUser,
+                IsLoginless = user.IsLoginless,
                 CanManageRoles = _canManageRoles,
                 SelectedRole = IdentitySeeder.UserRoleName,
                 AvailableRoles = availableRoles
             };
+
+            _hasPhoto = !string.IsNullOrWhiteSpace(user.ProfilePhotoFileName);
         }
         else
         {
@@ -193,7 +256,8 @@
             PostalCode = _model.PostalCode,
             City = _model.City,
             Notes = _model.Notes,
-            IsSystemUser = _model.IsSystemUser
+            IsSystemUser = _model.IsSystemUser,
+            IsLoginless = _model.IsLoginless
         };
         // For existing users, set the Id so UpdateAsync/SetPasswordAsync can look them up.
         // For new users, leave the constructor-generated GUID intact — setting Id=""
@@ -205,9 +269,17 @@
         {
             if (_model.IsNew)
             {
-                var roleName = _canManageRoles ? _model.SelectedRole : IdentitySeeder.UserRoleName;
-                await PersonService.CreateAsync(entity, _model.Password!, roleName);
-                ToastService.Success("Benutzer erfolgreich angelegt.");
+                if (_model.IsLoginless)
+                {
+                    await PersonService.CreateLoginlessAsync(entity);
+                    ToastService.Success("Person (ohne Login) erfolgreich angelegt.");
+                }
+                else
+                {
+                    var roleName = _canManageRoles ? _model.SelectedRole : IdentitySeeder.UserRoleName;
+                    await PersonService.CreateAsync(entity, _model.Password!, roleName);
+                    ToastService.Success("Benutzer erfolgreich angelegt.");
+                }
             }
             else
             {
@@ -239,5 +311,61 @@
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         return authState.User.IsInRole(IdentitySeeder.AdminRoleName);
+    }
+
+    private async Task OnProfilePhotoSelectedAsync(InputFileChangeEventArgs e)
+    {
+        if (_id is null)
+            return;
+
+        _photoError = null;
+        var file = e.File;
+
+        if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            _photoError = "Es werden nur Bilddateien unterstützt.";
+            return;
+        }
+
+        _uploadingPhoto = true;
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxPhotoBytes);
+            var result = await PersonService.SetProfilePhotoAsync(_id, stream, file.ContentType, file.Name);
+            if (!result.Succeeded)
+            {
+                _photoError = result.ErrorMessage ?? "Bild konnte nicht gespeichert werden.";
+                return;
+            }
+
+            _hasPhoto = true;
+            _photoVersion++;
+            ToastService.Success("Profilbild gespeichert.");
+        }
+        catch (Exception ex)
+        {
+            _photoError = ex.Message;
+        }
+        finally
+        {
+            _uploadingPhoto = false;
+        }
+    }
+
+    private async Task RemoveProfilePhotoAsync()
+    {
+        if (_id is null)
+            return;
+
+        var result = await PersonService.RemoveProfilePhotoAsync(_id);
+        if (!result.Succeeded)
+        {
+            _photoError = result.ErrorMessage ?? "Bild konnte nicht entfernt werden.";
+            return;
+        }
+
+        _hasPhoto = false;
+        _photoVersion++;
+        ToastService.Success("Profilbild entfernt.");
     }
 }
