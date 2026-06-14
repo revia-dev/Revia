@@ -129,7 +129,14 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-app.UseHttpsRedirection();
+
+// Only force HTTPS outside development. In dev (incl. LAN access from a phone)
+// the app is served over plain HTTP, so redirecting would bounce devices to the
+// untrusted localhost dev certificate.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
