@@ -643,6 +643,70 @@ input[type="search"]:focus {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+.spinner-sm {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: -2px;
+    margin-right: 0.4rem;
+}
+
+/* ============================================================
+   PHOTO GALLERY (lending)
+   ============================================================ */
+.photo-upload {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin: 0.75rem 0 1rem;
+}
+
+.photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.75rem;
+}
+
+.photo-thumb {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    background: var(--surface-soft);
+    display: block;
+}
+
+.photo-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.photo-thumb-remove {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.photo-empty {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.detail-photos {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0.5rem 0 1.25rem;
+}
+
 /* ============================================================
    STAT PILL (movies)
    ============================================================ */

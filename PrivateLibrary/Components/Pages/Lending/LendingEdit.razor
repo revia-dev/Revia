@@ -173,6 +173,53 @@
                 </div>
             </div>
         </EditForm>
+
+        <div class="glass-card form-shell">
+            <div>
+                <h3 class="ui-section-title">Fotos</h3>
+                <p class="section-subtitle">Füge Fotos per Kamera oder aus der Mediathek hinzu.</p>
+            </div>
+
+            @if (_id.HasValue)
+            {
+                <div class="photo-upload">
+                    <InputFile OnChange="OnPhotosSelectedAsync" multiple accept="image/*" class="form-control" />
+                    @if (_uploadingPhotos)
+                    {
+                        <div class="photo-empty"><span class="spinner spinner-sm"></span> Fotos werden hochgeladen ...</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_photoError))
+                    {
+                        <div class="login-error">@_photoError</div>
+                    }
+                </div>
+
+                @if (_photos.Count > 0)
+                {
+                    <div class="photo-grid">
+                        @foreach (var photo in _photos)
+                        {
+                            <div class="photo-thumb" @key="photo.Id">
+                                <img src="@($"/lending/photos/{photo.Id}")" alt="@(photo.OriginalName ?? "Foto")" loading="lazy" />
+                                <IconButton IconName="trash"
+                                            AriaLabel="Foto entfernen"
+                                            Variant="btn-danger"
+                                            CssClass="photo-thumb-remove"
+                                            OnClick="() => RemovePhotoAsync(photo.Id)" />
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="photo-empty">Noch keine Fotos hinzugefügt.</div>
+                }
+            }
+            else
+            {
+                <div class="photo-empty">Speichere den Eintrag zuerst, um Fotos hinzufügen zu können.</div>
+            }
+        </div>
     }
 </div>
 
@@ -187,6 +234,13 @@
     private string _selectedCategoryIdString = string.Empty;
     private string _newCategoryName = string.Empty;
     private string? _categoryMessage;
+
+    private readonly List<LendingPhoto> _photos = new();
+    private bool _uploadingPhotos;
+    private string? _photoError;
+
+    private const long MaxPhotoBytes = 15 * 1024 * 1024;
+    private const int MaxPhotoCount = 20;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -241,6 +295,9 @@
                     Notes = item.Notes,
                     NewItemName = string.Empty
                 };
+
+                _photos.Clear();
+                _photos.AddRange(item.Photos.OrderBy(x => x.SortOrder).ThenBy(x => x.Id));
             }
             else
             {
@@ -370,14 +427,63 @@
         if (entity.Id == 0)
         {
             var created = await LendingService.CreateAsync(entity);
-            ToastService.Success("Eintrag erfolgreich angelegt.");
-            Navigation.NavigateTo("/lending/" + created.Id);
+            ToastService.Success("Eintrag angelegt. Du kannst jetzt Fotos hinzufügen.");
+            // Go to the edit page (not details) so photos can be added right away.
+            Navigation.NavigateTo("/lending/edit/" + created.Id);
         }
         else
         {
             await LendingService.UpdateAsync(entity);
             ToastService.Success("Änderungen gespeichert.");
             Navigation.NavigateTo("/lending/" + entity.Id);
+        }
+    }
+
+    private async Task OnPhotosSelectedAsync(InputFileChangeEventArgs e)
+    {
+        if (!_id.HasValue)
+        {
+            return;
+        }
+
+        _photoError = null;
+        _uploadingPhotos = true;
+
+        try
+        {
+            foreach (var file in e.GetMultipleFiles(MaxPhotoCount))
+            {
+                if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                {
+                    _photoError = "Es werden nur Bilddateien unterstützt.";
+                    continue;
+                }
+
+                try
+                {
+                    await using var stream = file.OpenReadStream(MaxPhotoBytes);
+                    var photo = await LendingService.AddPhotoAsync(_id.Value, stream, file.ContentType, file.Name);
+                    _photos.Add(photo);
+                }
+                catch (Exception ex)
+                {
+                    _photoError = $"'{file.Name}' konnte nicht hochgeladen werden: {ex.Message}";
+                }
+            }
+        }
+        finally
+        {
+            _uploadingPhotos = false;
+        }
+    }
+
+    private async Task RemovePhotoAsync(int photoId)
+    {
+        var removed = await LendingService.RemovePhotoAsync(photoId);
+        if (removed)
+        {
+            _photos.RemoveAll(x => x.Id == photoId);
+            ToastService.Success("Foto entfernt.");
         }
     }
 }

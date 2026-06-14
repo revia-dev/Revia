@@ -46,6 +46,11 @@ public sealed class LendingEntryConfiguration : IEntityTypeConfiguration<Lending
             .HasForeignKey(x => x.LendingEntryId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(x => x.Photos)
+            .WithOne(x => x.LendingEntry)
+            .HasForeignKey(x => x.LendingEntryId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.LoanDate);
         builder.HasIndex(x => x.DueDate);
@@ -67,6 +72,32 @@ public sealed class LendingItemConfiguration : IEntityTypeConfiguration<LendingI
 
         builder.Property(x => x.SortOrder)
             .IsRequired();
+
+        builder.HasIndex(x => x.LendingEntryId);
+        builder.HasIndex(x => new { x.LendingEntryId, x.SortOrder });
+    }
+}
+
+public sealed class LendingPhotoConfiguration : IEntityTypeConfiguration<LendingPhoto>
+{
+    public void Configure(EntityTypeBuilder<LendingPhoto> builder)
+    {
+        builder.ToTable("LendingPhotos");
+
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.FileName)
+            .IsRequired()
+            .HasMaxLength(260);
+
+        builder.Property(x => x.ContentType)
+            .IsRequired()
+            .HasMaxLength(100);
+
+        builder.Property(x => x.OriginalName)
+            .HasMaxLength(260);
+
+        builder.Property(x => x.CreatedAt).IsRequired();
 
         builder.HasIndex(x => x.LendingEntryId);
         builder.HasIndex(x => new { x.LendingEntryId, x.SortOrder });

@@ -83,6 +83,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/account/login";
 });
 
+builder.Services.AddSingleton<ILendingPhotoStorage, LendingPhotoStorage>();
 builder.Services.AddTransient<ILendingService, LendingService>();
 builder.Services.AddTransient<IPersonService, PersonService>();
 builder.Services.AddScoped<ToastService>();

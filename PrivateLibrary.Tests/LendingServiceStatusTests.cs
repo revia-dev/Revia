@@ -17,7 +17,7 @@ public class LendingServiceStatusTests : IDisposable
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         _db = new AppDbContext(options);
-        _service = new LendingService(_db);
+        _service = new LendingService(_db, new FakeLendingPhotoStorage());
     }
 
     [Fact]

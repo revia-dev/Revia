@@ -7,10 +7,12 @@ namespace PrivateLibrary.Modules.Lending.Services;
 public sealed class LendingService : ILendingService
 {
     private readonly AppDbContext _db;
+    private readonly ILendingPhotoStorage _photoStorage;
 
-    public LendingService(AppDbContext db)
+    public LendingService(AppDbContext db, ILendingPhotoStorage photoStorage)
     {
         _db = db;
+        _photoStorage = photoStorage;
     }
 
     public async Task<IReadOnlyList<LendingEntry>> GetAllAsync(LendingEntryStatus? statusFilter = null, CancellationToken cancellationToken = default)
@@ -48,6 +50,7 @@ public sealed class LendingService : ILendingService
             .Include(x => x.Items.OrderBy(i => i.SortOrder))
             .Include(x => x.CategoryLinks)
                 .ThenInclude(x => x.LendingCategory)
+            .Include(x => x.Photos.OrderBy(p => p.SortOrder).ThenBy(p => p.Id))
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
         if (entry is not null)
@@ -125,15 +128,116 @@ public sealed class LendingService : ILendingService
 
     public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-        var entry = await _db.LendingEntries.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var entry = await _db.LendingEntries
+            .Include(x => x.Photos)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (entry is null)
         {
             return false;
         }
 
+        // Cascade removes the DB rows; the files on disk must be cleaned up explicitly.
+        var fileNames = entry.Photos.Select(x => x.FileName).ToList();
+
         _db.LendingEntries.Remove(entry);
         await _db.SaveChangesAsync(cancellationToken);
+
+        foreach (var fileName in fileNames)
+        {
+            _photoStorage.Delete(fileName);
+        }
+
         return true;
+    }
+
+    public async Task<LendingPhoto> AddPhotoAsync(int lendingEntryId, Stream content, string contentType, string? originalName, CancellationToken cancellationToken = default)
+    {
+        var entryExists = await _db.LendingEntries.AnyAsync(x => x.Id == lendingEntryId, cancellationToken);
+        if (!entryExists)
+        {
+            throw new InvalidOperationException("Der Ausleih-Eintrag wurde nicht gefunden.");
+        }
+
+        var extension = ExtensionForContentType(contentType, originalName);
+        var fileName = await _photoStorage.SaveAsync(content, extension, cancellationToken);
+
+        var nextSortOrder = await _db.LendingPhotos
+            .Where(x => x.LendingEntryId == lendingEntryId)
+            .Select(x => (int?)x.SortOrder)
+            .MaxAsync(cancellationToken) ?? -1;
+
+        var photo = new LendingPhoto
+        {
+            LendingEntryId = lendingEntryId,
+            FileName = fileName,
+            ContentType = contentType,
+            OriginalName = originalName,
+            SizeBytes = TryGetLength(content),
+            SortOrder = nextSortOrder + 1,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        try
+        {
+            _db.LendingPhotos.Add(photo);
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            // Don't leave an orphaned file behind if the DB write fails.
+            _photoStorage.Delete(fileName);
+            throw;
+        }
+
+        return photo;
+    }
+
+    public async Task<bool> RemovePhotoAsync(int photoId, CancellationToken cancellationToken = default)
+    {
+        var photo = await _db.LendingPhotos.FirstOrDefaultAsync(x => x.Id == photoId, cancellationToken);
+        if (photo is null)
+        {
+            return false;
+        }
+
+        _db.LendingPhotos.Remove(photo);
+        await _db.SaveChangesAsync(cancellationToken);
+        _photoStorage.Delete(photo.FileName);
+        return true;
+    }
+
+    private static long TryGetLength(Stream stream)
+    {
+        try
+        {
+            return stream.CanSeek ? stream.Length : 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static string ExtensionForContentType(string contentType, string? originalName)
+    {
+        var ext = (contentType?.ToLowerInvariant()) switch
+        {
+            "image/jpeg" or "image/jpg" => ".jpg",
+            "image/png" => ".png",
+            "image/webp" => ".webp",
+            "image/gif" => ".gif",
+            "image/heic" => ".heic",
+            "image/heif" => ".heif",
+            _ => null
+        };
+
+        if (ext is not null)
+        {
+            return ext;
+        }
+
+        var fromName = Path.GetExtension(originalName ?? string.Empty);
+        return string.IsNullOrWhiteSpace(fromName) ? ".img" : fromName.ToLowerInvariant();
     }
 
     public async Task<LendingDashboardStats> GetDashboardStatsAsync(CancellationToken cancellationToken = default)

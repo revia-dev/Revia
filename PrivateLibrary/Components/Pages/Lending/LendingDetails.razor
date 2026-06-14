@@ -53,6 +53,21 @@
                 <dt>Geändert</dt><dd>@_item.UpdatedAt.ToString("dd.MM.yyyy HH:mm")</dd>
             </dl>
 
+            @if (_item.Photos.Count > 0)
+            {
+                <div class="detail-photos">
+                    <h2 class="ui-section-title">Fotos</h2>
+                    <div class="photo-grid">
+                        @foreach (var photo in _item.Photos.OrderBy(x => x.SortOrder).ThenBy(x => x.Id))
+                        {
+                            <a class="photo-thumb" href="@($"/lending/photos/{photo.Id}")" target="_blank" rel="noopener" @key="photo.Id">
+                                <img src="@($"/lending/photos/{photo.Id}")" alt="@(photo.OriginalName ?? "Foto")" loading="lazy" />
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+
             <div class="actions">
                 @if (CanBeMarkedAsReturned)
                 {

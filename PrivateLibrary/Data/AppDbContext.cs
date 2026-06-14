@@ -15,6 +15,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<LendingItem> LendingItems => Set<LendingItem>();
     public DbSet<LendingCategory> LendingCategories => Set<LendingCategory>();
     public DbSet<LendingEntryCategory> LendingEntryCategories => Set<LendingEntryCategory>();
+    public DbSet<LendingPhoto> LendingPhotos => Set<LendingPhoto>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

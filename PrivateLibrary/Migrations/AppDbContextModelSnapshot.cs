@@ -386,6 +386,47 @@ namespace PrivateLibrary.Migrations
                     b.ToTable("LendingItems", (string)null);
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingPhoto", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("LendingEntryId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OriginalName")
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LendingEntryId");
+
+                    b.HasIndex("LendingEntryId", "SortOrder");
+
+                    b.ToTable("LendingPhotos", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -486,6 +527,17 @@ namespace PrivateLibrary.Migrations
                     b.Navigation("LendingEntry");
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingPhoto", b =>
+                {
+                    b.HasOne("PrivateLibrary.Modules.Lending.Models.LendingEntry", "LendingEntry")
+                        .WithMany("Photos")
+                        .HasForeignKey("LendingEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LendingEntry");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Data.ApplicationUser", b =>
                 {
                     b.Navigation("BorrowedEntries");
@@ -503,6 +555,8 @@ namespace PrivateLibrary.Migrations
                     b.Navigation("CategoryLinks");
 
                     b.Navigation("Items");
+
+                    b.Navigation("Photos");
                 });
 #pragma warning restore 612, 618
         }

@@ -49,6 +49,7 @@ public sealed class LendingEntry : IValidatableObject
 
     public ICollection<LendingItem> Items { get; set; } = new List<LendingItem>();
     public ICollection<LendingEntryCategory> CategoryLinks { get; set; } = new List<LendingEntryCategory>();
+    public ICollection<LendingPhoto> Photos { get; set; } = new List<LendingPhoto>();
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
