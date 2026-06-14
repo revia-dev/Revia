@@ -1,18 +1,20 @@
 @page "/lending/persons/new"
-@page "/lending/persons/edit/{Id:int}"
+@page "/lending/persons/edit/{Id}"
+@using PrivateLibrary.Data
 @using PrivateLibrary.Modules.Lending.Models
-@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Authorization
 @inject PrivateLibrary.Modules.Lending.Services.IPersonService PersonService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 
-<PageTitle>@(_id.HasValue ? "Person bearbeiten" : "Neue Person")</PageTitle>
+<PageTitle>@(_id is not null ? "Benutzer bearbeiten" : "Neuer Benutzer")</PageTitle>
 
 <div class="page-shell">
     <div class="glass-card page-header">
         <div>
-            <h1>@(_id.HasValue ? "Person bearbeiten" : "Neue Person")</h1>
-            <p>Person erfassen oder bearbeiten.</p>
+            <h1>@(_id is not null ? "Benutzer bearbeiten" : "Neuen Benutzer anlegen")</h1>
+            <p>Benutzer verwalten und optional Rollen zuweisen.</p>
         </div>
     </div>
 
@@ -22,9 +24,9 @@
     }
     else
     {
-        <EditForm Model="_model" OnValidSubmit="SaveAsync">
+        <EditForm Model="_model" OnValidSubmit="SaveAsync" FormName="person-edit-form">
             <DataAnnotationsValidator />
-            <ValidationSummary />
+            <ValidationSummary class="validation-summary-errors" />
 
             <div class="glass-card form-shell">
                 <div class="form-grid">
@@ -43,7 +45,12 @@
                         <InputText class="form-control" @bind-Value="_model.Nickname" />
                     </div>
                     <div class="field">
-                        <label>E-Mail</label>
+                        <label>Benutzername *</label>
+                        <InputText class="form-control" @bind-Value="_model.UserName" autocomplete="off" />
+                        <ValidationMessage For="@(() => _model.UserName)" />
+                    </div>
+                    <div class="field">
+                        <label>E-Mail *</label>
                         <InputText class="form-control" @bind-Value="_model.Email" />
                         <ValidationMessage For="@(() => _model.Email)" />
                     </div>
@@ -69,12 +76,42 @@
                     </div>
                     <div class="field field-wide">
                         <label>Notizen</label>
-                        <InputTextArea class="form-control" rows="4" @bind-Value="_model.Notes" />
+                        <InputTextArea class="form-control" rows="3" @bind-Value="_model.Notes" />
                     </div>
+
+                    <div class="field">
+                        <label>@(_model.IsNew ? "Passwort *" : "Neues Passwort")</label>
+                        <InputText type="password" class="form-control" @bind-Value="_model.Password" autocomplete="new-password" />
+                        <ValidationMessage For="@(() => _model.Password)" />
+                        @if (!_model.IsNew)
+                        {
+                            <small class="text-muted">Leer lassen, um das Passwort nicht zu ändern.</small>
+                        }
+                    </div>
+                    <div class="field">
+                        <label>Passwort bestätigen</label>
+                        <InputText type="password" class="form-control" @bind-Value="_model.ConfirmPassword" autocomplete="new-password" />
+                        <ValidationMessage For="@(() => _model.ConfirmPassword)" />
+                    </div>
+
+                    @if (_model.CanManageRoles)
+                    {
+                        <div class="field field-wide">
+                            <label>Rolle</label>
+                            <InputSelect class="form-select" @bind-Value="_model.SelectedRole">
+                                @foreach (var role in _model.AvailableRoles)
+                                {
+                                    <option value="@role">@role</option>
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => _model.SelectedRole)" />
+                            <small class="text-muted">Neue Benutzer erhalten standardmäßig die Rolle User.</small>
+                        </div>
+                    }
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary btn-modern">
-                        @(_id.HasValue ? "Änderungen speichern" : "Person anlegen")
+                        @(_id is not null ? "Änderungen speichern" : "Benutzer anlegen")
                     </button>
                     <a class="btn btn-secondary btn-modern" href="/lending/persons">Abbrechen</a>
                 </div>
@@ -84,69 +121,123 @@
 </div>
 
 @code {
-    [Parameter] public int? Id { get; set; }
+    [Parameter] public string? Id { get; set; }
 
-    private int? _id;
+    private string? _id;
     private PersonEditModel? _model;
+    private bool _canManageRoles;
 
     protected override async Task OnParametersSetAsync()
     {
         _id = Id;
+        _canManageRoles = await CurrentUserIsAdminAsync();
+        var availableRoles = _canManageRoles
+            ? await PersonService.GetAvailableRolesAsync()
+            : Array.Empty<string>();
 
-        if (_id.HasValue)
+        if (_id is not null)
         {
-            var person = await PersonService.GetByIdAsync(_id.Value);
-            if (person is null)
+            var user = await PersonService.GetByIdAsync(_id);
+            if (user is null)
             {
                 Navigation.NavigateTo("/lending/persons");
                 return;
             }
+
             _model = new PersonEditModel
             {
-                Id = person.Id,
-                FirstName = person.FirstName,
-                LastName = person.LastName,
-                Nickname = person.Nickname,
-                Email = person.Email,
-                Phone = person.Phone,
-                Street = person.Street,
-                HouseNumber = person.HouseNumber,
-                PostalCode = person.PostalCode,
-                City = person.City,
-                Notes = person.Notes
+                Id = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Nickname = user.Nickname,
+                Email = user.Email ?? string.Empty,
+                UserName = user.UserName ?? string.Empty,
+                Phone = user.Phone,
+                Street = user.Street,
+                HouseNumber = user.HouseNumber,
+                PostalCode = user.PostalCode,
+                City = user.City,
+                Notes = user.Notes,
+                IsSystemUser = user.IsSystemUser,
+                CanManageRoles = _canManageRoles,
+                SelectedRole = IdentitySeeder.UserRoleName,
+                AvailableRoles = availableRoles
             };
         }
         else
         {
-            _model ??= new PersonEditModel();
+            _model = new PersonEditModel
+            {
+                CanManageRoles = _canManageRoles,
+                SelectedRole = IdentitySeeder.UserRoleName,
+                AvailableRoles = availableRoles
+            };
         }
     }
 
     private async Task SaveAsync()
     {
-        if (_model is null) return;
+        if (_model is null)
+            return;
 
-        var entity = new Person
+        var entity = new ApplicationUser
         {
-            Id = _model.Id,
             FirstName = _model.FirstName,
             LastName = _model.LastName,
             Nickname = _model.Nickname,
             Email = _model.Email,
+            UserName = _model.UserName,
             Phone = _model.Phone,
             Street = _model.Street,
             HouseNumber = _model.HouseNumber,
             PostalCode = _model.PostalCode,
             City = _model.City,
-            Notes = _model.Notes
+            Notes = _model.Notes,
+            IsSystemUser = _model.IsSystemUser
         };
+        // For existing users, set the Id so UpdateAsync/SetPasswordAsync can look them up.
+        // For new users, leave the constructor-generated GUID intact — setting Id=""
+        // causes EF to conflict when creating a second user in the same circuit scope.
+        if (!_model.IsNew)
+            entity.Id = _model.Id!;
 
-        if (entity.Id == 0)
-            await PersonService.CreateAsync(entity);
-        else
-            await PersonService.UpdateAsync(entity);
+        try
+        {
+            if (_model.IsNew)
+            {
+                var roleName = _canManageRoles ? _model.SelectedRole : IdentitySeeder.UserRoleName;
+                await PersonService.CreateAsync(entity, _model.Password!, roleName);
+                ToastService.Success("Benutzer erfolgreich angelegt.");
+            }
+            else
+            {
+                var roleName = _canManageRoles ? _model.SelectedRole : null;
+                await PersonService.UpdateAsync(entity, roleName);
 
-        ToastService.Success(_id.HasValue ? "Änderungen gespeichert." : "Person erfolgreich angelegt.");
-        Navigation.NavigateTo("/lending/persons");
+                if (!string.IsNullOrWhiteSpace(_model.Password))
+                {
+                    var pwResult = await PersonService.SetPasswordAsync(entity.Id, _model.Password);
+                    if (!pwResult.Succeeded)
+                    {
+                        ToastService.Error(pwResult.ErrorMessage ?? "Passwort konnte nicht gesetzt werden.");
+                        return;
+                    }
+                }
+
+                ToastService.Success("Änderungen gespeichert.");
+            }
+
+            Navigation.NavigateTo("/lending/persons");
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error(ex.Message);
+        }
+    }
+
+    private async Task<bool> CurrentUserIsAdminAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return authState.User.IsInRole(IdentitySeeder.AdminRoleName);
     }
 }

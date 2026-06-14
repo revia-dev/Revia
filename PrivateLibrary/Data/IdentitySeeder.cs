@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 
 namespace PrivateLibrary.Data;
 
@@ -8,12 +9,17 @@ public static class IdentitySeeder
     public const string UserRoleName = "User";
     public const string DefaultAdminEmail = "admin@privatelibrary.local";
     public const string DefaultAdminUserName = "admin";
-    public const string DefaultAdminPassword = "Admin123!";
 
     public static async Task SeedAsync(
         UserManager<ApplicationUser> userManager,
-        RoleManager<IdentityRole> roleManager)
+        RoleManager<IdentityRole> roleManager,
+        IConfiguration configuration)
     {
+        var adminPassword = configuration["Seed:AdminPassword"]
+            ?? throw new InvalidOperationException(
+                "Seed:AdminPassword is not configured. Set it via User Secrets (development) " +
+                "or the SEED__ADMINPASSWORD environment variable (production).");
+
         await EnsureRoleExistsAsync(roleManager, AdminRoleName);
         await EnsureRoleExistsAsync(roleManager, UserRoleName);
 
@@ -30,7 +36,7 @@ public static class IdentitySeeder
                 IsSystemUser = true
             };
 
-            var createResult = await userManager.CreateAsync(adminUser, DefaultAdminPassword);
+            var createResult = await userManager.CreateAsync(adminUser, adminPassword);
             if (!createResult.Succeeded)
             {
                 var errors = string.Join(", ", createResult.Errors.Select(x => $"{x.Code}: {x.Description}"));
@@ -72,9 +78,7 @@ public static class IdentitySeeder
     private static async Task EnsureRoleExistsAsync(RoleManager<IdentityRole> roleManager, string roleName)
     {
         if (await roleManager.RoleExistsAsync(roleName))
-        {
             return;
-        }
 
         var createResult = await roleManager.CreateAsync(new IdentityRole(roleName));
         if (!createResult.Succeeded)

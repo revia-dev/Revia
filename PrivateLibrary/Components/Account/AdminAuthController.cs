@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using PrivateLibrary.Data;
@@ -8,27 +9,38 @@ namespace PrivateLibrary.Components.Account;
 [ApiController]
 public sealed class AdminAuthController : ControllerBase
 {
-    [HttpPost("/account/dev-admin-login")]
+    // Login must be reachable while unauthenticated; otherwise the global
+    // RequireAuthenticatedUser fallback policy blocks the sign-in POST with 401.
+    [AllowAnonymous]
+    [HttpPost("/account/do-login")]
     [ValidateAntiForgeryToken]
     public async Task<IResult> Login(
         [FromServices] SignInManager<ApplicationUser> signInManager,
-        [FromServices] UserManager<ApplicationUser> userManager,
+        [FromForm] string userName,
+        [FromForm] string password,
+        [FromForm] bool rememberMe,
         [FromForm] string? returnUrl)
     {
-        var user = await userManager.FindByNameAsync(IdentitySeeder.DefaultAdminUserName);
-        if (user is null)
-        {
-            return Results.Redirect(returnUrl ?? "/");
-        }
+        if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password))
+            return Results.Redirect($"/account/login?error=1&returnUrl={Uri.EscapeDataString(returnUrl ?? "/")}");
 
         await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
-        var signInResult = await signInManager.PasswordSignInAsync(
-            IdentitySeeder.DefaultAdminUserName,
-            IdentitySeeder.DefaultAdminPassword,
-            isPersistent: false,
-            lockoutOnFailure: false);
 
-        return Results.Redirect(signInResult.Succeeded ? (returnUrl ?? "/admin") : "/");
+        var result = await signInManager.PasswordSignInAsync(
+            userName.Trim(),
+            password,
+            isPersistent: rememberMe,
+            lockoutOnFailure: true);
+
+        if (result.Succeeded)
+        {
+            var target = Uri.UnescapeDataString(returnUrl ?? "/");
+            if (!Url.IsLocalUrl(target))
+                target = "/";
+            return Results.Redirect(target);
+        }
+
+        return Results.Redirect($"/account/login?error=1&returnUrl={Uri.EscapeDataString(returnUrl ?? "/")}");
     }
 
     [HttpPost("/account/logout")]

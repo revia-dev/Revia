@@ -1,7 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PrivateLibrary.Components;
+using PrivateLibrary.Components.Account;
 using PrivateLibrary.Data;
 using PrivateLibrary.Modules.Lending.Services;
 using PrivateLibrary.Services;
@@ -13,7 +16,16 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddControllersWithViews();
 
+// Supplies the Task<AuthenticationState> cascading value across the whole
+// component tree (replaces wrapping App.razor in <CascadingAuthenticationState>).
 builder.Services.AddCascadingAuthenticationState();
+
+// Without an explicit server AuthenticationStateProvider the interactive circuit
+// reports the user as anonymous (even after a successful SSR render), which makes
+// every authorized page bounce back to the login screen. This revalidating
+// provider carries the authenticated principal into the circuit and re-checks the
+// security stamp so sign-out / password changes invalidate live circuits.
+builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 
 builder.Services.AddAuthentication(options =>
     {
@@ -22,12 +34,18 @@ builder.Services.AddAuthentication(options =>
     })
     .AddIdentityCookies();
 
-builder.Services.AddAuthorization();
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build());
 
 builder.Services.AddHttpClient<TmdbService>();
-builder.Services.AddScoped<MovieCsvService>();
+builder.Services.AddHttpClient<MovieCsvService>();
 builder.Services.AddScoped<MovieFilterService>();
 builder.Services.AddScoped<PosterResolverService>();
+builder.Services.AddHostedService<PosterBackfillService>();
 
 builder.Services.AddScoped(sp =>
 {
@@ -56,21 +74,52 @@ builder.Services
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
+// Override the Identity default LoginPath (/Account/Login) so the auth middleware
+// redirects unauthenticated users to our custom login page instead of a 404.
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/account/login";
+    options.LogoutPath = "/account/logout";
+    options.AccessDeniedPath = "/account/login";
+});
+
 builder.Services.AddTransient<ILendingService, LendingService>();
 builder.Services.AddTransient<IPersonService, PersonService>();
-builder.Services.AddScoped<PrivateLibrary.Modules.Lending.Services.ToastService>();
+builder.Services.AddScoped<ToastService>();
 
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
+    var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+    var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
+
+    // Ensure the DB directory exists (important when using Azure /home/data volume)
+    var connStr = config.GetConnectionString("DefaultConnection") ?? string.Empty;
+    var dbPath = connStr.Replace("Data Source=", string.Empty).Trim();
+    var dbDir = Path.GetDirectoryName(Path.IsPathRooted(dbPath) ? dbPath : Path.Combine(env.ContentRootPath, dbPath));
+    if (!string.IsNullOrWhiteSpace(dbDir))
+        Directory.CreateDirectory(dbDir);
+
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await dbContext.Database.MigrateAsync();
 
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
-    await IdentitySeeder.SeedAsync(userManager, roleManager);
+    await IdentitySeeder.SeedAsync(userManager, roleManager, config);
+
+    // Bootstrap movies.csv to writable location if configured and not yet present
+    var writableCsvPath = config["Movies:CsvPath"];
+    if (!string.IsNullOrWhiteSpace(writableCsvPath) && !File.Exists(writableCsvPath))
+    {
+        var sourceCsv = Path.Combine(env.WebRootPath, "data", "movies.csv");
+        if (File.Exists(sourceCsv))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(writableCsvPath)!);
+            File.Copy(sourceCsv, writableCsvPath);
+        }
+    }
 }
 
 if (!app.Environment.IsDevelopment())
@@ -85,7 +134,22 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapStaticAssets();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        var path = ctx.Context.Request.Path.Value ?? string.Empty;
+        if (path.StartsWith("/images", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Context.Response.Headers.CacheControl = "public, max-age=604800, immutable";
+        }
+    }
+});
+
+// Static assets (CSS, JS, service worker, manifest, images) must bypass the global
+// RequireAuthenticatedUser fallback policy — otherwise the unauthenticated login
+// page is served without any styling or Blazor script.
+app.MapStaticAssets().AllowAnonymous();
 app.MapControllers();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

@@ -1,0 +1,72 @@
+@page "/account/login"
+@layout EmptyLayout
+@using Microsoft.AspNetCore.Antiforgery
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Http
+@attribute [AllowAnonymous]
+@inject IAntiforgery Antiforgery
+@inject IHttpContextAccessor HttpContextAccessor
+
+<PageTitle>Anmelden – Private Library</PageTitle>
+
+@{
+    var httpContext = HttpContextAccessor.HttpContext;
+    var token = httpContext is not null
+        ? Antiforgery.GetAndStoreTokens(httpContext).RequestToken
+        : string.Empty;
+
+    var returnUrl = httpContext?.Request.Query["returnUrl"].FirstOrDefault() ?? "/";
+    var hasError = httpContext?.Request.Query["error"].FirstOrDefault() == "1";
+}
+
+<div class="login-shell">
+    <div class="login-card">
+        <div class="login-brand">
+            <div class="login-brand-mark">PL</div>
+            <div>
+                <div class="login-brand-eyebrow">Private Library</div>
+                <div class="login-brand-title">Anmelden</div>
+            </div>
+        </div>
+
+        @if (hasError)
+        {
+            <div class="login-error">
+                Benutzername oder Passwort ist falsch.
+            </div>
+        }
+
+        <form method="post" action="/account/do-login" class="login-form">
+            <input type="hidden" name="__RequestVerificationToken" value="@token" />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+
+            <div class="login-field">
+                <label for="userName">Benutzername</label>
+                <input id="userName"
+                       name="userName"
+                       type="text"
+                       class="form-control"
+                       autocomplete="username"
+                       autofocus
+                       required />
+            </div>
+
+            <div class="login-field">
+                <label for="password">Passwort</label>
+                <input id="password"
+                       name="password"
+                       type="password"
+                       class="form-control"
+                       autocomplete="current-password"
+                       required />
+            </div>
+
+            <div class="login-remember">
+                <input id="rememberMe" name="rememberMe" type="checkbox" value="true" />
+                <label for="rememberMe">Angemeldet bleiben</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary login-submit">Anmelden</button>
+        </form>
+    </div>
+</div>
