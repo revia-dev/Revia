@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PrivateLibrary.Data;
 using PrivateLibrary.Modules.Lending.Models;
+using PrivateLibrary.Services;
 
 namespace PrivateLibrary.Modules.Lending.Services;
 
@@ -8,17 +9,21 @@ public sealed class LendingService : ILendingService
 {
     private readonly AppDbContext _db;
     private readonly ILendingPhotoStorage _photoStorage;
+    private readonly CurrentUserContext _currentUser;
 
-    public LendingService(AppDbContext db, ILendingPhotoStorage photoStorage)
+    public LendingService(AppDbContext db, ILendingPhotoStorage photoStorage, CurrentUserContext currentUser)
     {
         _db = db;
         _photoStorage = photoStorage;
+        _currentUser = currentUser;
     }
 
     public async Task<IReadOnlyList<LendingEntry>> GetAllAsync(LendingEntryStatus? statusFilter = null, CancellationToken cancellationToken = default)
     {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
         var items = await _db.LendingEntries
             .AsNoTracking()
+            .Where(x => x.HouseholdId == householdId)
             .Include(x => x.Lender)
             .Include(x => x.Borrower)
             .Include(x => x.Items.OrderBy(i => i.SortOrder))
@@ -44,7 +49,9 @@ public sealed class LendingService : ILendingService
 
     public async Task<LendingEntry?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
         var entry = await _db.LendingEntries
+            .Where(x => x.HouseholdId == householdId)
             .Include(x => x.Lender)
             .Include(x => x.Borrower)
             .Include(x => x.Items.OrderBy(i => i.SortOrder))
@@ -64,6 +71,7 @@ public sealed class LendingService : ILendingService
 
     public async Task<LendingEntry> CreateAsync(LendingEntry entry, CancellationToken cancellationToken = default)
     {
+        entry.HouseholdId = await _currentUser.RequireHouseholdIdAsync();
         await AttachCategoriesAsync(_db, entry, cancellationToken);
         NormalizeLegacyFields(entry);
         entry.CreatedAt = DateTime.UtcNow;
@@ -77,7 +85,9 @@ public sealed class LendingService : ILendingService
 
     public async Task<LendingEntry?> UpdateAsync(LendingEntry entry, CancellationToken cancellationToken = default)
     {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
         var existing = await _db.LendingEntries
+            .Where(x => x.HouseholdId == householdId)
             .Include(x => x.Items)
             .Include(x => x.CategoryLinks)
             .FirstOrDefaultAsync(x => x.Id == entry.Id, cancellationToken);
@@ -128,7 +138,9 @@ public sealed class LendingService : ILendingService
 
     public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
         var entry = await _db.LendingEntries
+            .Where(x => x.HouseholdId == householdId)
             .Include(x => x.Photos)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (entry is null)
@@ -152,7 +164,8 @@ public sealed class LendingService : ILendingService
 
     public async Task<LendingPhoto> AddPhotoAsync(int lendingEntryId, Stream content, string contentType, string? originalName, CancellationToken cancellationToken = default)
     {
-        var entryExists = await _db.LendingEntries.AnyAsync(x => x.Id == lendingEntryId, cancellationToken);
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
+        var entryExists = await _db.LendingEntries.AnyAsync(x => x.Id == lendingEntryId && x.HouseholdId == householdId, cancellationToken);
         if (!entryExists)
         {
             throw new InvalidOperationException("Der Ausleih-Eintrag wurde nicht gefunden.");
@@ -194,7 +207,9 @@ public sealed class LendingService : ILendingService
 
     public async Task<bool> RemovePhotoAsync(int photoId, CancellationToken cancellationToken = default)
     {
-        var photo = await _db.LendingPhotos.FirstOrDefaultAsync(x => x.Id == photoId, cancellationToken);
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
+        var photo = await _db.LendingPhotos
+            .FirstOrDefaultAsync(x => x.Id == photoId && x.LendingEntry!.HouseholdId == householdId, cancellationToken);
         if (photo is null)
         {
             return false;
@@ -242,8 +257,10 @@ public sealed class LendingService : ILendingService
 
     public async Task<LendingDashboardStats> GetDashboardStatsAsync(CancellationToken cancellationToken = default)
     {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
         var allEntries = await _db.LendingEntries
             .AsNoTracking()
+            .Where(x => x.HouseholdId == householdId)
             .Include(x => x.Lender)
             .Include(x => x.Borrower)
             .Include(x => x.Items.OrderBy(i => i.SortOrder))
@@ -258,7 +275,7 @@ public sealed class LendingService : ILendingService
             e.Status = CalculateStatus(e);
         }
 
-        var totalPersons = await _db.Users.CountAsync(cancellationToken);
+        var totalPersons = await _db.Users.CountAsync(x => x.HouseholdId == householdId, cancellationToken);
 
         return new LendingDashboardStats
         {
@@ -273,25 +290,30 @@ public sealed class LendingService : ILendingService
 
     public async Task<IReadOnlyList<LendingCategory>> GetCategoriesAsync(CancellationToken cancellationToken = default)
     {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
         return await _db.LendingCategories
             .AsNoTracking()
+            .Where(x => x.HouseholdId == householdId)
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<LendingCategory?> GetCategoryByIdAsync(int id, CancellationToken cancellationToken = default)
     {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
         return await _db.LendingCategories
             .AsNoTracking()
+            .Where(x => x.HouseholdId == householdId)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
     public async Task<LendingCategory> GetOrCreateCategoryAsync(string name, CancellationToken cancellationToken = default)
     {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
         var normalizedName = name.Trim();
 
         var existing = await _db.LendingCategories
-            .FirstOrDefaultAsync(x => x.Name.ToLower() == normalizedName.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(x => x.HouseholdId == householdId && x.Name.ToLower() == normalizedName.ToLower(), cancellationToken);
 
         if (existing is not null)
         {
@@ -300,6 +322,7 @@ public sealed class LendingService : ILendingService
 
         var category = new LendingCategory
         {
+            HouseholdId = householdId,
             Name = normalizedName,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -312,6 +335,7 @@ public sealed class LendingService : ILendingService
 
     public async Task<LendingCategory> CreateCategoryAsync(LendingCategory category, CancellationToken cancellationToken = default)
     {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
         var normalizedName = (category.Name ?? string.Empty).Trim();
 
         if (string.IsNullOrWhiteSpace(normalizedName))
@@ -320,13 +344,14 @@ public sealed class LendingService : ILendingService
         }
 
         var existing = await _db.LendingCategories
-            .FirstOrDefaultAsync(x => x.Name.ToLower() == normalizedName.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(x => x.HouseholdId == householdId && x.Name.ToLower() == normalizedName.ToLower(), cancellationToken);
 
         if (existing is not null)
         {
             return existing;
         }
 
+        category.HouseholdId = householdId;
         category.Name = normalizedName;
         category.CreatedAt = DateTime.UtcNow;
         category.UpdatedAt = DateTime.UtcNow;
@@ -338,7 +363,9 @@ public sealed class LendingService : ILendingService
 
     public async Task<LendingCategory?> UpdateCategoryAsync(LendingCategory category, CancellationToken cancellationToken = default)
     {
-        var existing = await _db.LendingCategories.FirstOrDefaultAsync(x => x.Id == category.Id, cancellationToken);
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
+        var existing = await _db.LendingCategories
+            .FirstOrDefaultAsync(x => x.Id == category.Id && x.HouseholdId == householdId, cancellationToken);
         if (existing is null)
         {
             return null;
@@ -351,7 +378,7 @@ public sealed class LendingService : ILendingService
         }
 
         var duplicateExists = await _db.LendingCategories
-            .AnyAsync(x => x.Id != category.Id && x.Name.ToLower() == normalizedName.ToLower(), cancellationToken);
+            .AnyAsync(x => x.HouseholdId == householdId && x.Id != category.Id && x.Name.ToLower() == normalizedName.ToLower(), cancellationToken);
         if (duplicateExists)
         {
             throw new InvalidOperationException("Eine Kategorie mit diesem Namen existiert bereits.");
@@ -366,7 +393,9 @@ public sealed class LendingService : ILendingService
 
     public async Task<bool> DeleteCategoryAsync(int id, CancellationToken cancellationToken = default)
     {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
         var category = await _db.LendingCategories
+            .Where(x => x.HouseholdId == householdId)
             .Include(x => x.EntryLinks)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 

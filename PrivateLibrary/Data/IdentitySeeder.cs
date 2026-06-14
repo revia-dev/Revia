@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace PrivateLibrary.Data;
@@ -9,10 +10,12 @@ public static class IdentitySeeder
     public const string UserRoleName = "User";
     public const string DefaultAdminEmail = "admin@privatelibrary.local";
     public const string DefaultAdminUserName = "admin";
+    public const string DefaultHouseholdName = "Standard-Haushalt";
 
     public static async Task SeedAsync(
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
+        AppDbContext db,
         IConfiguration configuration)
     {
         var adminPassword = configuration["Seed:AdminPassword"]
@@ -22,6 +25,8 @@ public static class IdentitySeeder
 
         await EnsureRoleExistsAsync(roleManager, AdminRoleName);
         await EnsureRoleExistsAsync(roleManager, UserRoleName);
+
+        var defaultHousehold = await EnsureDefaultHouseholdAsync(db);
 
         var adminUser = await userManager.FindByNameAsync(DefaultAdminUserName)
                         ?? await userManager.FindByEmailAsync(DefaultAdminEmail);
@@ -33,7 +38,8 @@ public static class IdentitySeeder
                 UserName = DefaultAdminUserName,
                 Email = DefaultAdminEmail,
                 EmailConfirmed = true,
-                IsSystemUser = true
+                IsSystemUser = true,
+                HouseholdId = defaultHousehold.Id
             };
 
             var createResult = await userManager.CreateAsync(adminUser, adminPassword);
@@ -73,6 +79,47 @@ public static class IdentitySeeder
                 throw new InvalidOperationException($"Default user role assignment failed: {errors}");
             }
         }
+
+        await BackfillDefaultHouseholdAsync(db, defaultHousehold.Id);
+    }
+
+    private static async Task<Household> EnsureDefaultHouseholdAsync(AppDbContext db)
+    {
+        var existing = await db.Households.OrderBy(x => x.Id).FirstOrDefaultAsync();
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var household = new Household
+        {
+            Name = DefaultHouseholdName,
+            InviteCode = Household.NewInviteCode(),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        db.Households.Add(household);
+        await db.SaveChangesAsync();
+        return household;
+    }
+
+    /// <summary>
+    /// Assigns the default household to any person without one and to legacy lending
+    /// rows created before multi-tenancy (HouseholdId == 0).
+    /// </summary>
+    private static async Task BackfillDefaultHouseholdAsync(AppDbContext db, int householdId)
+    {
+        await db.Users
+            .Where(u => u.HouseholdId == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.HouseholdId, householdId));
+
+        await db.LendingEntries
+            .Where(e => e.HouseholdId == 0)
+            .ExecuteUpdateAsync(s => s.SetProperty(e => e.HouseholdId, householdId));
+
+        await db.LendingCategories
+            .Where(c => c.HouseholdId == 0)
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.HouseholdId, householdId));
     }
 
     private static async Task EnsureRoleExistsAsync(RoleManager<IdentityRole> roleManager, string roleName)

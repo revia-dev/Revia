@@ -19,43 +19,45 @@
 }
 
 <div class="app-shell">
-    <div class="app-layout">
-        <aside class="app-sidebar">
+    <main class="app-main">
+        <header class="app-topbar">
+            <a class="app-brand" href="" title="Private Library">
+                <img src="/images/icon-192.png" alt="Private Library" />
+            </a>
+
             <NavMenu />
-        </aside>
 
-        <main class="app-main">
-            <header class="app-topbar">
-                <AuthorizeView>
-                    <Authorized>
-                        <div class="app-topbar-actions">
-                            <div class="app-topbar-user">
-                                <span class="app-topbar-user-label">Angemeldet</span>
-                                <span class="app-topbar-user-name">@context.User.Identity?.Name</span>
-                            </div>
+            <div class="app-topbar-spacer"></div>
 
-                            <form method="post" action="/account/logout" class="app-auth-form">
-                                <input type="hidden" name="__RequestVerificationToken" value="@_antiforgeryToken" />
-                                <input type="hidden" name="returnUrl" value="/" />
-                                <button type="submit" class="app-auth-button app-auth-button-secondary">Logout</button>
-                            </form>
-                        </div>
-                    </Authorized>
-                    <NotAuthorized>
-                        <div class="app-topbar-actions">
-                            <a href="/account/login" class="app-auth-button">Anmelden</a>
-                        </div>
-                    </NotAuthorized>
-                </AuthorizeView>
-            </header>
+            <AuthorizeView>
+                <Authorized>
+                    <form method="post" action="/account/logout" class="app-auth-form">
+                        <input type="hidden" name="__RequestVerificationToken" value="@_antiforgeryToken" />
+                        <input type="hidden" name="returnUrl" value="/" />
+                        <button type="submit" class="app-auth-button app-auth-button-secondary">Logout</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/account/login" class="app-auth-button">Anmelden</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </header>
 
-            <section class="app-content-shell">
-                <div class="app-content">
-                    @Body
-                </div>
-            </section>
-        </main>
-    </div>
+        <section class="app-content-shell">
+            <div class="app-content">
+                @Body
+            </div>
+        </section>
+    </main>
+
+    <AuthorizeView>
+        <Authorized>
+            <div class="app-userbadge" title="Angemeldet als @context.User.Identity?.Name">
+                <span class="app-userbadge-label">Angemeldet als</span>
+                <span class="app-userbadge-name">@context.User.Identity?.Name</span>
+            </div>
+        </Authorized>
+    </AuthorizeView>
 </div>
 
 <ToastContainer />

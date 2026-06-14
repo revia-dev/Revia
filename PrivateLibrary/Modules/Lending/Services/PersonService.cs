@@ -1,20 +1,25 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PrivateLibrary.Data;
+using PrivateLibrary.Services;
 
 namespace PrivateLibrary.Modules.Lending.Services;
 
 public sealed class PersonService(
     UserManager<ApplicationUser> userManager,
-    RoleManager<IdentityRole> roleManager) : IPersonService
+    RoleManager<IdentityRole> roleManager,
+    CurrentUserContext currentUser) : IPersonService
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;
     private readonly RoleManager<IdentityRole> _roleManager = roleManager;
+    private readonly CurrentUserContext _currentUser = currentUser;
 
     public async Task<IReadOnlyList<ApplicationUser>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
         return await _userManager.Users
             .AsNoTracking()
+            .Where(x => x.HouseholdId == householdId)
             .OrderBy(x => x.LastName)
             .ThenBy(x => x.FirstName)
             .ThenBy(x => x.Nickname)
@@ -23,13 +28,16 @@ public sealed class PersonService(
 
     public async Task<ApplicationUser?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
     {
-        return await _userManager.Users.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
+        return await _userManager.Users.FirstOrDefaultAsync(x => x.Id == id && x.HouseholdId == householdId, cancellationToken);
     }
 
     public async Task<IReadOnlyList<ApplicationUser>> GetLookupAsync(CancellationToken cancellationToken = default)
     {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
         return await _userManager.Users
             .AsNoTracking()
+            .Where(x => x.HouseholdId == householdId)
             .OrderBy(x => x.LastName)
             .ThenBy(x => x.FirstName)
             .Select(x => new ApplicationUser
@@ -40,7 +48,9 @@ public sealed class PersonService(
                 Nickname = x.Nickname,
                 Email = x.Email,
                 UserName = x.UserName,
-                IsSystemUser = x.IsSystemUser
+                IsSystemUser = x.IsSystemUser,
+                IsLoginless = x.IsLoginless,
+                ProfilePhotoFileName = x.ProfilePhotoFileName
             })
             .ToListAsync(cancellationToken);
     }
@@ -67,6 +77,7 @@ public sealed class PersonService(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        user.HouseholdId ??= await _currentUser.RequireHouseholdIdAsync();
         user.UserName = string.IsNullOrWhiteSpace(user.UserName)
             ? user.Email
             : user.UserName;

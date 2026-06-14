@@ -7,6 +7,10 @@ public sealed class LendingEntry : IValidatableObject
 {
     public int Id { get; set; }
 
+    /// <summary>Owning household (tenant). The lending is created in one household;
+    /// it may additionally be visible to a linked household via the person QR link.</summary>
+    public int HouseholdId { get; set; }
+
     [StringLength(150)]
     public string? Title { get; set; }
 

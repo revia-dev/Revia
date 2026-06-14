@@ -35,6 +35,20 @@ public sealed class ApplicationUser : IdentityUser
 
     public bool IsSystemUser { get; set; }
 
+    /// <summary>The household this person belongs to. Nullable only for the seeded
+    /// system admin before the default household exists; every real person has one.</summary>
+    public int? HouseholdId { get; set; }
+
+    public Household? Household { get; set; }
+
+    /// <summary>Stored file name of this person's single profile photo, if any.</summary>
+    [StringLength(260)]
+    public string? ProfilePhotoFileName { get; set; }
+
+    /// <summary>A loginless person is a pure data record (usable in lendings, games,
+    /// BMI, …) that has no password and cannot sign in.</summary>
+    public bool IsLoginless { get; set; }
+
     public ICollection<LendingEntry> LentEntries { get; set; } = new List<LendingEntry>();
     public ICollection<LendingEntry> BorrowedEntries { get; set; } = new List<LendingEntry>();
 

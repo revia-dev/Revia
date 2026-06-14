@@ -71,6 +71,7 @@ builder.Services
     })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
+    .AddClaimsPrincipalFactory<HouseholdClaimsPrincipalFactory>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
@@ -87,6 +88,7 @@ builder.Services.AddSingleton<ILendingPhotoStorage, LendingPhotoStorage>();
 builder.Services.AddTransient<ILendingService, LendingService>();
 builder.Services.AddTransient<IPersonService, PersonService>();
 builder.Services.AddScoped<ToastService>();
+builder.Services.AddScoped<CurrentUserContext>();
 
 var app = builder.Build();
 
@@ -108,7 +110,7 @@ using (var scope = app.Services.CreateScope())
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
-    await IdentitySeeder.SeedAsync(userManager, roleManager, config);
+    await IdentitySeeder.SeedAsync(userManager, roleManager, dbContext, config);
 
     // Bootstrap movies.csv to writable location if configured and not yet present
     var writableCsvPath = config["Movies:CsvPath"];

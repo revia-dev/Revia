@@ -11,6 +11,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
     }
 
+    public DbSet<Household> Households => Set<Household>();
     public DbSet<LendingEntry> LendingEntries => Set<LendingEntry>();
     public DbSet<LendingItem> LendingItems => Set<LendingItem>();
     public DbSet<LendingCategory> LendingCategories => Set<LendingCategory>();
@@ -22,10 +23,34 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
+        modelBuilder.Entity<Household>(builder =>
+        {
+            builder.HasIndex(x => x.InviteCode).IsUnique();
+        });
+
         modelBuilder.Entity<ApplicationUser>(builder =>
         {
             builder.Property(x => x.IsSystemUser)
                 .HasDefaultValue(false);
+
+            builder.Property(x => x.IsLoginless)
+                .HasDefaultValue(false);
+
+            builder.HasOne(x => x.Household)
+                .WithMany(h => h.Members)
+                .HasForeignKey(x => x.HouseholdId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Category names are unique per household, not globally.
+        modelBuilder.Entity<LendingCategory>(builder =>
+        {
+            builder.HasIndex(x => new { x.HouseholdId, x.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<LendingEntry>(builder =>
+        {
+            builder.HasIndex(x => x.HouseholdId);
         });
 
         modelBuilder.Entity<IdentityRole>(builder =>

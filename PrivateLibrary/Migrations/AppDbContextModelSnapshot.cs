@@ -177,6 +177,14 @@ namespace PrivateLibrary.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsLoginless")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
                     b.Property<bool>("IsSystemUser")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
@@ -226,6 +234,10 @@ namespace PrivateLibrary.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ProfilePhotoFileName")
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("TEXT");
 
@@ -242,6 +254,8 @@ namespace PrivateLibrary.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("HouseholdId");
+
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
@@ -252,6 +266,33 @@ namespace PrivateLibrary.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.Household", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InviteCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InviteCode")
+                        .IsUnique();
+
+                    b.ToTable("Households");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -260,6 +301,9 @@ namespace PrivateLibrary.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -272,6 +316,9 @@ namespace PrivateLibrary.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.HasIndex("HouseholdId", "Name")
                         .IsUnique();
 
                     b.ToTable("LendingCategories", (string)null);
@@ -300,6 +347,9 @@ namespace PrivateLibrary.Migrations
 
                     b.Property<DateTime?>("DueDate")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("ItemName")
                         .IsRequired()
@@ -335,6 +385,8 @@ namespace PrivateLibrary.Migrations
                     b.HasIndex("BorrowerId");
 
                     b.HasIndex("DueDate");
+
+                    b.HasIndex("HouseholdId");
 
                     b.HasIndex("LoanDate");
 
@@ -478,6 +530,16 @@ namespace PrivateLibrary.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.ApplicationUser", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.Household", "Household")
+                        .WithMany("Members")
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Household");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingEntry", b =>
                 {
                     b.HasOne("PrivateLibrary.Data.ApplicationUser", "Borrower")
@@ -543,6 +605,11 @@ namespace PrivateLibrary.Migrations
                     b.Navigation("BorrowedEntries");
 
                     b.Navigation("LentEntries");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.Household", b =>
+                {
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingCategory", b =>
