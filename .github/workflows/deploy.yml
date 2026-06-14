@@ -1,0 +1,33 @@
+name: Deploy to Azure App Service
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    needs: []
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish
+        run: dotnet publish PrivateLibrary/PrivateLibrary.csproj \
+               -c Release \
+               -o ./publish
+
+      # Required secrets (set in repo Settings → Secrets):
+      #   AZURE_WEBAPP_NAME        – your Azure App Service name
+      #   AZURE_WEBAPP_PUBLISH_PROFILE – publish profile XML from Azure portal
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./publish
