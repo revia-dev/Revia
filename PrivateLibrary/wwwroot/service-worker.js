@@ -5,7 +5,7 @@
 // Full offline data access (Lending, Movies) requires a future
 // migration to Blazor WASM PWA + API architecture.
 
-const CACHE_NAME = 'privatelibrary-shell-v3';
+const CACHE_NAME = 'privatelibrary-shell-v4';
 
 const SHELL_ASSETS = [
   '/',
