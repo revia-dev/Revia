@@ -16,7 +16,7 @@ public class PosterResolverService
         if (!string.IsNullOrWhiteSpace(film.Titel) &&
             MovieMappings.ManualImageMapping.TryGetValue(film.Titel, out var manualImage))
         {
-            return $"images/manual/{manualImage}";
+            return $"/images/manual/{manualImage}";
         }
 
         if (!string.IsNullOrWhiteSpace(film.PosterPath))
@@ -24,6 +24,6 @@ public class PosterResolverService
             return _tmdbService.GetPosterUrl(film.PosterPath, 400);
         }
 
-        return "images/placeholder.png";
+        return "/images/placeholder.png";
     }
 }

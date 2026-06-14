@@ -17,17 +17,12 @@
                 }
             </div>
 
-            <button type="button"
-                    class="movie-detail-close"
-                    aria-label="Detailansicht schließen"
-                    @onclick="HandleClose">
-                ✕
-            </button>
+            <IconButton IconName="x-lg" AriaLabel="Detailansicht schließen" OnClick="HandleClose" />
         </header>
 
         <div class="movie-detail-actions">
-            <button type="button" class="liquid-button liquid-button-secondary" @onclick="HandleEdit">Bearbeiten</button>
-            <button type="button" class="liquid-button liquid-button-secondary" @onclick="HandleDelete">Löschen</button>
+            <button type="button" class="btn btn-outline-secondary" @onclick="HandleEdit">Bearbeiten</button>
+            <button type="button" class="btn btn-outline-danger" @onclick="HandleDelete">Löschen</button>
         </div>
 
         <div class="movie-detail-body">

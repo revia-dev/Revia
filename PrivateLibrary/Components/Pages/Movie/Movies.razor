@@ -22,13 +22,13 @@
 
             <div class="movies-toolbar-actions">
                 <button type="button"
-                        class="liquid-button liquid-button-secondary"
+                        class="btn btn-outline-secondary"
                         @onclick="ToggleFilters">
-                    @(isFilterVisible ? "Filter schließen" : "Filter öffnen")
+                    <Icon Name="funnel" Size="14" /> @(isFilterVisible ? "Filter schließen" : "Filter öffnen")
                 </button>
 
                 <button type="button"
-                        class="liquid-button"
+                        class="btn btn-primary"
                         @onclick="CreateMovie">
                     Neuer Datensatz
                 </button>
@@ -57,7 +57,7 @@
                         <p class="movies-eyebrow">Movie Editor</p>
                         <h3>@(isCreateMode ? "Neuen Film anlegen" : "Film bearbeiten")</h3>
                     </div>
-                    <button type="button" class="movie-detail-close" @onclick="CloseEditor">✕</button>
+                    <IconButton IconName="x-lg" AriaLabel="Editor schließen" OnClick="CloseEditor" />
                 </div>
 
                 <div class="movies-edit-grid">
@@ -95,7 +95,7 @@
                         <label for="tmdb-search">TMDB-Matching</label>
                         <div class="tmdb-search-row">
                             <input id="tmdb-search" class="form-control" @bind="tmdbSearchQuery" placeholder="Filmtitel suchen..." />
-                            <button type="button" class="liquid-button liquid-button-secondary" @onclick="SearchTmdbAsync">Suchen</button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="SearchTmdbAsync">Suchen</button>
                         </div>
                     </div>
 
@@ -129,8 +129,8 @@
                 </div>
 
                 <div class="movies-edit-actions">
-                    <button type="button" class="liquid-button" @onclick="SaveMovieAsync">Speichern</button>
-                    <button type="button" class="liquid-button liquid-button-secondary" @onclick="CloseEditor">Abbrechen</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveMovieAsync">Speichern</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CloseEditor">Abbrechen</button>
                 </div>
             </div>
         </section>
@@ -143,7 +143,7 @@
                 <h3>Filter</h3>
 
                 <button type="button"
-                        class="text-button"
+                        class="btn btn-ghost"
                         @onclick="ClearFilters">
                     Zurücksetzen
                 </button>

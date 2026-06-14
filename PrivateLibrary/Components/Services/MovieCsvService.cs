@@ -10,11 +10,13 @@ public class MovieCsvService
 {
     private readonly HttpClient _http;
     private readonly IWebHostEnvironment _environment;
+    private readonly IConfiguration _configuration;
 
-    public MovieCsvService(HttpClient http, IWebHostEnvironment environment)
+    public MovieCsvService(HttpClient http, IWebHostEnvironment environment, IConfiguration configuration)
     {
         _http = http;
         _environment = environment;
+        _configuration = configuration;
     }
 
     public async Task<List<Film>> LoadMoviesFromWwwrootAsync()
@@ -50,6 +52,7 @@ public class MovieCsvService
         csv.WriteField("Anbieter");
         csv.WriteField("Kategorie");
         csv.WriteField("Tags");
+        csv.WriteField("PosterPath");
         await csv.NextRecordAsync();
 
         foreach (var film in films.OrderBy(x => x.Titel, StringComparer.OrdinalIgnoreCase))
@@ -59,9 +62,10 @@ public class MovieCsvService
             csv.WriteField(film.Titel ?? string.Empty);
             csv.WriteField(film.Jahr ?? string.Empty);
             csv.WriteField(film.Fsk ?? string.Empty);
-            csv.WriteField(string.Join(", ", (film.Anbieter ?? new List<string>()).Where(x => !string.IsNullOrWhiteSpace(x))));
+            csv.WriteField(string.Join(", ", (film.Anbieter ?? []).Where(x => !string.IsNullOrWhiteSpace(x))));
             csv.WriteField(film.Kategorie ?? string.Empty);
-            csv.WriteField(string.Join(", ", (film.Tags ?? new List<string>()).Where(x => !string.IsNullOrWhiteSpace(x))));
+            csv.WriteField(string.Join(", ", (film.Tags ?? []).Where(x => !string.IsNullOrWhiteSpace(x))));
+            csv.WriteField(film.PosterPath ?? string.Empty);
             await csv.NextRecordAsync();
         }
 
@@ -97,6 +101,7 @@ public class MovieCsvService
             var anbieterString = csv.GetField("Anbieter") ?? string.Empty;
             var kategorie = csv.GetField("Kategorie");
             var tagsString = csv.GetField("Tags") ?? string.Empty;
+            var posterPath = TryGetField(csv, "PosterPath");
 
             if (!string.IsNullOrWhiteSpace(fsk) &&
                 MovieMappings.UsToFskMapping.TryGetValue(fsk, out var mappedFsk))
@@ -122,7 +127,8 @@ public class MovieCsvService
                 Fsk = string.IsNullOrWhiteSpace(fsk) ? null : fsk,
                 Anbieter = cleanedAnbieter,
                 Kategorie = kategorie,
-                Tags = cleanedTags
+                Tags = cleanedTags,
+                PosterPath = string.IsNullOrWhiteSpace(posterPath) ? null : posterPath
             });
         }
 
@@ -132,17 +138,16 @@ public class MovieCsvService
     }
 
     private string GetCsvPath()
-        => Path.Combine(_environment.WebRootPath, "data", "movies.csv");
+    {
+        var configured = _configuration["Movies:CsvPath"];
+        return !string.IsNullOrWhiteSpace(configured)
+            ? configured
+            : Path.Combine(_environment.WebRootPath, "data", "movies.csv");
+    }
 
     private static string? TryGetField(CsvReader csv, string fieldName)
     {
-        try
-        {
-            return csv.GetField(fieldName);
-        }
-        catch
-        {
-            return null;
-        }
+        try { return csv.GetField(fieldName); }
+        catch { return null; }
     }
 }
