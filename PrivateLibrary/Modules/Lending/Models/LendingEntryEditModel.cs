@@ -26,10 +26,10 @@ public sealed class LendingEntryEditModel : IValidatableObject
     public string NewCategoryName { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Bitte einen Verleiher auswählen.")]
-    public int? LenderId { get; set; }
+    public string? LenderId { get; set; }
 
     [Required(ErrorMessage = "Bitte einen Entleiher auswählen.")]
-    public int? BorrowerId { get; set; }
+    public string? BorrowerId { get; set; }
 
     [Required(ErrorMessage = "Bitte ein Ausleihdatum angeben.")]
     public DateTime? LoanDate { get; set; } = DateTime.Today;
@@ -59,7 +59,9 @@ public sealed class LendingEntryEditModel : IValidatableObject
                 new[] { nameof(ReturnedAt) });
         }
 
-        if (LenderId.HasValue && BorrowerId.HasValue && LenderId.Value == BorrowerId.Value)
+        if (!string.IsNullOrWhiteSpace(LenderId) &&
+            !string.IsNullOrWhiteSpace(BorrowerId) &&
+            string.Equals(LenderId, BorrowerId, StringComparison.Ordinal))
         {
             yield return new ValidationResult(
                 "Verleiher und Entleiher dürfen nicht identisch sein.",

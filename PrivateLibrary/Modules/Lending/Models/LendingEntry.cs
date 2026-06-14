@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using PrivateLibrary.Data;
 
 namespace PrivateLibrary.Modules.Lending.Models;
 
@@ -21,14 +22,14 @@ public sealed class LendingEntry : IValidatableObject
     public string? Category { get; set; }
 
     [Required]
-    public int LenderId { get; set; }
+    public string LenderId { get; set; } = string.Empty;
 
-    public Person? Lender { get; set; }
+    public ApplicationUser? Lender { get; set; }
 
     [Required]
-    public int BorrowerId { get; set; }
+    public string BorrowerId { get; set; } = string.Empty;
 
-    public Person? Borrower { get; set; }
+    public ApplicationUser? Borrower { get; set; }
 
     [Required]
     public DateTime LoanDate { get; set; } = DateTime.Today;
@@ -65,7 +66,9 @@ public sealed class LendingEntry : IValidatableObject
                 new[] { nameof(ReturnedAt) });
         }
 
-        if (LenderId > 0 && BorrowerId > 0 && LenderId == BorrowerId)
+        if (!string.IsNullOrWhiteSpace(LenderId) &&
+            !string.IsNullOrWhiteSpace(BorrowerId) &&
+            string.Equals(LenderId, BorrowerId, StringComparison.Ordinal))
         {
             yield return new ValidationResult(
                 "Verleiher und Entleiher dürfen nicht identisch sein.",

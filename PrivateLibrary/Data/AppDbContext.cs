@@ -11,7 +11,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
     }
 
-    public DbSet<Person> People => Set<Person>();
     public DbSet<LendingEntry> LendingEntries => Set<LendingEntry>();
     public DbSet<LendingItem> LendingItems => Set<LendingItem>();
     public DbSet<LendingCategory> LendingCategories => Set<LendingCategory>();
@@ -53,15 +52,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
         foreach (var entry in entries)
         {
-            if (entry.Entity is Person person)
-            {
-                person.UpdatedAt = DateTime.UtcNow;
-                if (entry.State == EntityState.Added)
-                {
-                    person.CreatedAt = DateTime.UtcNow;
-                }
-            }
-
             if (entry.Entity is LendingEntry lendingEntry)
             {
                 lendingEntry.UpdatedAt = DateTime.UtcNow;

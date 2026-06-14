@@ -11,8 +11,8 @@ using PrivateLibrary.Data;
 namespace PrivateLibrary.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260526200807_AddIdentity ")]
-    partial class AddIdentity
+    [Migration("20260613231418_RemoveLegacyPerson")]
+    partial class RemoveLegacyPerson
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -156,6 +156,10 @@ namespace PrivateLibrary.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("TEXT");
@@ -167,15 +171,33 @@ namespace PrivateLibrary.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HouseNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsSystemUser")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nickname")
+                        .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("NormalizedEmail")
@@ -186,7 +208,15 @@ namespace PrivateLibrary.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PasswordHash")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PhoneNumber")
@@ -195,7 +225,15 @@ namespace PrivateLibrary.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SecurityStamp")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Street")
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("TwoFactorEnabled")
@@ -248,8 +286,9 @@ namespace PrivateLibrary.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("BorrowerId")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("BorrowerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Category")
                         .HasMaxLength(100)
@@ -270,8 +309,9 @@ namespace PrivateLibrary.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("LenderId")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("LenderId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("LoanDate")
                         .HasColumnType("TEXT");
@@ -349,67 +389,6 @@ namespace PrivateLibrary.Migrations
                     b.ToTable("LendingItems", (string)null);
                 });
 
-            modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.Person", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("City")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("HouseNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Nickname")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Phone")
-                        .HasMaxLength(50)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PostalCode")
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Street")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LastName", "FirstName");
-
-                    b.ToTable("People", (string)null);
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -463,13 +442,13 @@ namespace PrivateLibrary.Migrations
 
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingEntry", b =>
                 {
-                    b.HasOne("PrivateLibrary.Modules.Lending.Models.Person", "Borrower")
+                    b.HasOne("PrivateLibrary.Data.ApplicationUser", "Borrower")
                         .WithMany("BorrowedEntries")
                         .HasForeignKey("BorrowerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("PrivateLibrary.Modules.Lending.Models.Person", "Lender")
+                    b.HasOne("PrivateLibrary.Data.ApplicationUser", "Lender")
                         .WithMany("LentEntries")
                         .HasForeignKey("LenderId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -510,6 +489,13 @@ namespace PrivateLibrary.Migrations
                     b.Navigation("LendingEntry");
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.ApplicationUser", b =>
+                {
+                    b.Navigation("BorrowedEntries");
+
+                    b.Navigation("LentEntries");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingCategory", b =>
                 {
                     b.Navigation("EntryLinks");
@@ -520,13 +506,6 @@ namespace PrivateLibrary.Migrations
                     b.Navigation("CategoryLinks");
 
                     b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.Person", b =>
-                {
-                    b.Navigation("BorrowedEntries");
-
-                    b.Navigation("LentEntries");
                 });
 #pragma warning restore 612, 618
         }

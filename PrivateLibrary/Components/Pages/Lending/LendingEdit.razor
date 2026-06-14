@@ -1,6 +1,7 @@
 @page "/lending/edit/{Id:int}"
 @page "/lending/new"
 @using Microsoft.AspNetCore.Components.Forms
+@using PrivateLibrary.Data
 @using PrivateLibrary.Modules.Lending.Models
 @inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
 @inject PrivateLibrary.Modules.Lending.Services.IPersonService PersonService
@@ -31,7 +32,7 @@
     }
     else
     {
-        <EditForm Model="@_model" OnValidSubmit="SaveAsync">
+        <EditForm Model="@_model" OnValidSubmit="SaveAsync" FormName="lending-edit-form">
             <DataAnnotationsValidator />
             <ValidationSummary class="validation-summary-errors" />
 
@@ -181,7 +182,7 @@
     private int? _id;
     private string? _loadError;
     private LendingEntryEditModel? _model;
-    private IReadOnlyList<Person> _people = Array.Empty<Person>();
+    private IReadOnlyList<ApplicationUser> _people = Array.Empty<ApplicationUser>();
     private IReadOnlyList<LendingCategory> _categories = Array.Empty<LendingCategory>();
     private string _selectedCategoryIdString = string.Empty;
     private string _newCategoryName = string.Empty;
@@ -231,8 +232,8 @@
                     ItemName = item.ItemName,
                     Category = item.Category,
                     ItemNames = itemNames,
-                    LenderId = item.LenderId,
-                    BorrowerId = item.BorrowerId,
+                    LenderId = item.LenderId ?? string.Empty,
+                    BorrowerId = item.BorrowerId ?? string.Empty,
                     LoanDate = item.LoanDate,
                     DueDate = item.DueDate,
                     ReturnedAt = item.ReturnedAt,
@@ -353,8 +354,8 @@
             Description = _model.Description,
             ItemName = normalizedItems.FirstOrDefault()?.Name ?? string.Empty,
             Category = normalizedCategory,
-            LenderId = _model.LenderId ?? 0,
-            BorrowerId = _model.BorrowerId ?? 0,
+            LenderId = _model.LenderId ?? string.Empty,
+            BorrowerId = _model.BorrowerId ?? string.Empty,
             LoanDate = _model.LoanDate ?? DateTime.Today,
             DueDate = _model.DueDate,
             ReturnedAt = _model.ReturnedAt,

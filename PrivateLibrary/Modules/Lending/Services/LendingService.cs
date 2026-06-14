@@ -154,7 +154,7 @@ public sealed class LendingService : ILendingService
             e.Status = CalculateStatus(e);
         }
 
-        var totalPersons = await _db.People.CountAsync(cancellationToken);
+        var totalPersons = await _db.Users.CountAsync(cancellationToken);
 
         return new LendingDashboardStats
         {

@@ -1,6 +1,7 @@
 @page "/lending/delete/{Id:int}"
-@page "/lending/persons/delete/{Id:int}"
-@using PrivateLibrary.Modules.Lending.Models
+@page "/lending/persons/delete/{Id}"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
 @inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
 @inject PrivateLibrary.Modules.Lending.Services.IPersonService PersonService
 @inject NavigationManager Navigation
@@ -26,13 +27,13 @@
 
 @code {
     [Parameter]
-    public int Id { get; set; }
+    public string? Id { get; set; }
 
     private string? _error;
     private bool _isPersonRoute;
     private string BackUrl => _isPersonRoute ? "/lending/persons" : "/lending";
     private string Message => _isPersonRoute
-        ? "Möchten Sie diese Person wirklich löschen?"
+        ? "Möchten Sie diesen Benutzer wirklich löschen?"
         : "Möchten Sie diesen Ausleih-Eintrag wirklich löschen?";
 
     protected override void OnInitialized()
@@ -46,10 +47,16 @@
 
         if (_isPersonRoute)
         {
-            var deleted = await PersonService.DeleteAsync(Id);
-            if (!deleted)
+            if (string.IsNullOrWhiteSpace(Id))
             {
-                _error = "Person kann nicht gelöscht werden, wenn noch Lending-Einträge darauf verweisen.";
+                _error = "Benutzer wurde nicht gefunden.";
+                return;
+            }
+
+            var deleted = await PersonService.DeleteAsync(Id);
+            if (!deleted.Succeeded)
+            {
+                _error = deleted.ErrorMessage ?? "Benutzer konnte nicht gelöscht werden.";
                 return;
             }
 
@@ -57,7 +64,13 @@
             return;
         }
 
-        var result = await LendingService.DeleteAsync(Id);
+        if (!int.TryParse(Id, out var lendingId))
+        {
+            _error = "Eintrag wurde nicht gefunden.";
+            return;
+        }
+
+        var result = await LendingService.DeleteAsync(lendingId);
         if (!result)
         {
             _error = "Eintrag konnte nicht gelöscht werden.";
