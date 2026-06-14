@@ -4,8 +4,8 @@
   "description": "Filmarchiv und Ausleihverwaltung",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f0eb",
-  "theme_color": "#b5603a",
+  "background_color": "#d7e5f1",
+  "theme_color": "#1597a6",
   "lang": "de",
   "icons": [
     {

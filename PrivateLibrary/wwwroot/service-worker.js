@@ -5,7 +5,7 @@
 // Full offline data access (Lending, Movies) requires a future
 // migration to Blazor WASM PWA + API architecture.
 
-const CACHE_NAME = 'privatelibrary-shell-v1';
+const CACHE_NAME = 'privatelibrary-shell-v3';
 
 const SHELL_ASSETS = [
   '/',
@@ -16,6 +16,8 @@ const SHELL_ASSETS = [
   '/images/placeholder.png',
   '/images/icon-192.png',
   '/images/icon-512.png',
+  '/images/apple-touch-icon.png',
+  '/favicon.png',
 ];
 
 self.addEventListener('install', event => {
