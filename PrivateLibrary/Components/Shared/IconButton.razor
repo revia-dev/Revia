@@ -1,0 +1,21 @@
+@* Icon-only button. Always requires AriaLabel for accessibility. *@
+<button type="button"
+        class="btn btn-icon @Variant @CssClass"
+        aria-label="@AriaLabel"
+        title="@AriaLabel"
+        disabled="@Disabled"
+        @onclick="OnClick"
+        @attributes="AdditionalAttributes">
+    <Icon Name="@IconName" Size="@IconSize" />
+</button>
+
+@code {
+    [Parameter, EditorRequired] public string IconName { get; set; } = "";
+    [Parameter, EditorRequired] public string AriaLabel { get; set; } = "";
+    [Parameter] public string Variant { get; set; } = "btn-ghost";
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public int IconSize { get; set; } = 15;
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+}

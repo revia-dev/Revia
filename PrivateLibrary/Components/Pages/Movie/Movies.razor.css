@@ -1,32 +1,15 @@
-:root {
-    --movies-bg: #ffffff;
-    --movies-surface: #ffffff;
-    --movies-surface-soft: #ffffff;
-    --movies-text: #171717;
-    --movies-text-muted: #666666;
-    --movies-overlay: rgba(0, 0, 0, 0.72);
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --movies-bg: #000000;
-        --movies-surface: #000000;
-        --movies-surface-soft: #000000;
-        --movies-text: #f5f5f3;
-        --movies-text-muted: #b8b8b2;
-        --movies-overlay: rgba(0, 0, 0, 0.82);
-    }
-}
+/* Movies page — no local :root overrides; all colours from app.css tokens */
 
 .movies-shell {
     position: relative;
     min-height: 100vh;
     padding: 1rem;
-    color: var(--movies-text);
-    background: var(--movies-bg);
+    color: var(--text);
+    background: transparent;
     overflow: hidden;
 }
 
+/* Background orbs are unused — keep hidden */
 .movies-background-orb,
 .movies-background-orb-a,
 .movies-background-orb-b {
@@ -40,14 +23,13 @@
     position: relative;
     z-index: 1;
     border: 1px solid var(--border);
-    background: var(--movies-surface);
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    background: var(--surface);
+    backdrop-filter: blur(var(--blur));
+    -webkit-backdrop-filter: blur(var(--blur));
 }
 
 .movies-toolbar {
-    border-radius: 28px;
+    border-radius: var(--radius-lg);
     padding: 1rem;
     margin-bottom: 1rem;
 }
@@ -57,6 +39,13 @@
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
+}
+
+.movies-toolbar-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 .movies-toolbar h1 {
@@ -70,7 +59,7 @@
     font-size: 0.78rem;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--movies-text-muted);
+    color: var(--text-muted);
 }
 
 .movies-toolbar-controls {
@@ -81,52 +70,9 @@
     margin-top: 1rem;
 }
 
+/* liquid-search is overridden by app.css but we keep flex sizing here */
 .liquid-search {
     flex: 1 1 320px;
-    min-height: 52px;
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    background: var(--movies-surface-soft);
-    padding: 0.95rem 1rem;
-    color: var(--movies-text);
-    outline: none;
-    box-shadow: none;
-}
-
-.liquid-search::placeholder {
-    color: var(--movies-text-muted);
-}
-
-.liquid-search:focus {
-    border-color: var(--border-strong);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-.liquid-button,
-.text-button,
-.movie-card,
-.filter-chip {
-    transition: border-color 0.18s ease, background 0.18s ease, opacity 0.18s ease, color 0.18s ease;
-}
-
-.liquid-button {
-    min-height: 52px;
-    padding: 0.85rem 1rem;
-    border-radius: 18px;
-    border: 1px solid var(--border);
-    color: var(--movies-text);
-    cursor: pointer;
-    background: var(--movies-surface-soft);
-    box-shadow: none;
-}
-
-.liquid-button:hover {
-    background: var(--surface-soft);
-    border-color: var(--border-strong);
-}
-
-.liquid-button-secondary {
-    min-width: 160px;
 }
 
 .movies-stats {
@@ -135,24 +81,12 @@
     gap: 0.5rem;
 }
 
-.stat-pill {
-    display: inline-flex;
-    align-items: center;
-    min-height: 40px;
-    padding: 0.45rem 0.85rem;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--movies-surface-soft);
-    color: var(--movies-text-muted);
-    font-size: 0.88rem;
-}
-
 .movies-filter-panel {
     position: relative;
     z-index: 1;
     margin-bottom: 1rem;
     padding: 1rem;
-    border-radius: 26px;
+    border-radius: var(--radius-lg);
 }
 
 .filter-group-header {
@@ -179,38 +113,6 @@
     margin-top: 0.65rem;
 }
 
-.filter-chip {
-    border: 1px solid var(--border);
-    background: var(--movies-surface-soft);
-    color: var(--movies-text);
-    border-radius: 999px;
-    padding: 0.6rem 0.9rem;
-    cursor: pointer;
-}
-
-.filter-chip:hover {
-    background: var(--surface-soft);
-    border-color: var(--border-strong);
-}
-
-.filter-chip.is-selected {
-    background: var(--surface-soft);
-    border-color: var(--border-strong);
-    color: var(--movies-text);
-    box-shadow: none;
-}
-
-.text-button {
-    border: 0;
-    background: transparent;
-    color: var(--movies-text-muted);
-    cursor: pointer;
-}
-
-.text-button:hover {
-    color: var(--movies-text);
-}
-
 .movie-grid-section {
     position: relative;
     z-index: 1;
@@ -227,11 +129,12 @@
     overflow: hidden;
     padding: 0;
     border: 1px solid var(--border);
-    border-radius: 24px;
-    background: var(--movies-surface);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
     box-shadow: none;
     cursor: pointer;
     text-align: left;
+    transition: border-color 0.15s, background 0.15s;
 }
 
 .movie-card:hover {
@@ -239,13 +142,13 @@
 }
 
 .movie-card:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
-    outline-offset: 3px;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .movie-poster-wrap {
     position: relative;
-    background: var(--movies-surface-soft);
+    background: var(--surface-soft);
 }
 
 .movie-poster {
@@ -253,7 +156,7 @@
     width: 100%;
     aspect-ratio: 2 / 3;
     object-fit: cover;
-    background: var(--movies-surface-soft);
+    background: var(--surface-soft);
 }
 
 .movie-card-overlay-hover {
@@ -267,7 +170,7 @@
     transform: translateY(10px);
     pointer-events: none;
     transition: opacity 0.22s ease, transform 0.22s ease;
-    background: linear-gradient(to top, var(--movies-overlay) 0%, rgba(0, 0, 0, 0.22) 55%, rgba(0, 0, 0, 0.02) 100%);
+    background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.22) 55%, rgba(0,0,0,0.02) 100%);
 }
 
 @media (hover: hover) {
@@ -328,24 +231,104 @@
     max-width: 420px;
     margin: 0 auto;
     padding: 1.4rem;
-    border-radius: 24px;
+    border-radius: var(--radius-lg);
     text-align: center;
 }
 
-.spinner {
-    width: 42px;
-    height: 42px;
-    margin: 0 auto 1rem;
-    border-radius: 999px;
-    border: 3px solid color-mix(in srgb, var(--accent) 10%, transparent);
-    border-top-color: var(--accent);
-    animation: movies-spin 0.9s linear infinite;
+/* Edit panel */
+.movies-edit-panel {
+    margin-bottom: 1rem;
+    position: relative;
+    z-index: 1;
 }
 
-@keyframes movies-spin {
-    to {
-        transform: rotate(360deg);
-    }
+.movies-edit-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    backdrop-filter: blur(var(--blur));
+    -webkit-backdrop-filter: blur(var(--blur));
+}
+
+.movies-edit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.movies-edit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.movies-edit-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.tmdb-search-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.tmdb-search-row .form-control { flex: 1 1 200px; }
+
+.tmdb-info {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+}
+
+.tmdb-result-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));
+    gap: 0.75rem;
+}
+
+.tmdb-result-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    cursor: pointer;
+    text-align: left;
+    padding: 0;
+    transition: border-color 0.15s;
+}
+
+.tmdb-result-card:hover { border-color: var(--accent); }
+
+.tmdb-result-poster {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+}
+
+.tmdb-result-content {
+    padding: 0.4rem 0.5rem;
+}
+
+.tmdb-result-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tmdb-result-meta {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
 }
 
 @media (max-width: 700px) {
@@ -355,7 +338,7 @@
 
     .movies-toolbar {
         padding: 0.9rem;
-        border-radius: 22px;
+        border-radius: var(--radius-md);
     }
 
     .movies-toolbar-top {
@@ -368,7 +351,6 @@
         align-items: stretch;
     }
 
-    .liquid-button-secondary,
     .liquid-search {
         width: 100%;
     }
@@ -379,6 +361,6 @@
     }
 
     .movie-card {
-        border-radius: 20px;
+        border-radius: var(--radius-md);
     }
 }

@@ -1,28 +1,4 @@
-:root {
-    --page-bg: #ffffff;
-    --page-panel-bg: #ffffff;
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --page-bg: #000000;
-        --page-panel-bg: #000000;
-    }
-}
-
-.page-shell {
-    display: grid;
-    gap: 1rem;
-    background: var(--page-bg);
-}
-
-.glass-card {
-    background: var(--page-panel-bg);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    box-shadow: none;
-    padding: 1.25rem;
-}
+/* LendingDetails — page-specific only; global layout from app.css */
 
 .detail-top {
     display: flex;
@@ -32,30 +8,11 @@
     margin-bottom: 1rem;
 }
 
-.detail-top h1 {
-    margin: 0;
-}
+.detail-top h1 { margin: 0; }
 
 .detail-top p {
     margin: .35rem 0 0;
     color: var(--text-muted);
-}
-
-.detail-grid {
-    display: grid;
-    grid-template-columns: 180px 1fr;
-    gap: .75rem 1rem;
-    margin: 0;
-}
-
-.detail-grid dt {
-    font-weight: 700;
-    color: var(--text-soft);
-}
-
-.detail-grid dd {
-    margin: 0;
-    color: var(--text);
 }
 
 .actions {
@@ -63,26 +20,4 @@
     display: flex;
     gap: .75rem;
     flex-wrap: wrap;
-}
-
-.btn-modern {
-    border-radius: 999px;
-}
-
-.btn-success {
-    background: var(--success);
-    border: 1px solid var(--success);
-    color: #fff;
-}
-
-.btn-success:hover {
-    background: color-mix(in srgb, var(--success) 88%, #000 12%);
-    border-color: color-mix(in srgb, var(--success) 88%, #000 12%);
-    color: #fff;
-}
-
-@media (max-width: 768px) {
-    .detail-grid {
-        grid-template-columns: 1fr;
-    }
 }

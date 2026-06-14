@@ -1,25 +1,13 @@
-:root {
-    --nav-bg: #ffffff;
-    --nav-panel-bg: #ffffff;
-    --page-bg: #ffffff;
-    --page-panel-bg: #ffffff;
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --nav-bg: #000000;
-        --nav-panel-bg: #000000;
-        --page-bg: #000000;
-        --page-panel-bg: #000000;
-    }
-}
+/* NavMenu — all colours from design tokens, no local :root overrides */
 
 .nav-shell {
     position: relative;
     height: 100%;
     min-height: 100vh;
     padding: 0;
-    background: var(--nav-bg);
+    background: var(--surface);
+    backdrop-filter: blur(var(--blur));
+    -webkit-backdrop-filter: blur(var(--blur));
     overflow: hidden;
 }
 
@@ -31,7 +19,7 @@
     min-height: 100vh;
     padding: 1.25rem 1rem;
     border-right: 1px solid var(--border);
-    background: var(--nav-panel-bg);
+    background: var(--surface);
     border-radius: 0;
     box-shadow: none;
 }
@@ -48,12 +36,13 @@
     place-items: center;
     width: 2.75rem;
     height: 2.75rem;
-    border-radius: 14px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
-    background: var(--page-panel-bg);
-    color: var(--text);
+    background: var(--accent);
+    color: #fff;
     font-weight: 700;
     letter-spacing: 0.04em;
+    flex-shrink: 0;
 }
 
 .nav-brand-copy {
@@ -64,7 +53,7 @@
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.16em;
-    color: var(--text-soft);
+    color: var(--text-muted);
 }
 
 .nav-brand-title {
@@ -98,26 +87,26 @@
     position: relative;
     display: flex;
     align-items: center;
-    min-height: 50px;
-    padding: 0.8rem 0.95rem;
-    border-radius: 14px;
+    min-height: 46px;
+    padding: 0.7rem 0.9rem;
+    border-radius: var(--radius-md);
     text-decoration: none;
     color: var(--text-muted);
     border: 1px solid transparent;
     background: transparent;
-    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .nav-link-item:hover {
     color: var(--text);
     border-color: var(--border);
-    background: var(--surface-soft);
+    background: var(--accent-soft);
 }
 
 .nav-link-item.active {
-    color: var(--text);
+    color: var(--accent);
     border-color: var(--border-strong);
-    background: var(--surface-soft);
+    background: var(--accent-soft);
 }
 
 .nav-link-text {
@@ -127,25 +116,45 @@
 }
 
 .nav-link-sub-item {
-    min-height: 42px;
-    padding: 0.65rem 0.85rem;
-    border-radius: 12px;
+    min-height: 40px;
+    padding: 0.55rem 0.8rem;
+    border-radius: var(--radius-sm);
 }
 
 .nav-link-sub-item .nav-link-text {
     font-size: 0.88rem;
     font-weight: 500;
-    color: var(--text-soft);
+    color: var(--text-muted);
 }
 
 .nav-link-sub-item:hover .nav-link-text,
 .nav-link-sub-item.active .nav-link-text {
-    color: var(--text);
+    color: var(--accent);
 }
 
 .nav-link-item:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
-    outline-offset: 3px;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.nav-auth-state {
+    margin-top: auto;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+}
+
+.nav-auth-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.nav-auth-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 0.15rem;
 }
 
 @media (max-width: 900px) {

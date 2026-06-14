@@ -16,21 +16,9 @@
                 <span class="nav-link-text">Dashboard</span>
             </NavLink>
 
-            <div class="nav-group">
-                <NavLink class="nav-link-item" href="movies">
-                    <span class="nav-link-text">Filme</span>
-                </NavLink>
-
-                <div class="nav-sub-links">
-                    <NavLink class="nav-link-item nav-link-sub-item" href="watchlist">
-                        <span class="nav-link-text">Watchlist</span>
-                    </NavLink>
-
-                    <NavLink class="nav-link-item nav-link-sub-item" href="genres">
-                        <span class="nav-link-text">Genres</span>
-                    </NavLink>
-                </div>
-            </div>
+            <NavLink class="nav-link-item" href="/movies">
+                <span class="nav-link-text">Filme</span>
+            </NavLink>
 
             <div class="nav-group">
                 <NavLink class="nav-link-item" href="/lending">
@@ -41,19 +29,14 @@
                     <NavLink class="nav-link-item nav-link-sub-item" href="/lending/persons">
                         <span class="nav-link-text">Personen</span>
                     </NavLink>
+                    <NavLink class="nav-link-item nav-link-sub-item" href="/lending/categories">
+                        <span class="nav-link-text">Kategorien</span>
+                    </NavLink>
                 </div>
             </div>
 
-            <AuthorizeView Roles="Admin">
-                <Authorized>
-                    <NavLink class="nav-link-item" href="/admin">
-                        <span class="nav-link-text">Administration</span>
-                    </NavLink>
-                </Authorized>
-            </AuthorizeView>
-
-            <NavLink class="nav-link-item" href="settings">
-                <span class="nav-link-text">Einstellungen</span>
+            <NavLink class="nav-link-item" href="/admin">
+                <span class="nav-link-text">Administration</span>
             </NavLink>
         </nav>
 
@@ -65,12 +48,6 @@
                         <div class="nav-auth-name">@context.User.Identity?.Name</div>
                     </div>
                 </Authorized>
-                <NotAuthorized>
-                    <div class="nav-auth-copy">
-                        <div class="nav-auth-label">Standard-Admin</div>
-                        <div class="nav-auth-name">admin</div>
-                    </div>
-                </NotAuthorized>
             </AuthorizeView>
         </div>
     </aside>

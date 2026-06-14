@@ -2,7 +2,6 @@
 @using PrivateLibrary.Modules.Lending.Components
 @using Microsoft.AspNetCore.Antiforgery
 @using Microsoft.AspNetCore.Http
-@using Microsoft.AspNetCore.Identity
 @inject IAntiforgery Antiforgery
 @inject IHttpContextAccessor HttpContextAccessor
 
@@ -27,11 +26,6 @@
 
         <main class="app-main">
             <header class="app-topbar">
-                <div class="app-topbar-copy">
-                    <div class="app-topbar-eyebrow">Private Library</div>
-                    <h1 class="app-topbar-title">Filmarchiv und Ausleihen</h1>
-                </div>
-
                 <AuthorizeView>
                     <Authorized>
                         <div class="app-topbar-actions">
@@ -49,15 +43,7 @@
                     </Authorized>
                     <NotAuthorized>
                         <div class="app-topbar-actions">
-                            <div class="app-topbar-user">
-                                <span class="app-topbar-user-label">Nicht angemeldet</span>
-                            </div>
-
-                            <form method="post" action="/account/dev-admin-login" class="app-auth-form">
-                                <input type="hidden" name="__RequestVerificationToken" value="@_antiforgeryToken" />
-                                <input type="hidden" name="returnUrl" value="/admin" />
-                                <button type="submit" class="app-auth-button">Als Admin anmelden</button>
-                            </form>
+                            <a href="/account/login" class="app-auth-button">Anmelden</a>
                         </div>
                     </NotAuthorized>
                 </AuthorizeView>
