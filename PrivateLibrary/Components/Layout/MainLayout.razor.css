@@ -20,17 +20,26 @@
 .app-topbar {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0 1rem;
-    height: 60px;
+    gap: 1rem;
+    padding: 0 1.25rem;
+    height: 66px;
     border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: linear-gradient(180deg, var(--glass-sheen), transparent 60%), var(--surface);
+    backdrop-filter: blur(var(--blur)) saturate(180%);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
     position: sticky;
     top: 0;
     z-index: 10;
     flex-shrink: 0;
+}
+
+/* Let the nav fill the bar so icons spread across the full width. */
+.app-topbar ::deep .nav-toolbar {
+    flex: 1;
+}
+
+.app-topbar-spacer {
+    display: none;
 }
 
 .app-brand {

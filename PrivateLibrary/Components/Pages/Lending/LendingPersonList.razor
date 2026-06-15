@@ -8,13 +8,13 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 
-<PageTitle>Benutzer</PageTitle>
+<PageTitle>Personen</PageTitle>
 
 <div class="page-shell">
     <div class="page-header glass-card">
         <div>
-            <h1>Benutzer</h1>
-            <p>Benutzerkonten und Rollen verwalten.</p>
+            <h1>Personen</h1>
+            <p>Personen und Rollen verwalten.</p>
         </div>
         <div class="header-actions">
             <a class="btn btn-primary" href="/lending/persons/new">Neu anlegen</a>
@@ -63,7 +63,7 @@
     }
     else if (_users.Count == 0)
     {
-        <div class="glass-card ui-section">Noch keine Benutzer vorhanden.</div>
+        <div class="glass-card ui-section">Noch keine Personen vorhanden.</div>
     }
     else
     {
@@ -78,12 +78,12 @@
                            @bind="_searchTerm"
                            @bind:event="oninput" />
                 </div>
-                <div class="result-count">@FilteredUsers.Count() Benutzer</div>
+                <div class="result-count">@FilteredUsers.Count() Personen</div>
             </div>
 
             @if (!FilteredUsers.Any())
             {
-                <div class="glass-card ui-section">Keine Benutzer zum aktuellen Suchbegriff gefunden.</div>
+                <div class="glass-card ui-section">Keine Personen zum aktuellen Suchbegriff gefunden.</div>
             }
             else
             {

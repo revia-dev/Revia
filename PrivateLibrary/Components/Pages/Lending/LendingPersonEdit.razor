@@ -9,13 +9,13 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 
-<PageTitle>@(_id is not null ? "Benutzer bearbeiten" : "Neuer Benutzer")</PageTitle>
+<PageTitle>@(_id is not null ? "Person bearbeiten" : "Neue Person")</PageTitle>
 
 <div class="page-shell">
     <div class="glass-card page-header">
         <div>
-            <h1>@(_id is not null ? "Benutzer bearbeiten" : "Neuen Benutzer anlegen")</h1>
-            <p>Benutzer verwalten und optional Rollen zuweisen.</p>
+            <h1>@(_id is not null ? "Person bearbeiten" : "Neue Person anlegen")</h1>
+            <p>Personen verwalten und optional Rollen zuweisen.</p>
         </div>
     </div>
 
@@ -180,7 +180,7 @@
 
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary btn-modern">
-                        @(_id is not null ? "Änderungen speichern" : "Benutzer anlegen")
+                        @(_id is not null ? "Änderungen speichern" : "Person anlegen")
                     </button>
                     <a class="btn btn-secondary btn-modern" href="/lending/persons">Abbrechen</a>
                 </div>
@@ -294,7 +294,7 @@
                 {
                     var roleName = _canManageRoles ? _model.SelectedRole : IdentitySeeder.UserRoleName;
                     await PersonService.CreateAsync(entity, _model.Password!, roleName);
-                    ToastService.Success("Benutzer erfolgreich angelegt.");
+                    ToastService.Success("Person erfolgreich angelegt.");
                 }
             }
             else
