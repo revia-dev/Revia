@@ -220,6 +220,9 @@ namespace PrivateLibrary.Migrations
                     b.Property<string>("PasswordHash")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("PersonLinkToken")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Phone")
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
@@ -291,6 +294,29 @@ namespace PrivateLibrary.Migrations
                         .IsUnique();
 
                     b.ToTable("Households");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.HouseholdLink", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HouseholdAId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("HouseholdBId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdAId", "HouseholdBId")
+                        .IsUnique();
+
+                    b.ToTable("HouseholdLinks");
                 });
 
             modelBuilder.Entity("PrivateLibrary.Data.Movie", b =>

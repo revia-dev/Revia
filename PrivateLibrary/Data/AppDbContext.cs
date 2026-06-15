@@ -12,6 +12,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     }
 
     public DbSet<Household> Households => Set<Household>();
+    public DbSet<HouseholdLink> HouseholdLinks => Set<HouseholdLink>();
     public DbSet<Movie> Movies => Set<Movie>();
     public DbSet<TvProgram> TvPrograms => Set<TvProgram>();
     public DbSet<TvProgramEntry> TvProgramEntries => Set<TvProgramEntry>();
@@ -29,6 +30,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<Household>(builder =>
         {
             builder.HasIndex(x => x.InviteCode).IsUnique();
+        });
+
+        modelBuilder.Entity<HouseholdLink>(builder =>
+        {
+            builder.HasIndex(x => new { x.HouseholdAId, x.HouseholdBId }).IsUnique();
         });
 
         modelBuilder.Entity<ApplicationUser>(builder =>

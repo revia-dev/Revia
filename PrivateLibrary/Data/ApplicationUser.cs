@@ -49,6 +49,10 @@ public sealed class ApplicationUser : IdentityUser
     /// BMI, …) that has no password and cannot sign in.</summary>
     public bool IsLoginless { get; set; }
 
+    /// <summary>Stable token encoded in this person's QR code. Scanning it in another
+    /// household imports the person there and links the two households.</summary>
+    public Guid PersonLinkToken { get; set; } = Guid.NewGuid();
+
     public ICollection<LendingEntry> LentEntries { get; set; } = new List<LendingEntry>();
     public ICollection<LendingEntry> BorrowedEntries { get; set; } = new List<LendingEntry>();
 

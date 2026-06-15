@@ -92,6 +92,7 @@ builder.Services.AddTransient<ILendingService, LendingService>();
 builder.Services.AddTransient<IPersonService, PersonService>();
 builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<CurrentUserContext>();
+builder.Services.AddScoped<HouseholdLinkService>();
 
 var app = builder.Build();
 

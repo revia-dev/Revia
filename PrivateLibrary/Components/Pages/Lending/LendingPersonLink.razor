@@ -1,0 +1,127 @@
+@page "/persons/link/{Token}"
+@using PrivateLibrary.Data
+@using PrivateLibrary.Services
+@attribute [Authorize]
+@inject PrivateLibrary.Modules.Lending.Services.IPersonService PersonService
+@inject HouseholdLinkService HouseholdLinks
+@inject CurrentUserContext CurrentUser
+@inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Person übernehmen</PageTitle>
+
+<div class="page-shell">
+    <div class="glass-card page-header">
+        <div>
+            <h1>Person übernehmen</h1>
+            <p>QR-Code einer Person aus einem anderen Haushalt.</p>
+        </div>
+    </div>
+
+    <div class="glass-card form-shell">
+        @if (_loading)
+        {
+            <div>Lade ...</div>
+        }
+        else if (_source is null)
+        {
+            <div class="login-error">Zu diesem QR-Code wurde keine Person gefunden.</div>
+            <div class="form-actions"><a class="btn btn-secondary btn-modern" href="/lending/persons">Zurück</a></div>
+        }
+        else if (_sameHousehold)
+        {
+            <p>Diese Person (<strong>@_source.DisplayName</strong>) gehört bereits zu deinem Haushalt.</p>
+            <div class="form-actions"><a class="btn btn-secondary btn-modern" href="/lending/persons">Zur Personenliste</a></div>
+        }
+        else
+        {
+            <p>
+                Folgende Person aus dem Haushalt <strong>@(_source.Household?.Name ?? "?")</strong>
+                kann in deinen Haushalt übernommen werden. Dabei werden beide Haushalte verknüpft –
+                anschließend siehst du auch deren Ausleihen.
+            </p>
+
+            <ul class="link-person-facts">
+                <li><span>Name</span><strong>@_source.DisplayName</strong></li>
+                @if (!string.IsNullOrWhiteSpace(_source.Email)) { <li><span>E-Mail</span><strong>@_source.Email</strong></li> }
+                @if (!string.IsNullOrWhiteSpace(_source.Phone)) { <li><span>Telefon</span><strong>@_source.Phone</strong></li> }
+                @if (!string.IsNullOrWhiteSpace(FormatLocation())) { <li><span>Ort</span><strong>@FormatLocation()</strong></li> }
+            </ul>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary btn-modern" disabled="@_working" @onclick="ImportAsync">
+                    Übernehmen &amp; Haushalte verknüpfen
+                </button>
+                <a class="btn btn-secondary btn-modern" href="/lending/persons">Abbrechen</a>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Token { get; set; } = string.Empty;
+
+    private bool _loading = true;
+    private bool _working;
+    private bool _sameHousehold;
+    private int _currentHouseholdId;
+    private ApplicationUser? _source;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _currentHouseholdId = await CurrentUser.RequireHouseholdIdAsync();
+
+        if (Guid.TryParse(Token, out var token))
+        {
+            _source = await PersonService.GetByLinkTokenAsync(token);
+            _sameHousehold = _source?.HouseholdId == _currentHouseholdId;
+        }
+
+        _loading = false;
+    }
+
+    private string FormatLocation()
+        => $"{_source?.PostalCode} {_source?.City}".Trim();
+
+    private async Task ImportAsync()
+    {
+        if (_source is null || _source.HouseholdId is null)
+        {
+            return;
+        }
+
+        _working = true;
+        try
+        {
+            var copy = new ApplicationUser
+            {
+                FirstName = _source.FirstName,
+                LastName = _source.LastName,
+                Nickname = _source.Nickname,
+                Email = _source.Email,
+                Phone = _source.Phone,
+                Street = _source.Street,
+                HouseNumber = _source.HouseNumber,
+                PostalCode = _source.PostalCode,
+                City = _source.City,
+                Notes = _source.Notes
+            };
+
+            await PersonService.CreateLoginlessAsync(copy);
+            await HouseholdLinks.LinkAsync(_currentHouseholdId, _source.HouseholdId.Value);
+
+            ToastService.Success("Person übernommen und Haushalte verknüpft.");
+            Navigation.NavigateTo("/lending/persons");
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error(ex.Message);
+        }
+        finally
+        {
+            _working = false;
+        }
+    }
+}

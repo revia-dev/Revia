@@ -34,6 +34,14 @@ public sealed class PersonService(
         return await _userManager.Users.FirstOrDefaultAsync(x => x.Id == id && x.HouseholdId == householdId, cancellationToken);
     }
 
+    public async Task<ApplicationUser?> GetByLinkTokenAsync(Guid token, CancellationToken cancellationToken = default)
+    {
+        // Intentionally NOT household-scoped: importing links a person across households.
+        return await _userManager.Users
+            .Include(x => x.Household)
+            .FirstOrDefaultAsync(x => x.PersonLinkToken == token, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<ApplicationUser>> GetLookupAsync(CancellationToken cancellationToken = default)
     {
         var householdId = await _currentUser.RequireHouseholdIdAsync();

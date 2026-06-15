@@ -120,6 +120,19 @@ public static class IdentitySeeder
         await db.LendingCategories
             .Where(c => c.HouseholdId == 0)
             .ExecuteUpdateAsync(s => s.SetProperty(c => c.HouseholdId, householdId));
+
+        // Give legacy persons a stable QR link token (per-row GUID, so no bulk update).
+        var usersWithoutToken = await db.Users
+            .Where(u => u.PersonLinkToken == Guid.Empty)
+            .ToListAsync();
+        if (usersWithoutToken.Count > 0)
+        {
+            foreach (var user in usersWithoutToken)
+            {
+                user.PersonLinkToken = Guid.NewGuid();
+            }
+            await db.SaveChangesAsync();
+        }
     }
 
     private static async Task EnsureRoleExistsAsync(RoleManager<IdentityRole> roleManager, string roleName)

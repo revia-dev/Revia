@@ -10,20 +10,29 @@ public sealed class LendingService : ILendingService
     private readonly AppDbContext _db;
     private readonly ILendingPhotoStorage _photoStorage;
     private readonly CurrentUserContext _currentUser;
+    private readonly HouseholdLinkService _links;
 
-    public LendingService(AppDbContext db, ILendingPhotoStorage photoStorage, CurrentUserContext currentUser)
+    public LendingService(AppDbContext db, ILendingPhotoStorage photoStorage, CurrentUserContext currentUser, HouseholdLinkService links)
     {
         _db = db;
         _photoStorage = photoStorage;
         _currentUser = currentUser;
+        _links = links;
+    }
+
+    /// <summary>The current household plus every household linked to it (read visibility).</summary>
+    private async Task<IReadOnlyList<int>> GetVisibleHouseholdIdsAsync()
+    {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
+        return await _links.GetVisibleHouseholdIdsAsync(householdId);
     }
 
     public async Task<IReadOnlyList<LendingEntry>> GetAllAsync(LendingEntryStatus? statusFilter = null, CancellationToken cancellationToken = default)
     {
-        var householdId = await _currentUser.RequireHouseholdIdAsync();
+        var visibleHouseholds = await GetVisibleHouseholdIdsAsync();
         var items = await _db.LendingEntries
             .AsNoTracking()
-            .Where(x => x.HouseholdId == householdId)
+            .Where(x => visibleHouseholds.Contains(x.HouseholdId))
             .Include(x => x.Lender)
             .Include(x => x.Borrower)
             .Include(x => x.Items.OrderBy(i => i.SortOrder))
@@ -49,9 +58,9 @@ public sealed class LendingService : ILendingService
 
     public async Task<LendingEntry?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        var householdId = await _currentUser.RequireHouseholdIdAsync();
+        var visibleHouseholds = await GetVisibleHouseholdIdsAsync();
         var entry = await _db.LendingEntries
-            .Where(x => x.HouseholdId == householdId)
+            .Where(x => visibleHouseholds.Contains(x.HouseholdId))
             .Include(x => x.Lender)
             .Include(x => x.Borrower)
             .Include(x => x.Items.OrderBy(i => i.SortOrder))
@@ -258,9 +267,10 @@ public sealed class LendingService : ILendingService
     public async Task<LendingDashboardStats> GetDashboardStatsAsync(CancellationToken cancellationToken = default)
     {
         var householdId = await _currentUser.RequireHouseholdIdAsync();
+        var visibleHouseholds = await _links.GetVisibleHouseholdIdsAsync(householdId);
         var allEntries = await _db.LendingEntries
             .AsNoTracking()
-            .Where(x => x.HouseholdId == householdId)
+            .Where(x => visibleHouseholds.Contains(x.HouseholdId))
             .Include(x => x.Lender)
             .Include(x => x.Borrower)
             .Include(x => x.Items.OrderBy(i => i.SortOrder))

@@ -162,6 +162,22 @@
                     </div>
                 }
 
+                @if (!_model.IsNew)
+                {
+                    <div class="profile-photo-section">
+                        <h2 class="ui-section-title">QR-Code</h2>
+                        <div class="profile-photo-row">
+                            <img class="person-qr" src="@($"/persons/qr/{_id}")" alt="QR-Code" />
+                            <div class="profile-photo-controls">
+                                <p class="text-muted">
+                                    Scannt ein anderer Haushalt diesen QR-Code, wird diese Person dort
+                                    übernommen und beide Haushalte werden verknüpft (gemeinsame Sicht auf Ausleihen).
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                }
+
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary btn-modern">
                         @(_id is not null ? "Änderungen speichern" : "Benutzer anlegen")

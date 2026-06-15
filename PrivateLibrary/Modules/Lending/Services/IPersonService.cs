@@ -6,6 +6,9 @@ public interface IPersonService
 {
     Task<IReadOnlyList<ApplicationUser>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<ApplicationUser?> GetByIdAsync(string id, CancellationToken cancellationToken = default);
+
+    /// <summary>Finds a person by their QR link token across all households (for import).</summary>
+    Task<ApplicationUser?> GetByLinkTokenAsync(Guid token, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ApplicationUser>> GetLookupAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> GetAvailableRolesAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> GetUserRolesAsync(string userId, CancellationToken cancellationToken = default);
