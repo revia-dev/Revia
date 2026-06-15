@@ -1,0 +1,57 @@
+.bmi-form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+
+.field-wide {
+    grid-column: 1 / -1;
+}
+
+.field label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.bmi-thumb {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+}
+
+.bmi-timelapse {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+}
+
+.bmi-timelapse img {
+    max-height: 360px;
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: var(--radius-md);
+}
+
+.bmi-timelapse-caption {
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.bmi-chart {
+    padding: 0.5rem 0;
+}
+
+@media (max-width: 720px) {
+    .bmi-form-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}

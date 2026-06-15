@@ -269,6 +269,46 @@ namespace PrivateLibrary.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.BmiRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("Bmi")
+                        .HasColumnType("REAL");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("HeightCm")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("MeasuredOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PersonId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PhotoFileName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("WeightKg")
+                        .HasColumnType("REAL");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PersonId");
+
+                    b.HasIndex("HouseholdId", "PersonId", "MeasuredOn");
+
+                    b.ToTable("BmiRecords");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Data.Household", b =>
                 {
                     b.Property<int>("Id")
@@ -667,6 +707,17 @@ namespace PrivateLibrary.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Household");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.BmiRecord", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.ApplicationUser", "Person")
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Person");
                 });
 
             modelBuilder.Entity("PrivateLibrary.Data.TvProgram", b =>

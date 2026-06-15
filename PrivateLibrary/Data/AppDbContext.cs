@@ -16,6 +16,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Movie> Movies => Set<Movie>();
     public DbSet<TvProgram> TvPrograms => Set<TvProgram>();
     public DbSet<TvProgramEntry> TvProgramEntries => Set<TvProgramEntry>();
+    public DbSet<BmiRecord> BmiRecords => Set<BmiRecord>();
     public DbSet<LendingEntry> LendingEntries => Set<LendingEntry>();
     public DbSet<LendingItem> LendingItems => Set<LendingItem>();
     public DbSet<LendingCategory> LendingCategories => Set<LendingCategory>();
@@ -75,6 +76,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             builder.HasOne(x => x.OwnerUser)
                 .WithMany()
                 .HasForeignKey(x => x.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BmiRecord>(builder =>
+        {
+            builder.HasIndex(x => new { x.HouseholdId, x.PersonId, x.MeasuredOn });
+
+            builder.HasOne(x => x.Person)
+                .WithMany()
+                .HasForeignKey(x => x.PersonId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
