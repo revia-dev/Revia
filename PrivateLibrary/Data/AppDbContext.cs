@@ -22,6 +22,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<GameMatch> GameMatches => Set<GameMatch>();
     public DbSet<GameMatchPhoto> GameMatchPhotos => Set<GameMatchPhoto>();
     public DbSet<GameMatchParticipant> GameMatchParticipants => Set<GameMatchParticipant>();
+    public DbSet<Wishlist> Wishlists => Set<Wishlist>();
+    public DbSet<WishlistItem> WishlistItems => Set<WishlistItem>();
     public DbSet<LendingEntry> LendingEntries => Set<LendingEntry>();
     public DbSet<LendingItem> LendingItems => Set<LendingItem>();
     public DbSet<LendingCategory> LendingCategories => Set<LendingCategory>();
@@ -97,6 +99,24 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<Game>(builder =>
         {
             builder.HasIndex(x => new { x.HouseholdId, x.Name });
+        });
+
+        modelBuilder.Entity<Wishlist>(builder =>
+        {
+            builder.HasIndex(x => new { x.HouseholdId, x.OwnerUserId });
+
+            builder.HasOne(x => x.OwnerUser)
+                .WithMany()
+                .HasForeignKey(x => x.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WishlistItem>(builder =>
+        {
+            builder.HasOne(x => x.Wishlist)
+                .WithMany(w => w.Items)
+                .HasForeignKey(x => x.WishlistId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<GameExpansion>(builder =>

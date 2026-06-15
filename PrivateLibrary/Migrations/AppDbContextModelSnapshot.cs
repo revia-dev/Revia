@@ -653,6 +653,77 @@ namespace PrivateLibrary.Migrations
                     b.ToTable("TvProgramEntries");
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.Wishlist", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId");
+
+                    b.HasIndex("HouseholdId", "OwnerUserId");
+
+                    b.ToTable("Wishlists");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.WishlistItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsFulfilled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("Price")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WishlistId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WishlistId");
+
+                    b.ToTable("WishlistItems");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -992,6 +1063,28 @@ namespace PrivateLibrary.Migrations
                     b.Navigation("TvProgram");
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.Wishlist", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.ApplicationUser", "OwnerUser")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OwnerUser");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.WishlistItem", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.Wishlist", "Wishlist")
+                        .WithMany("Items")
+                        .HasForeignKey("WishlistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Wishlist");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingEntry", b =>
                 {
                     b.HasOne("PrivateLibrary.Data.ApplicationUser", "Borrower")
@@ -1081,6 +1174,11 @@ namespace PrivateLibrary.Migrations
             modelBuilder.Entity("PrivateLibrary.Data.TvProgram", b =>
                 {
                     b.Navigation("Entries");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.Wishlist", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingCategory", b =>

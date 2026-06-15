@@ -1,0 +1,69 @@
+@page "/wishlists"
+@using PrivateLibrary.Data
+@using PrivateLibrary.Modules.Wishlists
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject WishlistService WishlistService
+@inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+
+<PageTitle>Wunschzettel</PageTitle>
+
+<div class="page-shell">
+    <div class="glass-card page-header">
+        <div>
+            <h1>Wunschzettel</h1>
+            <p>Alle Wunschzettel im Haushalt.</p>
+        </div>
+    </div>
+
+    <div class="glass-card ui-section">
+        <h2 class="ui-section-title">Neuen Wunschzettel anlegen</h2>
+        <div class="wishlist-add">
+            <input class="form-control" placeholder="Bezeichnung (z. B. Geburtstag)" @bind="_newName" />
+            <button type="button" class="btn btn-primary" @onclick="CreateAsync">Anlegen</button>
+        </div>
+    </div>
+
+    @if (_wishlists.Count == 0)
+    {
+        <div class="glass-card ui-section text-muted">Noch keine Wunschzettel vorhanden.</div>
+    }
+    else
+    {
+        <div class="wishlist-grid">
+            @foreach (var w in _wishlists)
+            {
+                <a class="wishlist-card" href="@($"/wishlists/{w.Id}")" @key="w.Id">
+                    <div class="wishlist-card-title">@w.Name</div>
+                    <div class="wishlist-card-owner">@(w.OwnerUser?.DisplayName ?? "—")</div>
+                    <div class="wishlist-card-meta">
+                        @w.Items.Count Wünsche
+                        @{ var open = w.Items.Count(i => !i.IsFulfilled); }
+                        @if (open != w.Items.Count) { <span>· @open offen</span> }
+                    </div>
+                </a>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Wishlist> _wishlists = new();
+    private string _newName = string.Empty;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        _wishlists = (await WishlistService.GetHouseholdWishlistsAsync()).ToList();
+    }
+
+    private async Task CreateAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newName)) { ToastService.Error("Bitte eine Bezeichnung eingeben."); return; }
+        await WishlistService.CreateWishlistAsync(_newName);
+        _newName = string.Empty;
+        ToastService.Success("Wunschzettel angelegt.");
+        await ReloadAsync();
+    }
+}
