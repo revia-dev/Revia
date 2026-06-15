@@ -39,6 +39,11 @@
                         <p><strong>FSK:</strong> @Film.Fsk</p>
                     }
 
+                    @if (Film.Runtime is int rt)
+                    {
+                        <p><strong>Länge:</strong> @rt Min</p>
+                    }
+
                     @if (Film.Anbieter?.Any() == true)
                     {
                         <p><strong>Anbieter:</strong> @string.Join(", ", Film.Anbieter)</p>
@@ -70,19 +75,35 @@
             </div>
         </div>
 
-        @if (RelatedFilms?.Any() == true)
+        @if (_seriesGroups.Count > 0)
         {
             <section class="movie-detail-related">
-                <h4>Weitere Filme in dieser Reihe</h4>
+                <h4>Filmreihen</h4>
+
+                @if (_seriesGroups.Count > 1)
+                {
+                    <div class="series-tabs">
+                        @foreach (var group in _seriesGroups)
+                        {
+                            <button type="button"
+                                    class="series-tab @(group.Key == _activeSeries ? "is-active" : "")"
+                                    @onclick="() => _activeSeries = group.Key">
+                                @group.Key (@group.Value.Count)
+                            </button>
+                        }
+                    </div>
+                }
 
                 <div class="movie-detail-related-grid">
-                    @foreach (var related in RelatedFilms)
+                    @foreach (var related in ActiveSeriesFilms)
                     {
                         <button type="button"
                                 class="movie-detail-related-card @(related.Id == Film.Id ? "is-active" : "")"
                                 @onclick="() => SelectRelated(related)">
-                            <img src="@PosterResolver.ResolvePosterUrl(related)" alt="@related.Titel" />
-                            <span>@(related.Titel ?? "Unbekannt")</span>
+                            <span class="related-poster-shell">
+                                <img src="@PosterResolver.ResolvePosterUrl(related)" alt="@related.Titel" loading="lazy" />
+                            </span>
+                            <span class="related-title">@(related.Titel ?? "Unbekannt")</span>
                         </button>
                     }
                 </div>
@@ -93,11 +114,15 @@
 
 @code {
     [Parameter] public Film? Film { get; set; }
-    [Parameter] public List<Film> RelatedFilms { get; set; } = new();
+    [Parameter] public List<Film> AllFilms { get; set; } = new();
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<Film> OnFilmSelected { get; set; }
     [Parameter] public EventCallback<Film> OnEdit { get; set; }
     [Parameter] public EventCallback<Film> OnDelete { get; set; }
+
+    // series key -> films sharing it (each key is one tab)
+    private Dictionary<string, List<Film>> _seriesGroups = new();
+    private string? _activeSeries;
 
     private string DisplayTitle => Film?.Titel ?? "Unbekannt";
 
@@ -105,6 +130,47 @@
         => Film is null
             ? "/images/placeholder.png"
             : (PosterResolver.ResolvePosterUrl(Film) ?? "/images/placeholder.png");
+
+    private IReadOnlyList<Film> ActiveSeriesFilms
+        => _activeSeries is not null && _seriesGroups.TryGetValue(_activeSeries, out var films)
+            ? films
+            : Array.Empty<Film>();
+
+    protected override void OnParametersSet()
+    {
+        _seriesGroups = new Dictionary<string, List<Film>>();
+
+        if (Film is null) return;
+
+        foreach (var key in SeriesKeys(Film))
+        {
+            var films = AllFilms
+                .Where(m => SeriesKeys(m).Contains(key))
+                .OrderBy(m => m.Jahr, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(m => m.Titel, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (films.Count >= 2)
+            {
+                _seriesGroups[key] = films;
+            }
+        }
+
+        if (_activeSeries is null || !_seriesGroups.ContainsKey(_activeSeries))
+        {
+            _activeSeries = _seriesGroups.Keys.FirstOrDefault();
+        }
+    }
+
+    // A film may belong to several series; "#a#b#c" encodes multiple levels, each a key.
+    private static IEnumerable<string> SeriesKeys(Film film)
+        => (film.Tags ?? Enumerable.Empty<string>())
+            .Where(t => t.Contains('#'))
+            .SelectMany(t => t.Split('#', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Select(s => s.Trim())
+            .Where(s => s.Length > 0)
+            .Select(s => s.ToLowerInvariant())
+            .Distinct();
 
     private Task HandleClose()
         => OnClose.HasDelegate ? OnClose.InvokeAsync() : Task.CompletedTask;

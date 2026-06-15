@@ -24,7 +24,7 @@ public sealed class PosterBackfillService(
         try
         {
             missing = await db.Movies
-                .Where(m => m.TmdbId != null && (m.PosterPath == null || m.PosterPath == ""))
+                .Where(m => m.TmdbId != null && ((m.PosterPath == null || m.PosterPath == "") || m.Runtime == null))
                 .ToListAsync(stoppingToken);
         }
         catch (Exception ex)
@@ -47,11 +47,19 @@ public sealed class PosterBackfillService(
 
             try
             {
-                var path = await tmdbService.FetchPosterPathAsync(movie.TmdbId!.Value, movie.Kategorie);
-                if (!string.IsNullOrWhiteSpace(path))
+                var details = await tmdbService.FetchDetailsAsync(movie.TmdbId!.Value, movie.Kategorie);
+                if (details is not null)
                 {
-                    movie.PosterPath = path;
-                    changed = true;
+                    if (string.IsNullOrWhiteSpace(movie.PosterPath) && !string.IsNullOrWhiteSpace(details.PosterPath))
+                    {
+                        movie.PosterPath = details.PosterPath;
+                        changed = true;
+                    }
+                    if (movie.Runtime is null && details.Runtime is not null)
+                    {
+                        movie.Runtime = details.Runtime;
+                        changed = true;
+                    }
                 }
                 await Task.Delay(120, stoppingToken);
             }

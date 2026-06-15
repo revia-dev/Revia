@@ -246,7 +246,7 @@
 @if (selectedFilm is not null)
 {
     <MovieDetail Film="selectedFilm"
-                 RelatedFilms="relatedFilms"
+                 AllFilms="filme"
                  OnClose="CloseDetail"
                  OnFilmSelected="SelectFilm"
                  OnEdit="OpenEditFromDetails"
@@ -260,7 +260,6 @@
     private HashSet<FilterTag> selectedTags = new();
 
     private Film? selectedFilm;
-    private List<Film> relatedFilms = new();
 
     private bool isLoading;
     private int progressIndex;
@@ -338,22 +337,11 @@
     private void SelectFilm(Film film)
     {
         selectedFilm = film;
-
-        var bundleTags = film.Tags?
-            .Where(t => t.StartsWith("#"))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase)
-            ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        relatedFilms = filme
-            .Where(m => m.Id != film.Id &&
-                        (m.Tags?.Any(tag => bundleTags.Contains(tag)) ?? false))
-            .ToList();
     }
 
     private void CloseDetail()
     {
         selectedFilm = null;
-        relatedFilms.Clear();
     }
 
     private void CreateMovie()
@@ -403,7 +391,12 @@
 
         if (updatedFilm.TmdbId is int tmdbId)
         {
-            updatedFilm.PosterPath = await TmdbService.FetchPosterPathAsync(tmdbId, updatedFilm.Kategorie);
+            var details = await TmdbService.FetchDetailsAsync(tmdbId, updatedFilm.Kategorie);
+            if (details is not null)
+            {
+                updatedFilm.PosterPath = details.PosterPath ?? updatedFilm.PosterPath;
+                updatedFilm.Runtime = details.Runtime ?? updatedFilm.Runtime;
+            }
         }
 
         var saved = await MovieService.UpsertAsync(updatedFilm);

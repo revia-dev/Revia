@@ -15,6 +15,10 @@ public class TmdbService
     }
 
     public async Task<string?> FetchPosterPathAsync(int tmdbId, string? kategorie)
+        => (await FetchDetailsAsync(tmdbId, kategorie))?.PosterPath;
+
+    /// <summary>Fetches poster path and runtime (minutes) for a TMDB id.</summary>
+    public async Task<TmdbDetails?> FetchDetailsAsync(int tmdbId, string? kategorie)
     {
         var apiKey = _configuration["Tmdb:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -29,13 +33,18 @@ public class TmdbService
         try
         {
             var response = await _httpClient.GetFromJsonAsync<TmdbDetailResponse>(url);
-            return response?.PosterPath;
+            if (response is null) return null;
+            // TV shows expose episode_run_time as an array; take the first entry.
+            var runtime = response.Runtime ?? response.EpisodeRunTime?.FirstOrDefault();
+            return new TmdbDetails(response.PosterPath, runtime > 0 ? runtime : null);
         }
         catch
         {
             return null;
         }
     }
+
+    public sealed record TmdbDetails(string? PosterPath, int? Runtime);
 
     public async Task<List<TmdbSearchResult>> SearchMoviesAsync(string query)
     {
@@ -104,5 +113,11 @@ public class TmdbService
     {
         [JsonPropertyName("poster_path")]
         public string? PosterPath { get; set; }
+
+        [JsonPropertyName("runtime")]
+        public int? Runtime { get; set; }
+
+        [JsonPropertyName("episode_run_time")]
+        public List<int>? EpisodeRunTime { get; set; }
     }
 }

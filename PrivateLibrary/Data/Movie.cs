@@ -27,4 +27,7 @@ public sealed class Movie
     public string? Tags { get; set; }
 
     public string? PosterPath { get; set; }
+
+    /// <summary>Runtime in minutes, fetched from TMDB.</summary>
+    public int? Runtime { get; set; }
 }

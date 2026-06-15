@@ -134,6 +134,37 @@
     margin: 0 0 0.85rem;
 }
 
+.series-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.9rem;
+}
+
+.series-tab {
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-transform: capitalize;
+}
+
+.series-tab.is-active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.related-title {
+    display: block;
+    font-size: 0.82rem;
+    margin-top: 0.45rem;
+}
+
 .movie-detail-related-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));

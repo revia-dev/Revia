@@ -14,6 +14,7 @@ public class Film
     public List<string>? Tags { get; set; }
     public string? Handlung { get; set; }
     public string? PosterPath { get; set; }
+    public int? Runtime { get; set; }
 }
 
 public class FilterTag : IEquatable<FilterTag>

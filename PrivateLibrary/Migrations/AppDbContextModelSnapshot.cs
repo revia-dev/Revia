@@ -650,6 +650,9 @@ namespace PrivateLibrary.Migrations
                     b.Property<string>("PosterPath")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("Runtime")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Tags")
                         .HasColumnType("TEXT");
 

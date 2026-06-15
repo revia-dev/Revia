@@ -83,7 +83,8 @@ public sealed class MovieService(AppDbContext db, CurrentUserContext currentUser
         Kategorie = m.Kategorie,
         Anbieter = SplitList(m.Anbieter),
         Tags = SplitList(m.Tags),
-        PosterPath = m.PosterPath
+        PosterPath = m.PosterPath,
+        Runtime = m.Runtime
     };
 
     private static void ApplyTo(Movie target, Film film)
@@ -96,6 +97,7 @@ public sealed class MovieService(AppDbContext db, CurrentUserContext currentUser
         target.Anbieter = JoinList(film.Anbieter);
         target.Tags = JoinList(film.Tags);
         target.PosterPath = film.PosterPath;
+        target.Runtime = film.Runtime;
     }
 
     private static List<string> SplitList(string? value) =>
