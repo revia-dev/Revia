@@ -355,16 +355,6 @@ namespace PrivateLibrary.Migrations
                         .HasMaxLength(260)
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("ScoreHigherIsBetter")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ScoreUnit")
-                        .HasMaxLength(40)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("INTEGER");
-
                     b.HasKey("Id");
 
                     b.HasIndex("HouseholdId", "Name");
@@ -400,6 +390,39 @@ namespace PrivateLibrary.Migrations
                     b.ToTable("GameExpansions");
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.GameExpansionFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("GameExpansionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OriginalName")
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameExpansionId");
+
+                    b.ToTable("GameExpansionFiles");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Data.GameMatch", b =>
                 {
                     b.Property<int>("Id")
@@ -422,8 +445,8 @@ namespace PrivateLibrary.Migrations
                     b.Property<DateTime>("PlayedOn")
                         .HasColumnType("TEXT");
 
-                    b.Property<double?>("Score")
-                        .HasColumnType("REAL");
+                    b.Property<int?>("ScoreDefinitionId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("TEXT");
@@ -435,6 +458,8 @@ namespace PrivateLibrary.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("GameId");
+
+                    b.HasIndex("ScoreDefinitionId");
 
                     b.HasIndex("HouseholdId", "StartedAt");
 
@@ -453,6 +478,9 @@ namespace PrivateLibrary.Migrations
                     b.Property<string>("PersonId")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<double?>("Score")
+                        .HasColumnType("REAL");
 
                     b.HasKey("Id");
 
@@ -498,6 +526,54 @@ namespace PrivateLibrary.Migrations
                     b.HasIndex("GameMatchId");
 
                     b.ToTable("GameMatchPhotos");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.GameScoreDefinition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("HigherIsBetter")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId");
+
+                    b.ToTable("GameScoreDefinitions");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.GameTypeAssignment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId", "Type")
+                        .IsUnique();
+
+                    b.ToTable("GameTypeAssignments");
                 });
 
             modelBuilder.Entity("PrivateLibrary.Data.Household", b =>
@@ -993,6 +1069,17 @@ namespace PrivateLibrary.Migrations
                     b.Navigation("Game");
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.GameExpansionFile", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.GameExpansion", "GameExpansion")
+                        .WithMany("Files")
+                        .HasForeignKey("GameExpansionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("GameExpansion");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Data.GameMatch", b =>
                 {
                     b.HasOne("PrivateLibrary.Data.Game", "Game")
@@ -1001,7 +1088,14 @@ namespace PrivateLibrary.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("PrivateLibrary.Data.GameScoreDefinition", "ScoreDefinition")
+                        .WithMany()
+                        .HasForeignKey("ScoreDefinitionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Game");
+
+                    b.Navigation("ScoreDefinition");
                 });
 
             modelBuilder.Entity("PrivateLibrary.Data.GameMatchParticipant", b =>
@@ -1032,6 +1126,28 @@ namespace PrivateLibrary.Migrations
                         .IsRequired();
 
                     b.Navigation("GameMatch");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.GameScoreDefinition", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.Game", "Game")
+                        .WithMany("ScoreDefinitions")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.GameTypeAssignment", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.Game", "Game")
+                        .WithMany("Types")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
                 });
 
             modelBuilder.Entity("PrivateLibrary.Data.TvProgram", b =>
@@ -1157,6 +1273,15 @@ namespace PrivateLibrary.Migrations
                     b.Navigation("Expansions");
 
                     b.Navigation("Matches");
+
+                    b.Navigation("ScoreDefinitions");
+
+                    b.Navigation("Types");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.GameExpansion", b =>
+                {
+                    b.Navigation("Files");
                 });
 
             modelBuilder.Entity("PrivateLibrary.Data.GameMatch", b =>

@@ -20,8 +20,6 @@ public sealed class Game
     [StringLength(150)]
     public string Name { get; set; } = string.Empty;
 
-    public GameType Type { get; set; }
-
     [StringLength(150)]
     public string? Publisher { get; set; }
 
@@ -31,13 +29,6 @@ public sealed class Game
 
     [StringLength(2000)]
     public string? Description { get; set; }
-
-    /// <summary>Unit of the per-match score (e.g. "Punkte", "Sekunden"); behaviour below.</summary>
-    [StringLength(40)]
-    public string? ScoreUnit { get; set; }
-
-    /// <summary>Whether a higher score is better (true) or lower is better (false).</summary>
-    public bool ScoreHigherIsBetter { get; set; } = true;
 
     // Optional rulebook file (PDF or image), stored on disk.
     [StringLength(260)]
@@ -49,11 +40,43 @@ public sealed class Game
 
     public DateTime CreatedAt { get; set; }
 
+    /// <summary>One or more game types (Brettspiel, Kartenspiel, …).</summary>
+    public ICollection<GameTypeAssignment> Types { get; set; } = new List<GameTypeAssignment>();
+
+    /// <summary>One or more score definitions (unit + higher/lower-is-better).</summary>
+    public ICollection<GameScoreDefinition> ScoreDefinitions { get; set; } = new List<GameScoreDefinition>();
+
     public ICollection<GameExpansion> Expansions { get; set; } = new List<GameExpansion>();
     public ICollection<GameMatch> Matches { get; set; } = new List<GameMatch>();
 }
 
-/// <summary>An expansion belonging to a <see cref="Game"/>.</summary>
+/// <summary>Assigns one game type to a game (a game may have several).</summary>
+public sealed class GameTypeAssignment
+{
+    public int Id { get; set; }
+    public int GameId { get; set; }
+    public Game? Game { get; set; }
+    public GameType Type { get; set; }
+}
+
+/// <summary>A score definition for a game: a named unit and whether higher is better.</summary>
+public sealed class GameScoreDefinition
+{
+    public int Id { get; set; }
+    public int GameId { get; set; }
+    public Game? Game { get; set; }
+
+    [Required]
+    [StringLength(60)]
+    public string Name { get; set; } = string.Empty;
+
+    [StringLength(40)]
+    public string? Unit { get; set; }
+
+    public bool HigherIsBetter { get; set; } = true;
+}
+
+/// <summary>An expansion belonging to a <see cref="Game"/>, with optional files.</summary>
 public sealed class GameExpansion
 {
     public int Id { get; set; }
@@ -66,6 +89,29 @@ public sealed class GameExpansion
 
     [StringLength(1000)]
     public string? Notes { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+
+    public ICollection<GameExpansionFile> Files { get; set; } = new List<GameExpansionFile>();
+}
+
+/// <summary>A file (image or document) attached to a <see cref="GameExpansion"/>.</summary>
+public sealed class GameExpansionFile
+{
+    public int Id { get; set; }
+    public int GameExpansionId { get; set; }
+    public GameExpansion? GameExpansion { get; set; }
+
+    [Required]
+    [StringLength(260)]
+    public string FileName { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100)]
+    public string ContentType { get; set; } = string.Empty;
+
+    [StringLength(260)]
+    public string? OriginalName { get; set; }
 
     public DateTime CreatedAt { get; set; }
 }
@@ -86,8 +132,9 @@ public sealed class GameMatch
 
     public bool IsCompleted { get; set; }
 
-    /// <summary>Optional score; its unit/behaviour comes from the parent game.</summary>
-    public double? Score { get; set; }
+    /// <summary>Which score definition this match uses (for unit/ranking); optional.</summary>
+    public int? ScoreDefinitionId { get; set; }
+    public GameScoreDefinition? ScoreDefinition { get; set; }
 
     [StringLength(2000)]
     public string? Notes { get; set; }
@@ -121,7 +168,7 @@ public sealed class GameMatchPhoto
     public DateTime CreatedAt { get; set; }
 }
 
-/// <summary>Links a person to a <see cref="GameMatch"/> (optional participants).</summary>
+/// <summary>Links a person to a <see cref="GameMatch"/> with an optional per-player score.</summary>
 public sealed class GameMatchParticipant
 {
     public int Id { get; set; }
@@ -130,4 +177,7 @@ public sealed class GameMatchParticipant
 
     public string PersonId { get; set; } = string.Empty;
     public ApplicationUser? Person { get; set; }
+
+    /// <summary>This player's score for the match (unit/behaviour from the match's score definition).</summary>
+    public double? Score { get; set; }
 }

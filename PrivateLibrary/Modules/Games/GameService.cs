@@ -4,7 +4,10 @@ using PrivateLibrary.Services;
 
 namespace PrivateLibrary.Modules.Games;
 
-/// <summary>Household-scoped CRUD for games, expansions, matches, participants and files.</summary>
+/// <summary>One participant's input when creating/updating a match.</summary>
+public sealed record MatchParticipantInput(string PersonId, double? Score);
+
+/// <summary>Household-scoped CRUD for games, types, score definitions, expansions (with files), matches and files.</summary>
 public sealed class GameService(AppDbContext db, CurrentUserContext currentUser, IGameFileStorage storage)
 {
     private readonly AppDbContext _db = db;
@@ -24,41 +27,70 @@ public sealed class GameService(AppDbContext db, CurrentUserContext currentUser,
             query = query.Where(x => x.Name.Contains(s) || (x.Publisher != null && x.Publisher.Contains(s)));
         }
 
-        return await query.OrderBy(x => x.Name).ToListAsync(cancellationToken);
+        return await query.Include(x => x.Types).OrderBy(x => x.Name).ToListAsync(cancellationToken);
     }
 
     public async Task<Game?> GetGameAsync(int id, CancellationToken cancellationToken = default)
     {
         var householdId = await _currentUser.RequireHouseholdIdAsync();
         return await _db.Games
-            .Include(x => x.Expansions.OrderBy(e => e.Name))
+            .Include(x => x.Types)
+            .Include(x => x.ScoreDefinitions)
+            .Include(x => x.Expansions.OrderBy(e => e.Name)).ThenInclude(e => e.Files)
             .FirstOrDefaultAsync(x => x.Id == id && x.HouseholdId == householdId, cancellationToken);
     }
 
-    public async Task<Game> CreateGameAsync(Game game, CancellationToken cancellationToken = default)
+    public async Task<Game> CreateGameAsync(Game game, IEnumerable<GameType> types, IEnumerable<GameScoreDefinition> scoreDefinitions, CancellationToken cancellationToken = default)
     {
         game.HouseholdId = await _currentUser.RequireHouseholdIdAsync();
         game.CreatedAt = DateTime.UtcNow;
+        game.Types = BuildTypes(types);
+        game.ScoreDefinitions = BuildScoreDefinitions(scoreDefinitions);
         _db.Games.Add(game);
         await _db.SaveChangesAsync(cancellationToken);
         return game;
     }
 
-    public async Task<Game?> UpdateGameAsync(Game game, CancellationToken cancellationToken = default)
+    public async Task<Game?> UpdateGameAsync(Game game, IEnumerable<GameType> types, IEnumerable<GameScoreDefinition> scoreDefinitions, CancellationToken cancellationToken = default)
     {
         var householdId = await _currentUser.RequireHouseholdIdAsync();
-        var existing = await _db.Games.FirstOrDefaultAsync(x => x.Id == game.Id && x.HouseholdId == householdId, cancellationToken);
+        var existing = await _db.Games
+            .Include(x => x.Types)
+            .Include(x => x.ScoreDefinitions)
+            .FirstOrDefaultAsync(x => x.Id == game.Id && x.HouseholdId == householdId, cancellationToken);
         if (existing is null) return null;
 
         existing.Name = game.Name;
-        existing.Type = game.Type;
         existing.Publisher = game.Publisher;
         existing.ReleaseYear = game.ReleaseYear;
         existing.MinPlayers = game.MinPlayers;
         existing.MaxPlayers = game.MaxPlayers;
         existing.Description = game.Description;
-        existing.ScoreUnit = game.ScoreUnit;
-        existing.ScoreHigherIsBetter = game.ScoreHigherIsBetter;
+
+        existing.Types.Clear();
+        foreach (var t in BuildTypes(types)) existing.Types.Add(t);
+
+        // Reconcile score definitions: keep existing by id, add new, remove dropped.
+        var desired = scoreDefinitions.Where(d => !string.IsNullOrWhiteSpace(d.Name)).ToList();
+        var keepIds = desired.Where(d => d.Id != 0).Select(d => d.Id).ToHashSet();
+        foreach (var toRemove in existing.ScoreDefinitions.Where(d => !keepIds.Contains(d.Id)).ToList())
+        {
+            existing.ScoreDefinitions.Remove(toRemove);
+        }
+        foreach (var d in desired)
+        {
+            var current = existing.ScoreDefinitions.FirstOrDefault(x => x.Id == d.Id && d.Id != 0);
+            if (current is null)
+            {
+                existing.ScoreDefinitions.Add(new GameScoreDefinition { Name = d.Name.Trim(), Unit = d.Unit?.Trim(), HigherIsBetter = d.HigherIsBetter });
+            }
+            else
+            {
+                current.Name = d.Name.Trim();
+                current.Unit = d.Unit?.Trim();
+                current.HigherIsBetter = d.HigherIsBetter;
+            }
+        }
 
         await _db.SaveChangesAsync(cancellationToken);
         return existing;
@@ -69,10 +101,12 @@ public sealed class GameService(AppDbContext db, CurrentUserContext currentUser,
         var householdId = await _currentUser.RequireHouseholdIdAsync();
         var game = await _db.Games
             .Include(x => x.Matches).ThenInclude(m => m.Photos)
+            .Include(x => x.Expansions).ThenInclude(e => e.Files)
             .FirstOrDefaultAsync(x => x.Id == id && x.HouseholdId == householdId, cancellationToken);
         if (game is null) return false;
 
         var files = game.Matches.SelectMany(m => m.Photos.Select(p => p.FileName)).ToList();
+        files.AddRange(game.Expansions.SelectMany(e => e.Files.Select(f => f.FileName)));
         if (!string.IsNullOrWhiteSpace(game.RulesFileName)) files.Add(game.RulesFileName);
 
         _db.Games.Remove(game);
@@ -102,31 +136,76 @@ public sealed class GameService(AppDbContext db, CurrentUserContext currentUser,
 
     // ---- Expansions ----
 
-    public async Task AddExpansionAsync(int gameId, string name, string? notes, CancellationToken cancellationToken = default)
+    public async Task<int> AddExpansionAsync(int gameId, string name, string? notes, CancellationToken cancellationToken = default)
     {
         var householdId = await _currentUser.RequireHouseholdIdAsync();
         var owns = await _db.Games.AnyAsync(x => x.Id == gameId && x.HouseholdId == householdId, cancellationToken);
         if (!owns) throw new InvalidOperationException("Spiel nicht gefunden.");
 
-        _db.GameExpansions.Add(new GameExpansion
+        var expansion = new GameExpansion
         {
             GameId = gameId,
             Name = name.Trim(),
             Notes = notes?.Trim(),
             CreatedAt = DateTime.UtcNow
-        });
+        };
+        _db.GameExpansions.Add(expansion);
         await _db.SaveChangesAsync(cancellationToken);
+        return expansion.Id;
     }
 
     public async Task DeleteExpansionAsync(int expansionId, CancellationToken cancellationToken = default)
     {
         var householdId = await _currentUser.RequireHouseholdIdAsync();
         var expansion = await _db.GameExpansions
+            .Include(x => x.Files)
             .FirstOrDefaultAsync(x => x.Id == expansionId && x.Game!.HouseholdId == householdId, cancellationToken);
         if (expansion is null) return;
 
+        var files = expansion.Files.Select(f => f.FileName).ToList();
         _db.GameExpansions.Remove(expansion);
         await _db.SaveChangesAsync(cancellationToken);
+        foreach (var f in files) _storage.Delete(f);
+    }
+
+    public async Task AddExpansionFileAsync(int expansionId, Stream content, string contentType, string? originalName, CancellationToken cancellationToken = default)
+    {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
+        var expansion = await _db.GameExpansions
+            .FirstOrDefaultAsync(x => x.Id == expansionId && x.Game!.HouseholdId == householdId, cancellationToken)
+            ?? throw new InvalidOperationException("Erweiterung nicht gefunden.");
+
+        var ext = ExtensionForContentType(contentType, originalName);
+        var fileName = await _storage.SaveAsync(content, ext, cancellationToken);
+        try
+        {
+            _db.GameExpansionFiles.Add(new GameExpansionFile
+            {
+                GameExpansionId = expansion.Id,
+                FileName = fileName,
+                ContentType = contentType,
+                OriginalName = originalName,
+                CreatedAt = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            _storage.Delete(fileName);
+            throw;
+        }
+    }
+
+    public async Task RemoveExpansionFileAsync(int fileId, CancellationToken cancellationToken = default)
+    {
+        var householdId = await _currentUser.RequireHouseholdIdAsync();
+        var file = await _db.GameExpansionFiles
+            .FirstOrDefaultAsync(x => x.Id == fileId && x.GameExpansion!.Game!.HouseholdId == householdId, cancellationToken);
+        if (file is null) return;
+
+        _db.GameExpansionFiles.Remove(file);
+        await _db.SaveChangesAsync(cancellationToken);
+        _storage.Delete(file.FileName);
     }
 
     // ---- Matches ----
@@ -171,13 +250,14 @@ public sealed class GameService(AppDbContext db, CurrentUserContext currentUser,
     {
         var householdId = await _currentUser.RequireHouseholdIdAsync();
         return await _db.GameMatches
-            .Include(x => x.Game)
+            .Include(x => x.Game).ThenInclude(g => g!.ScoreDefinitions)
+            .Include(x => x.ScoreDefinition)
             .Include(x => x.Photos.OrderBy(p => p.SortOrder).ThenBy(p => p.Id))
             .Include(x => x.Participants).ThenInclude(p => p.Person)
             .FirstOrDefaultAsync(x => x.Id == id && x.HouseholdId == householdId, cancellationToken);
     }
 
-    public async Task<GameMatch> CreateMatchAsync(int gameId, GameMatch match, IEnumerable<string> participantPersonIds, CancellationToken cancellationToken = default)
+    public async Task<GameMatch> CreateMatchAsync(int gameId, GameMatch match, IEnumerable<MatchParticipantInput> participants, CancellationToken cancellationToken = default)
     {
         var householdId = await _currentUser.RequireHouseholdIdAsync();
         var owns = await _db.Games.AnyAsync(x => x.Id == gameId && x.HouseholdId == householdId, cancellationToken);
@@ -187,14 +267,14 @@ public sealed class GameService(AppDbContext db, CurrentUserContext currentUser,
         match.HouseholdId = householdId;
         match.StartedAt = DateTime.UtcNow;
         if (match.PlayedOn == default) match.PlayedOn = DateTime.Today;
-        match.Participants = BuildParticipants(participantPersonIds);
+        match.Participants = BuildParticipants(participants);
 
         _db.GameMatches.Add(match);
         await _db.SaveChangesAsync(cancellationToken);
         return match;
     }
 
-    public async Task<GameMatch?> UpdateMatchAsync(GameMatch match, IEnumerable<string> participantPersonIds, CancellationToken cancellationToken = default)
+    public async Task<GameMatch?> UpdateMatchAsync(GameMatch match, IEnumerable<MatchParticipantInput> participants, CancellationToken cancellationToken = default)
     {
         var householdId = await _currentUser.RequireHouseholdIdAsync();
         var existing = await _db.GameMatches
@@ -205,14 +285,11 @@ public sealed class GameService(AppDbContext db, CurrentUserContext currentUser,
 
         existing.Title = match.Title;
         existing.PlayedOn = match.PlayedOn;
-        existing.Score = match.Score;
+        existing.ScoreDefinitionId = match.ScoreDefinitionId;
         existing.Notes = match.Notes;
 
         existing.Participants.Clear();
-        foreach (var p in BuildParticipants(participantPersonIds))
-        {
-            existing.Participants.Add(p);
-        }
+        foreach (var p in BuildParticipants(participants)) existing.Participants.Add(p);
 
         await _db.SaveChangesAsync(cancellationToken);
         return existing;
@@ -284,10 +361,18 @@ public sealed class GameService(AppDbContext db, CurrentUserContext currentUser,
         _storage.Delete(photo.FileName);
     }
 
-    private static List<GameMatchParticipant> BuildParticipants(IEnumerable<string> personIds) =>
-        personIds.Where(id => !string.IsNullOrWhiteSpace(id))
-            .Distinct()
-            .Select(id => new GameMatchParticipant { PersonId = id })
+    private static List<GameTypeAssignment> BuildTypes(IEnumerable<GameType> types) =>
+        types.Distinct().Select(t => new GameTypeAssignment { Type = t }).ToList();
+
+    private static List<GameScoreDefinition> BuildScoreDefinitions(IEnumerable<GameScoreDefinition> defs) =>
+        defs.Where(d => !string.IsNullOrWhiteSpace(d.Name))
+            .Select(d => new GameScoreDefinition { Name = d.Name.Trim(), Unit = d.Unit?.Trim(), HigherIsBetter = d.HigherIsBetter })
+            .ToList();
+
+    private static List<GameMatchParticipant> BuildParticipants(IEnumerable<MatchParticipantInput> participants) =>
+        participants.Where(p => !string.IsNullOrWhiteSpace(p.PersonId))
+            .GroupBy(p => p.PersonId)
+            .Select(g => new GameMatchParticipant { PersonId = g.Key, Score = g.First().Score })
             .ToList();
 
     private static string ExtensionForContentType(string contentType, string? originalName)

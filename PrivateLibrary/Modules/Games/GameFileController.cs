@@ -33,6 +33,29 @@ public sealed class GameFileController : ControllerBase
             fileDownloadName: game.RulesOriginalName, enableRangeProcessing: true);
     }
 
+    [HttpGet("/games/expansions/file/{fileId:int}")]
+    public async Task<IResult> ExpansionFile(
+        int fileId,
+        [FromServices] AppDbContext db,
+        [FromServices] IGameFileStorage storage,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetHousehold(out var householdId)) return Results.Unauthorized();
+
+        var file = await db.GameExpansionFiles
+            .AsNoTracking()
+            .Where(x => x.Id == fileId && x.GameExpansion!.Game!.HouseholdId == householdId)
+            .Select(x => new { x.FileName, x.ContentType, x.OriginalName })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (file is null) return Results.NotFound();
+
+        var path = storage.GetPath(file.FileName);
+        if (!System.IO.File.Exists(path)) return Results.NotFound();
+
+        return Results.File(path, file.ContentType, fileDownloadName: file.OriginalName, enableRangeProcessing: true);
+    }
+
     [HttpGet("/games/matches/photo/{photoId:int}")]
     public async Task<IResult> MatchPhoto(
         int photoId,

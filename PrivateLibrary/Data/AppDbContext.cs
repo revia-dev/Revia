@@ -22,6 +22,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<GameMatch> GameMatches => Set<GameMatch>();
     public DbSet<GameMatchPhoto> GameMatchPhotos => Set<GameMatchPhoto>();
     public DbSet<GameMatchParticipant> GameMatchParticipants => Set<GameMatchParticipant>();
+    public DbSet<GameTypeAssignment> GameTypeAssignments => Set<GameTypeAssignment>();
+    public DbSet<GameScoreDefinition> GameScoreDefinitions => Set<GameScoreDefinition>();
+    public DbSet<GameExpansionFile> GameExpansionFiles => Set<GameExpansionFile>();
     public DbSet<Wishlist> Wishlists => Set<Wishlist>();
     public DbSet<WishlistItem> WishlistItems => Set<WishlistItem>();
     public DbSet<LendingEntry> LendingEntries => Set<LendingEntry>();
@@ -119,11 +122,36 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<GameTypeAssignment>(builder =>
+        {
+            builder.HasIndex(x => new { x.GameId, x.Type }).IsUnique();
+            builder.HasOne(x => x.Game)
+                .WithMany(g => g.Types)
+                .HasForeignKey(x => x.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GameScoreDefinition>(builder =>
+        {
+            builder.HasOne(x => x.Game)
+                .WithMany(g => g.ScoreDefinitions)
+                .HasForeignKey(x => x.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<GameExpansion>(builder =>
         {
             builder.HasOne(x => x.Game)
                 .WithMany(g => g.Expansions)
                 .HasForeignKey(x => x.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GameExpansionFile>(builder =>
+        {
+            builder.HasOne(x => x.GameExpansion)
+                .WithMany(e => e.Files)
+                .HasForeignKey(x => x.GameExpansionId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -135,6 +163,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .WithMany(g => g.Matches)
                 .HasForeignKey(x => x.GameId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(x => x.ScoreDefinition)
+                .WithMany()
+                .HasForeignKey(x => x.ScoreDefinitionId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<GameMatchPhoto>(builder =>

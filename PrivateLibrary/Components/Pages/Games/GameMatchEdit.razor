@@ -28,6 +28,7 @@
     else
     {
         var locked = _match?.IsCompleted == true;
+        var unit = _game.ScoreDefinitions.FirstOrDefault(d => d.Id == _scoreDefinitionId)?.Unit;
 
         <div class="glass-card form-shell">
             @if (locked)
@@ -44,25 +45,43 @@
                     <label>Datum</label>
                     <input type="date" class="form-control" @bind="_playedOn" @bind:format="yyyy-MM-dd" disabled="@locked" />
                 </div>
-                <div class="field">
-                    <label>Score @(string.IsNullOrWhiteSpace(_game.ScoreUnit) ? "" : $"({_game.ScoreUnit})")</label>
-                    <input type="number" step="0.01" class="form-control" @bind="_score" disabled="@locked" />
-                </div>
+                @if (_game.ScoreDefinitions.Count > 0)
+                {
+                    <div class="field">
+                        <label>Score-Typ</label>
+                        <select class="form-select" @bind="_scoreDefinitionId" disabled="@locked">
+                            <option value="">— keiner —</option>
+                            @foreach (var def in _game.ScoreDefinitions)
+                            {
+                                <option value="@def.Id">@def.Name@(string.IsNullOrWhiteSpace(def.Unit) ? "" : $" ({def.Unit})")</option>
+                            }
+                        </select>
+                    </div>
+                }
                 <div class="field field-wide">
                     <label>Notizen</label>
                     <textarea class="form-control" rows="2" @bind="_notes" disabled="@locked"></textarea>
                 </div>
 
                 <div class="field field-wide">
-                    <label>Personen</label>
-                    <div class="match-people">
+                    <label>Personen &amp; Score@(string.IsNullOrWhiteSpace(unit) ? "" : $" ({unit})")</label>
+                    <div class="match-players">
                         @foreach (var p in _persons)
                         {
-                            <label class="checkbox-field" @key="p.Id">
-                                <input type="checkbox" checked="@_selected.Contains(p.Id)" disabled="@locked"
-                                       @onchange="e => TogglePerson(p.Id, (bool)e.Value!)" />
-                                <span>@p.DisplayName</span>
-                            </label>
+                            <div class="match-player-row" @key="p.Id">
+                                <label class="checkbox-field">
+                                    <input type="checkbox" checked="@_selected.Contains(p.Id)" disabled="@locked"
+                                           @onchange="e => TogglePerson(p.Id, (bool)e.Value!)" />
+                                    <span>@p.DisplayName</span>
+                                </label>
+                                @if (_selected.Contains(p.Id))
+                                {
+                                    <input type="number" step="0.01" class="form-control match-player-score"
+                                           placeholder="Score" disabled="@locked"
+                                           value="@(_scores.TryGetValue(p.Id, out var sc) ? sc?.ToString() : null)"
+                                           @onchange="e => SetScore(p.Id, e.Value?.ToString())" />
+                                }
+                            </div>
                         }
                     </div>
                 </div>
@@ -135,9 +154,10 @@
 
     private string? _title;
     private DateTime _playedOn = DateTime.Today;
-    private double? _score;
+    private int? _scoreDefinitionId;
     private string? _notes;
     private readonly HashSet<string> _selected = new();
+    private readonly Dictionary<string, double?> _scores = new();
 
     private const long MaxPhotoBytes = 15 * 1024 * 1024;
 
@@ -156,10 +176,19 @@
 
             _title = _match.Title;
             _playedOn = _match.PlayedOn;
-            _score = _match.Score;
+            _scoreDefinitionId = _match.ScoreDefinitionId;
             _notes = _match.Notes;
             _selected.Clear();
-            foreach (var p in _match.Participants) _selected.Add(p.PersonId);
+            _scores.Clear();
+            foreach (var p in _match.Participants)
+            {
+                _selected.Add(p.PersonId);
+                _scores[p.PersonId] = p.Score;
+            }
+        }
+        else
+        {
+            _scoreDefinitionId = _game.ScoreDefinitions.FirstOrDefault()?.Id;
         }
 
         _loading = false;
@@ -167,8 +196,17 @@
 
     private void TogglePerson(string id, bool on)
     {
-        if (on) _selected.Add(id); else _selected.Remove(id);
+        if (on) _selected.Add(id);
+        else { _selected.Remove(id); _scores.Remove(id); }
     }
+
+    private void SetScore(string id, string? raw)
+    {
+        _scores[id] = double.TryParse(raw, out var v) ? v : null;
+    }
+
+    private IEnumerable<MatchParticipantInput> BuildParticipants()
+        => _selected.Select(id => new MatchParticipantInput(id, _scores.TryGetValue(id, out var s) ? s : null));
 
     private async Task SaveAsync()
     {
@@ -180,9 +218,9 @@
                 {
                     Title = _title,
                     PlayedOn = _playedOn,
-                    Score = _score,
+                    ScoreDefinitionId = _scoreDefinitionId,
                     Notes = _notes
-                }, _selected);
+                }, BuildParticipants());
                 ToastService.Success("Partie angelegt.");
                 Navigation.NavigateTo($"/games/{GameId}/matches/{created.Id}");
             }
@@ -193,9 +231,9 @@
                     Id = MatchId.Value,
                     Title = _title,
                     PlayedOn = _playedOn,
-                    Score = _score,
+                    ScoreDefinitionId = _scoreDefinitionId,
                     Notes = _notes
-                }, _selected);
+                }, BuildParticipants());
                 ToastService.Success("Gespeichert.");
                 _match = await GameService.GetMatchAsync(MatchId.Value);
             }

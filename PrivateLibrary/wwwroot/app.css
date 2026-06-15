@@ -1021,3 +1021,15 @@ input[type="search"]:focus {
 .wish-item.is-fulfilled .wish-item-title { text-decoration: line-through; color: var(--text-muted); }
 .wish-item-price { margin-left: 0.5rem; color: var(--text-muted); font-size: 0.85rem; }
 .wish-item-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+
+/* ---- Games module (phase 10 additions) ---- */
+.score-def-row { display: grid; grid-template-columns: 1.2fr 1fr 1.2fr auto; gap: 0.4rem; margin-bottom: 0.4rem; align-items: center; }
+.match-players { display: flex; flex-direction: column; gap: 0.4rem; }
+.match-player-row { display: flex; align-items: center; gap: 0.75rem; }
+.match-player-row .checkbox-field { min-width: 12rem; }
+.match-player-score { max-width: 8rem; }
+.game-expansion-main { display: flex; flex-direction: column; gap: 0.25rem; }
+.expansion-files { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem; }
+.expansion-file { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.85rem; padding: 0.15rem 0.5rem; border: 1px solid var(--border); border-radius: 999px; }
+.expansion-upload { margin-top: 0.35rem; display: block; }
+.link-danger { border: 0; background: transparent; color: var(--danger, #c0392b); cursor: pointer; font-weight: 700; }

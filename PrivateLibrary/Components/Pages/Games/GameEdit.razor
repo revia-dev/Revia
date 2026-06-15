@@ -28,15 +28,21 @@
                     <label>Name *</label>
                     <input class="form-control" @bind="_game.Name" />
                 </div>
-                <div class="field">
-                    <label>Art</label>
-                    <select class="form-select" @bind="_game.Type">
+
+                <div class="field field-wide">
+                    <label>Arten (eine oder mehrere)</label>
+                    <div class="match-people">
                         @foreach (var t in GameLabels.AllTypes)
                         {
-                            <option value="@t">@GameLabels.Type(t)</option>
+                            <label class="checkbox-field" @key="t">
+                                <input type="checkbox" checked="@_types.Contains(t)"
+                                       @onchange="e => ToggleType(t, (bool)e.Value!)" />
+                                <span>@GameLabels.Type(t)</span>
+                            </label>
                         }
-                    </select>
+                    </div>
                 </div>
+
                 <div class="field">
                     <label>Verlag</label>
                     <input class="form-control" @bind="_game.Publisher" />
@@ -53,20 +59,26 @@
                     <label>Spieler max</label>
                     <input type="number" class="form-control" @bind="_game.MaxPlayers" />
                 </div>
-                <div class="field">
-                    <label>Score-Einheit</label>
-                    <input class="form-control" placeholder="z. B. Punkte, Sekunden" @bind="_game.ScoreUnit" />
-                </div>
-                <div class="field">
-                    <label>Score-Verhalten</label>
-                    <select class="form-select" @bind="_game.ScoreHigherIsBetter">
-                        <option value="true">Höher ist besser</option>
-                        <option value="false">Niedriger ist besser</option>
-                    </select>
-                </div>
                 <div class="field field-wide">
                     <label>Beschreibung</label>
                     <textarea class="form-control" rows="3" @bind="_game.Description"></textarea>
+                </div>
+
+                <div class="field field-wide">
+                    <label>Score-Definitionen (eine oder mehrere)</label>
+                    @foreach (var def in _scoreDefs)
+                    {
+                        <div class="score-def-row" @key="def">
+                            <input class="form-control" placeholder="Bezeichnung (z. B. Punkte)" @bind="def.Name" />
+                            <input class="form-control" placeholder="Einheit (optional)" @bind="def.Unit" />
+                            <select class="form-select" @bind="def.HigherIsBetter">
+                                <option value="true">Höher = besser</option>
+                                <option value="false">Niedriger = besser</option>
+                            </select>
+                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => _scoreDefs.Remove(def)">×</button>
+                        </div>
+                    }
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => _scoreDefs.Add(new GameScoreDefinition { HigherIsBetter = true })">+ Score-Definition</button>
                 </div>
 
                 <div class="field field-wide">
@@ -99,6 +111,8 @@
     [Parameter] public int? Id { get; set; }
 
     private Game? _game;
+    private readonly HashSet<GameType> _types = new();
+    private List<GameScoreDefinition> _scoreDefs = new();
     private bool _uploadingRules;
     private const long MaxFileBytes = 30 * 1024 * 1024;
 
@@ -106,13 +120,23 @@
     {
         if (Id is null)
         {
-            _game = new Game { Type = GameType.Brettspiel, ScoreHigherIsBetter = true };
+            _game = new Game();
+            _types.Add(GameType.Brettspiel);
+            _scoreDefs = new() { new GameScoreDefinition { Name = "Punkte", HigherIsBetter = true } };
         }
         else
         {
             _game = await GameService.GetGameAsync(Id.Value);
-            if (_game is null) Navigation.NavigateTo("/games");
+            if (_game is null) { Navigation.NavigateTo("/games"); return; }
+            _types.Clear();
+            foreach (var t in _game.Types) _types.Add(t.Type);
+            _scoreDefs = _game.ScoreDefinitions.Select(d => new GameScoreDefinition { Id = d.Id, Name = d.Name, Unit = d.Unit, HigherIsBetter = d.HigherIsBetter }).ToList();
         }
+    }
+
+    private void ToggleType(GameType type, bool on)
+    {
+        if (on) _types.Add(type); else _types.Remove(type);
     }
 
     private async Task SaveAsync()
@@ -124,13 +148,13 @@
         {
             if (Id is null)
             {
-                var created = await GameService.CreateGameAsync(_game);
+                var created = await GameService.CreateGameAsync(_game, _types, _scoreDefs);
                 ToastService.Success("Spiel angelegt.");
                 Navigation.NavigateTo($"/games/{created.Id}");
             }
             else
             {
-                await GameService.UpdateGameAsync(_game);
+                await GameService.UpdateGameAsync(_game, _types, _scoreDefs);
                 ToastService.Success("Gespeichert.");
                 Navigation.NavigateTo($"/games/{Id}");
             }

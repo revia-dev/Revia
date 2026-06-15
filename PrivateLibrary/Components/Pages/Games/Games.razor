@@ -62,7 +62,10 @@
                     <a class="game-card" href="@($"/games/{g.Id}")" @key="g.Id">
                         <div class="game-card-title">@g.Name</div>
                         <div class="game-card-meta">
-                            <span class="badge text-bg-info">@GameLabels.Type(g.Type)</span>
+                            @foreach (var t in g.Types)
+                            {
+                                <span class="badge text-bg-info">@GameLabels.Type(t.Type)</span>
+                            }
                             @if (!string.IsNullOrWhiteSpace(g.Publisher)) { <span>@g.Publisher</span> }
                         </div>
                     </a>

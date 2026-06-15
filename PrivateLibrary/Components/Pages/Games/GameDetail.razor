@@ -2,6 +2,7 @@
 @using PrivateLibrary.Data
 @using PrivateLibrary.Modules.Games
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 @attribute [Authorize]
 @inject GameService GameService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
@@ -19,7 +20,7 @@
         <div class="glass-card page-header">
             <div>
                 <h1>@_game.Name</h1>
-                <p>@GameLabels.Type(_game.Type)@(string.IsNullOrWhiteSpace(_game.Publisher) ? "" : $" · {_game.Publisher}")</p>
+                <p>@string.Join(", ", _game.Types.Select(t => GameLabels.Type(t.Type)))@(string.IsNullOrWhiteSpace(_game.Publisher) ? "" : $" · {_game.Publisher}")</p>
             </div>
             <div class="page-header-actions">
                 <a class="btn btn-secondary" href="@($"/games/edit/{_game.Id}")">Bearbeiten</a>
@@ -34,9 +35,9 @@
                     <div><span>Spieler</span><strong>@_game.MinPlayers–@_game.MaxPlayers</strong></div>
                 }
                 @if (_game.ReleaseYear is not null) { <div><span>Jahr</span><strong>@_game.ReleaseYear</strong></div> }
-                @if (!string.IsNullOrWhiteSpace(_game.ScoreUnit))
+                @foreach (var def in _game.ScoreDefinitions)
                 {
-                    <div><span>Score</span><strong>@_game.ScoreUnit (@(_game.ScoreHigherIsBetter ? "höher = besser" : "niedriger = besser"))</strong></div>
+                    <div><span>Score: @def.Name</span><strong>@(def.Unit)@(string.IsNullOrWhiteSpace(def.Unit) ? "" : " · ")@(def.HigherIsBetter ? "höher = besser" : "niedriger = besser")</strong></div>
                 }
                 @if (!string.IsNullOrWhiteSpace(_game.RulesFileName))
                 {
@@ -62,9 +63,24 @@
                     @foreach (var ex in _game.Expansions)
                     {
                         <li @key="ex.Id">
-                            <div>
+                            <div class="game-expansion-main">
                                 <strong>@ex.Name</strong>
                                 @if (!string.IsNullOrWhiteSpace(ex.Notes)) { <div class="text-muted small">@ex.Notes</div> }
+                                @if (ex.Files.Count > 0)
+                                {
+                                    <div class="expansion-files">
+                                        @foreach (var f in ex.Files)
+                                        {
+                                            <span class="expansion-file">
+                                                <a href="@($"/games/expansions/file/{f.Id}")" target="_blank" rel="noopener">@(f.OriginalName ?? "Datei")</a>
+                                                <button type="button" class="link-danger" @onclick="() => RemoveFileAsync(f.Id)">×</button>
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                                <label class="expansion-upload">
+                                    <InputFile OnChange="(e) => OnExpansionFileSelected(e, ex.Id)" accept="application/pdf,image/*" />
+                                </label>
                             </div>
                             <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteExpansionAsync(ex.Id)">Entfernen</button>
                         </li>
@@ -96,15 +112,14 @@
             else
             {
                 <table class="table ui-data-table align-middle">
-                    <thead><tr><th>Datum</th><th>Titel</th><th>Personen</th><th>Score</th><th>Status</th><th></th></tr></thead>
+                    <thead><tr><th>Datum</th><th>Titel</th><th>Personen (Score)</th><th>Status</th><th></th></tr></thead>
                     <tbody>
                         @foreach (var m in _matches)
                         {
                             <tr @key="m.Id">
                                 <td>@m.PlayedOn.ToString("dd.MM.yyyy")</td>
                                 <td>@(string.IsNullOrWhiteSpace(m.Title) ? "—" : m.Title)</td>
-                                <td>@(m.Participants.Count == 0 ? "—" : string.Join(", ", m.Participants.Select(p => p.Person?.DisplayName)))</td>
-                                <td>@(m.Score is null ? "—" : $"{m.Score:0.#} {_game.ScoreUnit}")</td>
+                                <td>@(m.Participants.Count == 0 ? "—" : string.Join(", ", m.Participants.Select(p => p.Score is null ? p.Person?.DisplayName : $"{p.Person?.DisplayName} ({p.Score:0.#})")))</td>
                                 <td>@(m.IsCompleted ? "abgeschlossen" : "offen")</td>
                                 <td><a class="btn btn-sm btn-outline-secondary" href="@($"/games/{_game.Id}/matches/{m.Id}")">Öffnen</a></td>
                             </tr>
@@ -124,6 +139,7 @@
     private string _matchSearch = string.Empty;
     private string _newExpansionName = string.Empty;
     private string? _newExpansionNotes;
+    private const long MaxFileBytes = 30 * 1024 * 1024;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -149,6 +165,28 @@
     private async Task DeleteExpansionAsync(int expansionId)
     {
         await GameService.DeleteExpansionAsync(expansionId);
+        _game = await GameService.GetGameAsync(Id);
+    }
+
+    private async Task OnExpansionFileSelected(InputFileChangeEventArgs e, int expansionId)
+    {
+        try
+        {
+            var file = e.File;
+            await using var stream = file.OpenReadStream(MaxFileBytes);
+            await GameService.AddExpansionFileAsync(expansionId, stream, file.ContentType, file.Name);
+            _game = await GameService.GetGameAsync(Id);
+            ToastService.Success("Datei hinzugefügt.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error(ex.Message);
+        }
+    }
+
+    private async Task RemoveFileAsync(int fileId)
+    {
+        await GameService.RemoveExpansionFileAsync(fileId);
         _game = await GameService.GetGameAsync(Id);
     }
 
