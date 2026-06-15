@@ -1,7 +1,9 @@
 @page "/"
 @using PrivateLibrary.Modules.Lending.Models
+@using PrivateLibrary.Services
 @inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject DashboardService DashboardService
 
 <PageTitle>Dashboard</PageTitle>
 
@@ -9,13 +11,43 @@
     <div class="page-header glass-card">
         <div>
             <h1>Dashboard</h1>
-            <p>Übersicht über alle Ausleihen und Personen.</p>
+            <p>Übersicht über alle Module deines Haushalts.</p>
         </div>
         <div class="header-actions">
             <a class="btn btn-primary" href="/lending/new">Neu anlegen</a>
             <a class="btn btn-outline-secondary" href="/lending">Alle Ausleihen</a>
         </div>
     </div>
+
+    @if (_counts is not null)
+    {
+        <section class="module-tiles">
+            <a class="glass-card module-tile" href="/movies">
+                <div class="module-tile-value">@_counts.Movies</div>
+                <div class="module-tile-label">Filme</div>
+            </a>
+            <a class="glass-card module-tile" href="/tv">
+                <div class="module-tile-value">@_counts.TvEntries</div>
+                <div class="module-tile-label">TV-Einträge</div>
+            </a>
+            <a class="glass-card module-tile" href="/games">
+                <div class="module-tile-value">@_counts.Games</div>
+                <div class="module-tile-label">Spiele · @_counts.OpenMatches offene Partien</div>
+            </a>
+            <a class="glass-card module-tile" href="/bmi">
+                <div class="module-tile-value">@_counts.BmiRecords</div>
+                <div class="module-tile-label">BMI-Messungen</div>
+            </a>
+            <a class="glass-card module-tile" href="/wishlists">
+                <div class="module-tile-value">@_counts.OpenWishes</div>
+                <div class="module-tile-label">offene Wünsche · @_counts.Wishlists Listen</div>
+            </a>
+            <a class="glass-card module-tile" href="/lending/persons">
+                <div class="module-tile-value">@_counts.Persons</div>
+                <div class="module-tile-label">Personen</div>
+            </a>
+        </section>
+    }
 
     @if (_stats is null)
     {
@@ -220,6 +252,37 @@
 </div>
 
 <style>
+    .module-tiles {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 0.85rem;
+    }
+
+    .module-tile {
+        display: block;
+        padding: 1rem 1.1rem;
+        text-decoration: none;
+        color: var(--text);
+        transition: transform 0.15s, border-color 0.15s;
+    }
+
+    .module-tile:hover {
+        transform: translateY(-2px);
+        border-color: var(--border-strong);
+    }
+
+    .module-tile-value {
+        font-size: 1.8rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .module-tile-label {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        margin-top: 0.2rem;
+    }
+
     .dashboard-chart-layout {
         display: grid;
         gap: 1.5rem;
@@ -314,9 +377,11 @@
 
 @code {
     private LendingDashboardStats? _stats;
+    private DashboardCounts? _counts;
 
     protected override async Task OnInitializedAsync()
     {
+        _counts = await DashboardService.GetCountsAsync();
         await LoadAsync();
     }
 
