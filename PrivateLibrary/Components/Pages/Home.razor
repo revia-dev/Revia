@@ -9,9 +9,12 @@
 
 <div class="page-shell">
     <div class="page-header glass-card">
-        <div>
-            <h1>Dashboard</h1>
-            <p>Übersicht über alle Module deines Haushalts.</p>
+        <div class="dashboard-hero">
+            <img class="dashboard-brand" src="/images/app-icon.png" alt="Private Library" />
+            <div>
+                <h1>Dashboard</h1>
+                <p>Übersicht über alle Module deines Haushalts.</p>
+            </div>
         </div>
         <div class="header-actions">
             <a class="btn btn-primary" href="/lending/new">Neu anlegen</a>
@@ -252,6 +255,23 @@
 </div>
 
 <style>
+    .dashboard-hero {
+        display: flex;
+        align-items: center;
+        gap: 1.1rem;
+        min-width: 0;
+    }
+
+    .dashboard-brand {
+        width: 4.5rem;
+        height: 4.5rem;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow-md);
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
     .module-tiles {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
