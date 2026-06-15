@@ -90,6 +90,8 @@ builder.Services.AddSingleton<ILendingPhotoStorage, LendingPhotoStorage>();
 builder.Services.AddSingleton<IPersonPhotoStorage, PersonPhotoStorage>();
 builder.Services.AddSingleton<PrivateLibrary.Modules.Bmi.IBmiPhotoStorage, PrivateLibrary.Modules.Bmi.BmiPhotoStorage>();
 builder.Services.AddScoped<PrivateLibrary.Modules.Bmi.BmiService>();
+builder.Services.AddSingleton<PrivateLibrary.Modules.Games.IGameFileStorage, PrivateLibrary.Modules.Games.GameFileStorage>();
+builder.Services.AddScoped<PrivateLibrary.Modules.Games.GameService>();
 builder.Services.AddTransient<ILendingService, LendingService>();
 builder.Services.AddTransient<IPersonService, PersonService>();
 builder.Services.AddScoped<ToastService>();

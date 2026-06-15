@@ -17,6 +17,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<TvProgram> TvPrograms => Set<TvProgram>();
     public DbSet<TvProgramEntry> TvProgramEntries => Set<TvProgramEntry>();
     public DbSet<BmiRecord> BmiRecords => Set<BmiRecord>();
+    public DbSet<Game> Games => Set<Game>();
+    public DbSet<GameExpansion> GameExpansions => Set<GameExpansion>();
+    public DbSet<GameMatch> GameMatches => Set<GameMatch>();
+    public DbSet<GameMatchPhoto> GameMatchPhotos => Set<GameMatchPhoto>();
+    public DbSet<GameMatchParticipant> GameMatchParticipants => Set<GameMatchParticipant>();
     public DbSet<LendingEntry> LendingEntries => Set<LendingEntry>();
     public DbSet<LendingItem> LendingItems => Set<LendingItem>();
     public DbSet<LendingCategory> LendingCategories => Set<LendingCategory>();
@@ -82,6 +87,52 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<BmiRecord>(builder =>
         {
             builder.HasIndex(x => new { x.HouseholdId, x.PersonId, x.MeasuredOn });
+
+            builder.HasOne(x => x.Person)
+                .WithMany()
+                .HasForeignKey(x => x.PersonId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Game>(builder =>
+        {
+            builder.HasIndex(x => new { x.HouseholdId, x.Name });
+        });
+
+        modelBuilder.Entity<GameExpansion>(builder =>
+        {
+            builder.HasOne(x => x.Game)
+                .WithMany(g => g.Expansions)
+                .HasForeignKey(x => x.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GameMatch>(builder =>
+        {
+            builder.HasIndex(x => new { x.HouseholdId, x.StartedAt });
+
+            builder.HasOne(x => x.Game)
+                .WithMany(g => g.Matches)
+                .HasForeignKey(x => x.GameId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GameMatchPhoto>(builder =>
+        {
+            builder.HasOne(x => x.GameMatch)
+                .WithMany(m => m.Photos)
+                .HasForeignKey(x => x.GameMatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<GameMatchParticipant>(builder =>
+        {
+            builder.HasIndex(x => new { x.GameMatchId, x.PersonId }).IsUnique();
+
+            builder.HasOne(x => x.GameMatch)
+                .WithMany(m => m.Participants)
+                .HasForeignKey(x => x.GameMatchId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(x => x.Person)
                 .WithMany()

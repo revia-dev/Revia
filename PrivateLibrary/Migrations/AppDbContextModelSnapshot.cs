@@ -309,6 +309,197 @@ namespace PrivateLibrary.Migrations
                     b.ToTable("BmiRecords");
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.Game", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("MaxPlayers")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("MinPlayers")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Publisher")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ReleaseYear")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RulesContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RulesFileName")
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RulesOriginalName")
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("ScoreHigherIsBetter")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ScoreUnit")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId", "Name");
+
+                    b.ToTable("Games");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.GameExpansion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId");
+
+                    b.ToTable("GameExpansions");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.GameMatch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("PlayedOn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double?>("Score")
+                        .HasColumnType("REAL");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("HouseholdId", "StartedAt");
+
+                    b.ToTable("GameMatches");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.GameMatchParticipant", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("GameMatchId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PersonId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PersonId");
+
+                    b.HasIndex("GameMatchId", "PersonId")
+                        .IsUnique();
+
+                    b.ToTable("GameMatchParticipants");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.GameMatchPhoto", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("GameMatchId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OriginalName")
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameMatchId");
+
+                    b.ToTable("GameMatchPhotos");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Data.Household", b =>
                 {
                     b.Property<int>("Id")
@@ -720,6 +911,58 @@ namespace PrivateLibrary.Migrations
                     b.Navigation("Person");
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.GameExpansion", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.Game", "Game")
+                        .WithMany("Expansions")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.GameMatch", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.Game", "Game")
+                        .WithMany("Matches")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.GameMatchParticipant", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.GameMatch", "GameMatch")
+                        .WithMany("Participants")
+                        .HasForeignKey("GameMatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PrivateLibrary.Data.ApplicationUser", "Person")
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("GameMatch");
+
+                    b.Navigation("Person");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.GameMatchPhoto", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.GameMatch", "GameMatch")
+                        .WithMany("Photos")
+                        .HasForeignKey("GameMatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("GameMatch");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Data.TvProgram", b =>
                 {
                     b.HasOne("PrivateLibrary.Data.ApplicationUser", "OwnerUser")
@@ -814,6 +1057,20 @@ namespace PrivateLibrary.Migrations
                     b.Navigation("BorrowedEntries");
 
                     b.Navigation("LentEntries");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.Game", b =>
+                {
+                    b.Navigation("Expansions");
+
+                    b.Navigation("Matches");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.GameMatch", b =>
+                {
+                    b.Navigation("Participants");
+
+                    b.Navigation("Photos");
                 });
 
             modelBuilder.Entity("PrivateLibrary.Data.Household", b =>

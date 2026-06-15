@@ -1,0 +1,165 @@
+@page "/games/new"
+@page "/games/edit/{Id:int}"
+@using PrivateLibrary.Data
+@using PrivateLibrary.Modules.Games
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@attribute [Authorize]
+@inject GameService GameService
+@inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject NavigationManager Navigation
+
+<PageTitle>@(Id is null ? "Neues Spiel" : "Spiel bearbeiten")</PageTitle>
+
+<div class="page-shell">
+    <div class="glass-card page-header">
+        <div><h1>@(Id is null ? "Neues Spiel anlegen" : "Spiel bearbeiten")</h1></div>
+    </div>
+
+    @if (_game is null)
+    {
+        <div class="glass-card">Lade ...</div>
+    }
+    else
+    {
+        <div class="glass-card form-shell">
+            <div class="form-grid">
+                <div class="field field-wide">
+                    <label>Name *</label>
+                    <input class="form-control" @bind="_game.Name" />
+                </div>
+                <div class="field">
+                    <label>Art</label>
+                    <select class="form-select" @bind="_game.Type">
+                        @foreach (var t in GameLabels.AllTypes)
+                        {
+                            <option value="@t">@GameLabels.Type(t)</option>
+                        }
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Verlag</label>
+                    <input class="form-control" @bind="_game.Publisher" />
+                </div>
+                <div class="field">
+                    <label>Erscheinungsjahr</label>
+                    <input type="number" class="form-control" @bind="_game.ReleaseYear" />
+                </div>
+                <div class="field">
+                    <label>Spieler min</label>
+                    <input type="number" class="form-control" @bind="_game.MinPlayers" />
+                </div>
+                <div class="field">
+                    <label>Spieler max</label>
+                    <input type="number" class="form-control" @bind="_game.MaxPlayers" />
+                </div>
+                <div class="field">
+                    <label>Score-Einheit</label>
+                    <input class="form-control" placeholder="z. B. Punkte, Sekunden" @bind="_game.ScoreUnit" />
+                </div>
+                <div class="field">
+                    <label>Score-Verhalten</label>
+                    <select class="form-select" @bind="_game.ScoreHigherIsBetter">
+                        <option value="true">Höher ist besser</option>
+                        <option value="false">Niedriger ist besser</option>
+                    </select>
+                </div>
+                <div class="field field-wide">
+                    <label>Beschreibung</label>
+                    <textarea class="form-control" rows="3" @bind="_game.Description"></textarea>
+                </div>
+
+                <div class="field field-wide">
+                    <label>Spieleanleitung (optional, PDF oder Bild)</label>
+                    @if (Id is not null && !string.IsNullOrWhiteSpace(_game.RulesFileName))
+                    {
+                        <div><a href="@($"/games/{Id}/rules")" target="_blank" rel="noopener">Aktuelle Anleitung öffnen</a></div>
+                    }
+                    @if (Id is not null)
+                    {
+                        <InputFile OnChange="OnRulesSelected" accept="application/pdf,image/*" class="form-control" />
+                        @if (_uploadingRules) { <div class="text-muted">Lade hoch ...</div> }
+                    }
+                    else
+                    {
+                        <small class="text-muted">Anleitung kann nach dem Anlegen hochgeladen werden.</small>
+                    }
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary btn-modern" @onclick="SaveAsync">Speichern</button>
+                <a class="btn btn-secondary btn-modern" href="@(Id is null ? "/games" : $"/games/{Id}")">Abbrechen</a>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private Game? _game;
+    private bool _uploadingRules;
+    private const long MaxFileBytes = 30 * 1024 * 1024;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id is null)
+        {
+            _game = new Game { Type = GameType.Brettspiel, ScoreHigherIsBetter = true };
+        }
+        else
+        {
+            _game = await GameService.GetGameAsync(Id.Value);
+            if (_game is null) Navigation.NavigateTo("/games");
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_game is null) return;
+        if (string.IsNullOrWhiteSpace(_game.Name)) { ToastService.Error("Bitte einen Namen eingeben."); return; }
+
+        try
+        {
+            if (Id is null)
+            {
+                var created = await GameService.CreateGameAsync(_game);
+                ToastService.Success("Spiel angelegt.");
+                Navigation.NavigateTo($"/games/{created.Id}");
+            }
+            else
+            {
+                await GameService.UpdateGameAsync(_game);
+                ToastService.Success("Gespeichert.");
+                Navigation.NavigateTo($"/games/{Id}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error(ex.Message);
+        }
+    }
+
+    private async Task OnRulesSelected(InputFileChangeEventArgs e)
+    {
+        if (Id is null) return;
+        _uploadingRules = true;
+        try
+        {
+            var file = e.File;
+            await using var stream = file.OpenReadStream(MaxFileBytes);
+            await GameService.SetRulesAsync(Id.Value, stream, file.ContentType, file.Name);
+            _game = await GameService.GetGameAsync(Id.Value);
+            ToastService.Success("Anleitung hochgeladen.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error(ex.Message);
+        }
+        finally
+        {
+            _uploadingRules = false;
+        }
+    }
+}

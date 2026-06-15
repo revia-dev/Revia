@@ -979,3 +979,30 @@ input[type="search"]:focus {
         gap: 0.18rem;
     }
 }
+
+/* ---- Games module ---- */
+.game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; }
+.game-card { display: block; padding: 0.85rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); text-decoration: none; color: var(--text); }
+.game-card:hover { border-color: var(--border-strong); background: var(--accent-soft); }
+.game-card-title { font-weight: 700; margin-bottom: 0.35rem; }
+.game-card-meta { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; color: var(--text-muted); font-size: 0.85rem; }
+.game-recent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
+.game-recent-card { display: block; padding: 0.85rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); text-decoration: none; color: var(--text); }
+.game-recent-card:hover { border-color: var(--border-strong); background: var(--accent-soft); }
+.game-recent-title { font-weight: 700; }
+.game-recent-sub { color: var(--text-muted); font-size: 0.85rem; margin: 0.15rem 0; }
+.game-recent-meta { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; font-size: 0.8rem; color: var(--text-muted); }
+.game-facts { display: flex; flex-wrap: wrap; gap: 1.25rem; }
+.game-facts > div { display: flex; flex-direction: column; }
+.game-facts span { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.game-description { margin-top: 1rem; white-space: pre-wrap; }
+.game-expansions { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.game-expansions li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.game-expansion-add { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.game-expansion-add input { flex: 1 1 12rem; }
+.match-people { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.35rem; }
+.match-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem; }
+.match-photo { position: relative; }
+.match-photo img { width: 100%; height: 120px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border); }
+.match-photo button { position: absolute; top: 4px; right: 4px; }
+.match-locked { padding: 0.6rem 0.8rem; border-radius: var(--radius-md); background: var(--accent-soft); color: var(--text); margin-bottom: 0.85rem; }
