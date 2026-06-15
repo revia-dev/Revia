@@ -335,6 +335,67 @@ namespace PrivateLibrary.Migrations
                     b.ToTable("Movies");
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.TvProgram", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerUserId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId");
+
+                    b.HasIndex("HouseholdId", "OwnerUserId");
+
+                    b.ToTable("TvPrograms");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.TvProgramEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Channel")
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MovieId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("SharedWithHousehold")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("StartsAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TvProgramId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MovieId");
+
+                    b.HasIndex("TvProgramId");
+
+                    b.ToTable("TvProgramEntries");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -582,6 +643,35 @@ namespace PrivateLibrary.Migrations
                     b.Navigation("Household");
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.TvProgram", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.ApplicationUser", "OwnerUser")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("OwnerUser");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.TvProgramEntry", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.Movie", "Movie")
+                        .WithMany()
+                        .HasForeignKey("MovieId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PrivateLibrary.Data.TvProgram", "TvProgram")
+                        .WithMany("Entries")
+                        .HasForeignKey("TvProgramId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Movie");
+
+                    b.Navigation("TvProgram");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingEntry", b =>
                 {
                     b.HasOne("PrivateLibrary.Data.ApplicationUser", "Borrower")
@@ -652,6 +742,11 @@ namespace PrivateLibrary.Migrations
             modelBuilder.Entity("PrivateLibrary.Data.Household", b =>
                 {
                     b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.TvProgram", b =>
+                {
+                    b.Navigation("Entries");
                 });
 
             modelBuilder.Entity("PrivateLibrary.Modules.Lending.Models.LendingCategory", b =>

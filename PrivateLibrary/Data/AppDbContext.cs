@@ -13,6 +13,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Household> Households => Set<Household>();
     public DbSet<Movie> Movies => Set<Movie>();
+    public DbSet<TvProgram> TvPrograms => Set<TvProgram>();
+    public DbSet<TvProgramEntry> TvProgramEntries => Set<TvProgramEntry>();
     public DbSet<LendingEntry> LendingEntries => Set<LendingEntry>();
     public DbSet<LendingItem> LendingItems => Set<LendingItem>();
     public DbSet<LendingCategory> LendingCategories => Set<LendingCategory>();
@@ -58,6 +60,31 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             builder.HasIndex(x => x.HouseholdId);
             builder.HasIndex(x => new { x.HouseholdId, x.Titel });
+        });
+
+        modelBuilder.Entity<TvProgram>(builder =>
+        {
+            builder.HasIndex(x => new { x.HouseholdId, x.OwnerUserId });
+
+            builder.HasOne(x => x.OwnerUser)
+                .WithMany()
+                .HasForeignKey(x => x.OwnerUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TvProgramEntry>(builder =>
+        {
+            builder.HasIndex(x => x.TvProgramId);
+
+            builder.HasOne(x => x.TvProgram)
+                .WithMany(p => p.Entries)
+                .HasForeignKey(x => x.TvProgramId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(x => x.Movie)
+                .WithMany()
+                .HasForeignKey(x => x.MovieId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<IdentityRole>(builder =>

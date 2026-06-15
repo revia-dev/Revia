@@ -45,6 +45,7 @@ builder.Services.AddHttpClient<TmdbService>();
 builder.Services.AddHttpClient<MovieCsvService>();
 builder.Services.AddScoped<MovieFilterService>();
 builder.Services.AddScoped<MovieService>();
+builder.Services.AddScoped<TvGuideService>();
 builder.Services.AddScoped<PosterResolverService>();
 builder.Services.AddHostedService<PosterBackfillService>();
 
