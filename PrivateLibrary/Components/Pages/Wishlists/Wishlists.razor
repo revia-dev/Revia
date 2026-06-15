@@ -24,17 +24,36 @@
         </div>
     </div>
 
-    @if (_wishlists.Count == 0)
+    @{
+        var visible = _showCompleted ? _wishlists : _wishlists.Where(w => !IsFullyFulfilled(w)).ToList();
+        var hiddenCount = _wishlists.Count(IsFullyFulfilled);
+    }
+
+    @if (hiddenCount > 0)
     {
-        <div class="glass-card ui-section text-muted">Noch keine Wunschzettel vorhanden.</div>
+        <div class="wishlist-toolbar">
+            <button type="button" class="btn btn-outline-secondary" @onclick="() => _showCompleted = !_showCompleted">
+                @(_showCompleted ? "Erledigte ausblenden" : $"Erledigte anzeigen ({hiddenCount})")
+            </button>
+        </div>
+    }
+
+    @if (visible.Count == 0)
+    {
+        <div class="glass-card ui-section text-muted">
+            @(_wishlists.Count == 0 ? "Noch keine Wunschzettel vorhanden." : "Alle Wunschzettel sind erledigt.")
+        </div>
     }
     else
     {
         <div class="wishlist-grid">
-            @foreach (var w in _wishlists)
+            @foreach (var w in visible)
             {
                 <a class="wishlist-card" href="@($"/wishlists/{w.Id}")" @key="w.Id">
-                    <div class="wishlist-card-title">@w.Name</div>
+                    <div class="wishlist-card-title">
+                        @w.Name
+                        @if (IsFullyFulfilled(w)) { <span class="badge text-bg-success">erledigt</span> }
+                    </div>
                     <div class="wishlist-card-owner">@(w.OwnerUser?.DisplayName ?? "—")</div>
                     <div class="wishlist-card-meta">
                         @w.Items.Count Wünsche
@@ -50,6 +69,10 @@
 @code {
     private List<Wishlist> _wishlists = new();
     private string _newName = string.Empty;
+    private bool _showCompleted;
+
+    private static bool IsFullyFulfilled(Wishlist w)
+        => w.Items.Count > 0 && w.Items.All(i => i.IsFulfilled);
 
     protected override async Task OnInitializedAsync() => await ReloadAsync();
 

@@ -1033,3 +1033,5 @@ input[type="search"]:focus {
 .expansion-file { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.85rem; padding: 0.15rem 0.5rem; border: 1px solid var(--border); border-radius: 999px; }
 .expansion-upload { margin-top: 0.35rem; display: block; }
 .link-danger { border: 0; background: transparent; color: var(--danger, #c0392b); cursor: pointer; font-weight: 700; }
+
+.wishlist-toolbar { margin-bottom: 0.75rem; }
