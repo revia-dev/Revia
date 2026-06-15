@@ -16,7 +16,10 @@
             <h1>Benutzer</h1>
             <p>Benutzerkonten und Rollen verwalten.</p>
         </div>
-        <a class="btn btn-primary" href="/lending/persons/new">Neu anlegen</a>
+        <div class="header-actions">
+            <a class="btn btn-primary" href="/lending/persons/new">Neu anlegen</a>
+            <a class="btn btn-outline-secondary" href="/persons/export.csv" target="_blank" rel="noopener">CSV-Export</a>
+        </div>
     </div>
 
     <AuthorizeView Roles="Admin">

@@ -13,7 +13,11 @@
             <h1>Spiele</h1>
             <p>Spielesammlung, Partien und Erweiterungen.</p>
         </div>
-        <a class="btn btn-primary" href="/games/new">Neues Spiel</a>
+        <div class="header-actions">
+            <a class="btn btn-primary" href="/games/new">Neues Spiel</a>
+            <a class="btn btn-outline-secondary" href="/games/export.csv" target="_blank" rel="noopener">Spiele-CSV</a>
+            <a class="btn btn-outline-secondary" href="/games/matches/export.csv" target="_blank" rel="noopener">Partien-CSV</a>
+        </div>
     </div>
 
     @if (_recent.Count > 0)
