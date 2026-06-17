@@ -53,6 +53,12 @@ public sealed class ApplicationUser : IdentityUser
     /// household imports the person there and links the two households.</summary>
     public Guid PersonLinkToken { get; set; } = Guid.NewGuid();
 
+    /// <summary>Per-user dashboard layout: a compact CSV of section keys in display
+    /// order, each optionally prefixed with '-' to mark it hidden. Empty/null means
+    /// "use the default layout". See <c>DashboardLayoutService</c>.</summary>
+    [StringLength(500)]
+    public string? DashboardLayout { get; set; }
+
     public ICollection<LendingEntry> LentEntries { get; set; } = new List<LendingEntry>();
     public ICollection<LendingEntry> BorrowedEntries { get; set; } = new List<LendingEntry>();
 

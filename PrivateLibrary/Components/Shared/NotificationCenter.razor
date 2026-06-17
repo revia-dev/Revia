@@ -95,14 +95,16 @@
     private async Task HandleNotifyAsync(AppNotification notification)
     {
         var pageFocused = true;
-        var canUseDevice = false;
 
         if (_module is not null)
         {
             try
             {
                 pageFocused = await _module.InvokeAsync<bool>("isPageFocused");
-                canUseDevice = _permission == "granted";
+                // Re-read permission at send time: the user may have granted it
+                // (e.g. via our opt-in prompt) after the component first rendered,
+                // so a value cached at first render would be stale.
+                _permission = await _module.InvokeAsync<string>("permissionStatus");
             }
             catch
             {
@@ -110,10 +112,15 @@
             }
         }
 
-        // Route: page in background + device allowed + permission granted -> OS.
-        // Otherwise show the in-app toast.
+        var channel = NotificationRouter.Route(
+            notification,
+            pageFocused,
+            permissionGranted: _permission == "granted");
+
+        // Try the device channel when routing says so; fall back to in-app if the
+        // OS notification could not actually be shown.
         var deviceShown = false;
-        if (!pageFocused && canUseDevice && notification.AllowDevice && _module is not null)
+        if (channel == NotificationChannel.Device && _module is not null)
         {
             try
             {

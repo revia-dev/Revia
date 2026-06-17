@@ -1,7 +1,7 @@
 {
-  "name": "Private Library",
-  "short_name": "PrivLib",
-  "description": "Filmarchiv und Ausleihverwaltung",
+  "name": "Revia",
+  "short_name": "Revia",
+  "description": "Eure Sammlung: Filme, Spiele, Ausleihen und mehr",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#e9eef5",

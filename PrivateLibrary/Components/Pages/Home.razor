@@ -4,6 +4,7 @@
 @inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
 @inject DashboardService DashboardService
+@inject DashboardLayoutService LayoutService
 @inject NotificationService Notifications
 
 <PageTitle>Dashboard</PageTitle>
@@ -11,247 +12,72 @@
 <div class="page-shell">
     <div class="page-header glass-card">
         <div class="dashboard-hero">
-            <img class="dashboard-brand" src="/images/app-icon.png" alt="Private Library" />
+            <img class="dashboard-brand" src="/images/app-icon.png" alt="Revia" />
             <div>
                 <h1>Dashboard</h1>
                 <p>Übersicht über alle Module deines Haushalts.</p>
             </div>
         </div>
         <div class="header-actions">
-            <a class="btn btn-primary" href="/lending/new">Neu anlegen</a>
-            <a class="btn btn-outline-secondary" href="/lending">Alle Ausleihen</a>
-        </div>
-    </div>
-
-    @if (_counts is not null)
-    {
-        <section class="module-tiles">
-            <a class="glass-card module-tile" href="/movies">
-                <div class="module-tile-value">@_counts.Movies</div>
-                <div class="module-tile-label">Filme</div>
-            </a>
-            <a class="glass-card module-tile" href="/tv">
-                <div class="module-tile-value">@_counts.TvEntries</div>
-                <div class="module-tile-label">TV-Einträge</div>
-            </a>
-            <a class="glass-card module-tile" href="/games">
-                <div class="module-tile-value">@_counts.Games</div>
-                <div class="module-tile-label">Spiele · @_counts.OpenMatches offene Partien</div>
-            </a>
-            <a class="glass-card module-tile" href="/bmi">
-                <div class="module-tile-value">@_counts.BmiRecords</div>
-                <div class="module-tile-label">BMI-Messungen</div>
-            </a>
-            <a class="glass-card module-tile" href="/wishlists">
-                <div class="module-tile-value">@_counts.OpenWishes</div>
-                <div class="module-tile-label">offene Wünsche · @_counts.Wishlists Listen</div>
-            </a>
-            <a class="glass-card module-tile" href="/lending/persons">
-                <div class="module-tile-value">@_counts.Persons</div>
-                <div class="module-tile-label">Personen</div>
-            </a>
-        </section>
-    }
-
-    @if (_stats is null)
-    {
-        <div class="glass-card ui-section">Lade Dashboard...</div>
-    }
-    else
-    {
-        <section class="ui-kpi-grid">
-            <article class="glass-card ui-kpi-card">
-                <div class="ui-kpi-value">@_stats.TotalActive</div>
-                <div class="ui-kpi-label">Aktive Ausleihen</div>
-            </article>
-            <article class="glass-card ui-kpi-card">
-                <div class="ui-kpi-value">@_stats.TotalOverdue</div>
-                <div class="ui-kpi-label">Überfällig</div>
-            </article>
-            <article class="glass-card ui-kpi-card">
-                <div class="ui-kpi-value">@_stats.TotalReturned</div>
-                <div class="ui-kpi-label">Zurückgegeben</div>
-            </article>
-            <article class="glass-card ui-kpi-card">
-                <div class="ui-kpi-value">@_stats.TotalPersons</div>
-                <div class="ui-kpi-label">Personen</div>
-            </article>
-        </section>
-
-        <section class="glass-card ui-section ui-stack dashboard-chart-section">
-            <div>
-                <h2 class="ui-section-title">Statusverteilung</h2>
-                <p class="section-subtitle">Vergleich von aktiven und bereits zurückgegebenen Ausleihen.</p>
-            </div>
-
-            <div class="dashboard-chart-layout">
-                <div class="dashboard-chart-bars" role="img" aria-label="Diagramm mit aktiven und zurückgegebenen Ausleihen">
-                    <div class="dashboard-chart-bar-group">
-                        <div class="dashboard-chart-value">@_stats.TotalActive</div>
-                        <div class="dashboard-chart-bar dashboard-chart-bar-active" style="height: @GetChartHeight(_stats.TotalActive)%"></div>
-                        <div class="dashboard-chart-label">Aktiv</div>
-                    </div>
-                    <div class="dashboard-chart-bar-group">
-                        <div class="dashboard-chart-value">@_stats.TotalReturned</div>
-                        <div class="dashboard-chart-bar dashboard-chart-bar-returned" style="height: @GetChartHeight(_stats.TotalReturned)%"></div>
-                        <div class="dashboard-chart-label">Zurückgegeben</div>
-                    </div>
-                </div>
-
-                <div class="dashboard-chart-summary">
-                    <div class="dashboard-chart-summary-item">
-                        <span class="dashboard-chart-dot dashboard-chart-dot-active"></span>
-                        <span>@GetShareText(_stats.TotalActive) aktiv</span>
-                    </div>
-                    <div class="dashboard-chart-summary-item">
-                        <span class="dashboard-chart-dot dashboard-chart-dot-returned"></span>
-                        <span>@GetShareText(_stats.TotalReturned) zurückgegeben</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        @if (_stats.OverdueEntries.Count > 0)
-        {
-            <section class="glass-card ui-section ui-stack">
-                <div>
-                    <h2 class="ui-section-title">Überfällige Ausleihen</h2>
-                    <p class="section-subtitle">Direkter Überblick über alle überzogenen Rückgaben.</p>
-                </div>
-
-                <div class="ui-table-wrap ui-desktop-table">
-                    <table class="table ui-data-table align-middle">
-                        <thead>
-                            <tr>
-                                <th>Gegenstand</th>
-                                <th>Entleiher</th>
-                                <th>Fällig seit</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var item in _stats.OverdueEntries)
-                            {
-                                <tr>
-                                    <td>@item.ItemName</td>
-                                    <td>@item.Borrower?.DisplayName</td>
-                                    <td>@FormatDate(item.DueDate)</td>
-                                    <td class="table-actions">
-                                        @if (CanBeMarkedAsReturned(item))
-                                        {
-                                            <button class="btn btn-sm btn-success" @onclick="() => MarkAsReturnedAsync(item)">Zurückgegeben</button>
-                                        }
-                                        <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/edit/{item.Id}")">Bearbeiten</a>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="ui-mobile-cards">
-                    @foreach (var item in _stats.OverdueEntries)
-                    {
-                        <article class="ui-mobile-card">
-                            <div class="ui-mobile-card-head">
-                                <div>
-                                    <div class="ui-mobile-card-title">@item.ItemName</div>
-                                    <div class="ui-mobile-card-subtitle">@ValueOrFallback(item.Borrower?.DisplayName)</div>
-                                </div>
-                                <LendingStatusBadge Status="@item.Status" />
-                            </div>
-                            <div class="ui-mobile-meta">
-                                <div class="ui-mobile-meta-row"><span>Fällig seit</span><span>@FormatDate(item.DueDate)</span></div>
-                            </div>
-                            <div class="table-actions">
-                                @if (CanBeMarkedAsReturned(item))
-                                {
-                                    <button class="btn btn-sm btn-success" @onclick="() => MarkAsReturnedAsync(item)">Zurückgegeben</button>
-                                }
-                                <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/edit/{item.Id}")">Bearbeiten</a>
-                            </div>
-                        </article>
-                    }
-                </div>
-            </section>
-        }
-
-        <section class="glass-card ui-section ui-stack">
-            <div>
-                <h2 class="ui-section-title">Zuletzt hinzugefügt</h2>
-                <p class="section-subtitle">Neu erfasste Ausleihen mit schnellem Zugriff auf Details und Rückgabe.</p>
-            </div>
-
-            @if (_stats.RecentEntries.Count == 0)
+            @if (_editLayout)
             {
-                <p class="empty-hint">Noch keine Ausleihen vorhanden. <a href="/lending/new">Jetzt anlegen</a>.</p>
+                <button class="btn btn-primary" @onclick="StopEditingLayout">
+                    <Icon Name="check-lg" /> <span>Fertig</span>
+                </button>
+                <button class="btn btn-outline-secondary" @onclick="ResetLayoutAsync" title="Auf Standard zurücksetzen">
+                    Zurücksetzen
+                </button>
             }
             else
             {
-                <div class="ui-table-wrap ui-desktop-table">
-                    <table class="table ui-data-table align-middle">
-                        <thead>
-                            <tr>
-                                <th>Gegenstand</th>
-                                <th>Verleiher</th>
-                                <th>Entleiher</th>
-                                <th>Ausleihdatum</th>
-                                <th>Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var item in _stats.RecentEntries)
-                            {
-                                <tr>
-                                    <td>@item.ItemName</td>
-                                    <td>@ValueOrFallback(item.Lender?.DisplayName)</td>
-                                    <td>@ValueOrFallback(item.Borrower?.DisplayName)</td>
-                                    <td>@item.LoanDate.ToString("dd.MM.yyyy")</td>
-                                    <td><LendingStatusBadge Status="@item.Status" /></td>
-                                    <td class="table-actions">
-                                        @if (CanBeMarkedAsReturned(item))
-                                        {
-                                            <button class="btn btn-sm btn-success" @onclick="() => MarkAsReturnedAsync(item)">Zurückgegeben</button>
-                                        }
-                                        <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/{item.Id}")">Details</a>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="ui-mobile-cards">
-                    @foreach (var item in _stats.RecentEntries)
-                    {
-                        <article class="ui-mobile-card">
-                            <div class="ui-mobile-card-head">
-                                <div>
-                                    <div class="ui-mobile-card-title">@item.ItemName</div>
-                                    <div class="ui-mobile-card-subtitle">@ValueOrFallback(item.Lender?.DisplayName) → @ValueOrFallback(item.Borrower?.DisplayName)</div>
-                                </div>
-                                <LendingStatusBadge Status="@item.Status" />
-                            </div>
-                            <div class="ui-mobile-meta">
-                                <div class="ui-mobile-meta-row"><span>Ausleihdatum</span><span>@item.LoanDate.ToString("dd.MM.yyyy")</span></div>
-                            </div>
-                            <div class="table-actions">
-                                @if (CanBeMarkedAsReturned(item))
-                                {
-                                    <button class="btn btn-sm btn-success" @onclick="() => MarkAsReturnedAsync(item)">Zurückgegeben</button>
-                                }
-                                <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/{item.Id}")">Details</a>
-                            </div>
-                        </article>
-                    }
-                </div>
-
-                <div class="dashboard-footer">
-                    <a href="/lending" class="btn btn-outline-secondary">Alle Ausleihen anzeigen</a>
-                </div>
+                <button class="btn btn-outline-secondary" @onclick="StartEditingLayout" title="Dashboard anpassen">
+                    <Icon Name="pencil" /> <span>Anpassen</span>
+                </button>
+                <a class="btn btn-primary" href="/lending/new">Neu anlegen</a>
             }
-        </section>
+        </div>
+    </div>
+
+    @if (_editLayout)
+    {
+        <div class="glass-card ui-section dashboard-customize">
+            <div>
+                <h2 class="ui-section-title">Dashboard anpassen</h2>
+                <p class="section-subtitle">Blende Bereiche ein oder aus und ändere ihre Reihenfolge. Deine Einstellung wird automatisch gespeichert.</p>
+            </div>
+            <ul class="dashboard-customize-list">
+                @for (var i = 0; i < _layout.Count; i++)
+                {
+                    var index = i;
+                    var row = _layout[index];
+                    <li class="dashboard-customize-row @(row.Visible ? "" : "is-hidden")">
+                        <span class="dashboard-customize-name">@row.Label</span>
+                        <div class="dashboard-customize-actions">
+                            <IconButton IconName="arrow-up" AriaLabel="Nach oben"
+                                        Disabled="index == 0"
+                                        OnClick="() => MoveSectionAsync(index, -1)" />
+                            <IconButton IconName="arrow-down" AriaLabel="Nach unten"
+                                        Disabled="index == _layout.Count - 1"
+                                        OnClick="() => MoveSectionAsync(index, 1)" />
+                            <IconButton IconName="@(row.Visible ? "eye" : "eye-slash")"
+                                        AriaLabel="@(row.Visible ? "Ausblenden" : "Einblenden")"
+                                        CssClass="@(row.Visible ? "" : "btn-icon-muted")"
+                                        OnClick="() => ToggleSectionAsync(index)" />
+                        </div>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
+    @foreach (var section in _layout)
+    {
+        if (!section.Visible)
+        {
+            continue;
+        }
+
+        @SectionFragment(section.Key)
     }
 </div>
 
@@ -271,6 +97,39 @@
         box-shadow: var(--shadow-md);
         object-fit: cover;
         flex-shrink: 0;
+    }
+
+    .dashboard-customize-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    .dashboard-customize-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.6rem 0.85rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        background: var(--surface-soft);
+    }
+
+    .dashboard-customize-row.is-hidden {
+        opacity: 0.55;
+    }
+
+    .dashboard-customize-name {
+        font-weight: 600;
+    }
+
+    .dashboard-customize-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
     }
 
     .module-tiles {
@@ -399,11 +258,13 @@
 @code {
     private LendingDashboardStats? _stats;
     private DashboardCounts? _counts;
-
+    private List<DashboardSectionState> _layout = new();
+    private bool _editLayout;
     private bool _overdueNotified;
 
     protected override async Task OnInitializedAsync()
     {
+        _layout = await LayoutService.GetLayoutAsync();
         _counts = await DashboardService.GetCountsAsync();
         await LoadAsync();
     }
@@ -423,6 +284,298 @@
     {
         _stats = await LendingService.GetDashboardStatsAsync();
     }
+
+    // ----- Dashboard customisation -----
+
+    private void StartEditingLayout() => _editLayout = true;
+
+    private void StopEditingLayout() => _editLayout = false;
+
+    private async Task MoveSectionAsync(int index, int delta)
+    {
+        var target = index + delta;
+        if (target < 0 || target >= _layout.Count)
+        {
+            return;
+        }
+
+        (_layout[index], _layout[target]) = (_layout[target], _layout[index]);
+        await LayoutService.SaveLayoutAsync(_layout);
+    }
+
+    private async Task ToggleSectionAsync(int index)
+    {
+        var section = _layout[index];
+        _layout[index] = section with { Visible = !section.Visible };
+        await LayoutService.SaveLayoutAsync(_layout);
+    }
+
+    private async Task ResetLayoutAsync()
+    {
+        await LayoutService.ResetLayoutAsync();
+        _layout = await LayoutService.GetLayoutAsync();
+    }
+
+    // ----- Section rendering, dispatched by the user's layout -----
+
+    private RenderFragment SectionFragment(string key) => key switch
+    {
+        DashboardSections.ModuleTiles => ModuleTiles,
+        DashboardSections.Kpis => Kpis,
+        DashboardSections.StatusChart => StatusChart,
+        DashboardSections.Overdue => Overdue,
+        DashboardSections.Recent => Recent,
+        _ => _ => { }
+    };
+
+    private RenderFragment ModuleTiles => @<text>
+        @if (_counts is not null)
+        {
+            <section class="module-tiles">
+                <a class="glass-card module-tile" href="/movies">
+                    <div class="module-tile-value">@_counts.Movies</div>
+                    <div class="module-tile-label">Filme</div>
+                </a>
+                <a class="glass-card module-tile" href="/tv">
+                    <div class="module-tile-value">@_counts.TvEntries</div>
+                    <div class="module-tile-label">TV-Einträge</div>
+                </a>
+                <a class="glass-card module-tile" href="/games">
+                    <div class="module-tile-value">@_counts.Games</div>
+                    <div class="module-tile-label">Spiele · @_counts.OpenMatches offene Partien</div>
+                </a>
+                <a class="glass-card module-tile" href="/bmi">
+                    <div class="module-tile-value">@_counts.BmiRecords</div>
+                    <div class="module-tile-label">BMI-Messungen</div>
+                </a>
+                <a class="glass-card module-tile" href="/wishlists">
+                    <div class="module-tile-value">@_counts.OpenWishes</div>
+                    <div class="module-tile-label">offene Wünsche · @_counts.Wishlists Listen</div>
+                </a>
+                <a class="glass-card module-tile" href="/lending/persons">
+                    <div class="module-tile-value">@_counts.Persons</div>
+                    <div class="module-tile-label">Personen</div>
+                </a>
+            </section>
+        }
+    </text>;
+
+    private RenderFragment Kpis => @<text>
+        @if (_stats is null)
+        {
+            <div class="glass-card ui-section">Lade Dashboard...</div>
+        }
+        else
+        {
+            <section class="ui-kpi-grid">
+                <article class="glass-card ui-kpi-card">
+                    <div class="ui-kpi-value">@_stats.TotalActive</div>
+                    <div class="ui-kpi-label">Aktive Ausleihen</div>
+                </article>
+                <article class="glass-card ui-kpi-card">
+                    <div class="ui-kpi-value">@_stats.TotalOverdue</div>
+                    <div class="ui-kpi-label">Überfällig</div>
+                </article>
+                <article class="glass-card ui-kpi-card">
+                    <div class="ui-kpi-value">@_stats.TotalReturned</div>
+                    <div class="ui-kpi-label">Zurückgegeben</div>
+                </article>
+                <article class="glass-card ui-kpi-card">
+                    <div class="ui-kpi-value">@_stats.TotalPersons</div>
+                    <div class="ui-kpi-label">Personen</div>
+                </article>
+            </section>
+        }
+    </text>;
+
+    private RenderFragment StatusChart => @<text>
+        @if (_stats is not null)
+        {
+            <section class="glass-card ui-section ui-stack dashboard-chart-section">
+                <div>
+                    <h2 class="ui-section-title">Statusverteilung</h2>
+                    <p class="section-subtitle">Vergleich von aktiven und bereits zurückgegebenen Ausleihen.</p>
+                </div>
+
+                <div class="dashboard-chart-layout">
+                    <div class="dashboard-chart-bars" role="img" aria-label="Diagramm mit aktiven und zurückgegebenen Ausleihen">
+                        <div class="dashboard-chart-bar-group">
+                            <div class="dashboard-chart-value">@_stats.TotalActive</div>
+                            <div class="dashboard-chart-bar dashboard-chart-bar-active" style="height: @GetChartHeight(_stats.TotalActive)%"></div>
+                            <div class="dashboard-chart-label">Aktiv</div>
+                        </div>
+                        <div class="dashboard-chart-bar-group">
+                            <div class="dashboard-chart-value">@_stats.TotalReturned</div>
+                            <div class="dashboard-chart-bar dashboard-chart-bar-returned" style="height: @GetChartHeight(_stats.TotalReturned)%"></div>
+                            <div class="dashboard-chart-label">Zurückgegeben</div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-chart-summary">
+                        <div class="dashboard-chart-summary-item">
+                            <span class="dashboard-chart-dot dashboard-chart-dot-active"></span>
+                            <span>@GetShareText(_stats.TotalActive) aktiv</span>
+                        </div>
+                        <div class="dashboard-chart-summary-item">
+                            <span class="dashboard-chart-dot dashboard-chart-dot-returned"></span>
+                            <span>@GetShareText(_stats.TotalReturned) zurückgegeben</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        }
+    </text>;
+
+    private RenderFragment Overdue => @<text>
+        @if (_stats is { OverdueEntries.Count: > 0 })
+        {
+            <section class="glass-card ui-section ui-stack">
+                <div>
+                    <h2 class="ui-section-title">Überfällige Ausleihen</h2>
+                    <p class="section-subtitle">Direkter Überblick über alle überzogenen Rückgaben.</p>
+                </div>
+
+                <div class="ui-table-wrap ui-desktop-table">
+                    <table class="table ui-data-table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Gegenstand</th>
+                                <th>Entleiher</th>
+                                <th>Fällig seit</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in _stats.OverdueEntries)
+                            {
+                                <tr>
+                                    <td>@EntryLabel(item)</td>
+                                    <td>@item.Borrower?.DisplayName</td>
+                                    <td>@FormatDate(item.DueDate)</td>
+                                    <td class="table-actions">
+                                        @if (CanBeMarkedAsReturned(item))
+                                        {
+                                            <button class="btn btn-sm btn-success" @onclick="() => MarkAsReturnedAsync(item)">Zurückgegeben</button>
+                                        }
+                                        <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/edit/{item.Id}")">Bearbeiten</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="ui-mobile-cards">
+                    @foreach (var item in _stats.OverdueEntries)
+                    {
+                        <article class="ui-mobile-card">
+                            <div class="ui-mobile-card-head">
+                                <div>
+                                    <div class="ui-mobile-card-title">@EntryLabel(item)</div>
+                                    <div class="ui-mobile-card-subtitle">@ValueOrFallback(item.Borrower?.DisplayName)</div>
+                                </div>
+                                <LendingStatusBadge Status="@item.Status" />
+                            </div>
+                            <div class="ui-mobile-meta">
+                                <div class="ui-mobile-meta-row"><span>Fällig seit</span><span>@FormatDate(item.DueDate)</span></div>
+                            </div>
+                            <div class="table-actions">
+                                @if (CanBeMarkedAsReturned(item))
+                                {
+                                    <button class="btn btn-sm btn-success" @onclick="() => MarkAsReturnedAsync(item)">Zurückgegeben</button>
+                                }
+                                <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/edit/{item.Id}")">Bearbeiten</a>
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+        }
+    </text>;
+
+    private RenderFragment Recent => @<text>
+        @if (_stats is not null)
+        {
+            <section class="glass-card ui-section ui-stack">
+                <div>
+                    <h2 class="ui-section-title">Zuletzt hinzugefügt</h2>
+                    <p class="section-subtitle">Neu erfasste Ausleihen mit schnellem Zugriff auf Details und Rückgabe.</p>
+                </div>
+
+                @if (_stats.RecentEntries.Count == 0)
+                {
+                    <p class="empty-hint">Noch keine Ausleihen vorhanden. <a href="/lending/new">Jetzt anlegen</a>.</p>
+                }
+                else
+                {
+                    <div class="ui-table-wrap ui-desktop-table">
+                        <table class="table ui-data-table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Gegenstand</th>
+                                    <th>Verleiher</th>
+                                    <th>Entleiher</th>
+                                    <th>Ausleihdatum</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in _stats.RecentEntries)
+                                {
+                                    <tr>
+                                        <td>@EntryLabel(item)</td>
+                                        <td>@ValueOrFallback(item.Lender?.DisplayName)</td>
+                                        <td>@ValueOrFallback(item.Borrower?.DisplayName)</td>
+                                        <td>@item.LoanDate.ToString("dd.MM.yyyy")</td>
+                                        <td><LendingStatusBadge Status="@item.Status" /></td>
+                                        <td class="table-actions">
+                                            @if (CanBeMarkedAsReturned(item))
+                                            {
+                                                <button class="btn btn-sm btn-success" @onclick="() => MarkAsReturnedAsync(item)">Zurückgegeben</button>
+                                            }
+                                            <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/{item.Id}")">Details</a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="ui-mobile-cards">
+                        @foreach (var item in _stats.RecentEntries)
+                        {
+                            <article class="ui-mobile-card">
+                                <div class="ui-mobile-card-head">
+                                    <div>
+                                        <div class="ui-mobile-card-title">@EntryLabel(item)</div>
+                                        <div class="ui-mobile-card-subtitle">@ValueOrFallback(item.Lender?.DisplayName) → @ValueOrFallback(item.Borrower?.DisplayName)</div>
+                                    </div>
+                                    <LendingStatusBadge Status="@item.Status" />
+                                </div>
+                                <div class="ui-mobile-meta">
+                                    <div class="ui-mobile-meta-row"><span>Ausleihdatum</span><span>@item.LoanDate.ToString("dd.MM.yyyy")</span></div>
+                                </div>
+                                <div class="table-actions">
+                                    @if (CanBeMarkedAsReturned(item))
+                                    {
+                                        <button class="btn btn-sm btn-success" @onclick="() => MarkAsReturnedAsync(item)">Zurückgegeben</button>
+                                    }
+                                    <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/{item.Id}")">Details</a>
+                                </div>
+                            </article>
+                        }
+                    </div>
+
+                    <div class="dashboard-footer">
+                        <a href="/lending" class="btn btn-outline-secondary">Alle Ausleihen anzeigen</a>
+                    </div>
+                }
+            </section>
+        }
+    </text>;
+
+    // ----- Notifications & helpers -----
 
     private async Task NotifyOverdueAsync()
     {
@@ -479,8 +632,6 @@
             Id = item.Id,
             Title = item.Title,
             Description = item.Description,
-            ItemName = item.ItemName,
-            Category = item.Category,
             LenderId = item.LenderId,
             BorrowerId = item.BorrowerId,
             LoanDate = item.LoanDate,

@@ -1,8 +1,8 @@
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PrivateLibrary.Data;
 using PrivateLibrary.Modules.Lending.Models;
 using PrivateLibrary.Modules.Lending.Services;
+using PrivateLibrary.Services;
 
 namespace PrivateLibrary.Tests;
 
@@ -17,7 +17,10 @@ public class LendingServiceStatusTests : IDisposable
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         _db = new AppDbContext(options);
-        _service = new LendingService(_db, new FakeLendingPhotoStorage());
+
+        var currentUser = new CurrentUserContext(new TestAuthStateProvider());
+        var links = new HouseholdLinkService(_db);
+        _service = new LendingService(_db, new FakeLendingPhotoStorage(), currentUser, links);
     }
 
     [Fact]

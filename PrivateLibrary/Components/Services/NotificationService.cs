@@ -125,6 +125,40 @@ public sealed record AppNotification
         };
 }
 
+/// <summary>The channel a notification should be delivered through.</summary>
+public enum NotificationChannel
+{
+    /// <summary>Render an in-app toast (page is focused, or device unavailable).</summary>
+    InApp,
+    /// <summary>Raise an OS/device notification (page is in the background).</summary>
+    Device
+}
+
+/// <summary>
+/// Pure routing rules shared by the UI and tests. Keeping the decision here (not
+/// inline in the component) makes the focus/permission behaviour verifiable.
+/// </summary>
+public static class NotificationRouter
+{
+    /// <summary>
+    /// Decides where a notification goes. Device only when the page is NOT focused,
+    /// the notification permits device delivery, and the browser permission was
+    /// granted. Everything else falls back to the in-app channel.
+    /// </summary>
+    public static NotificationChannel Route(
+        AppNotification notification,
+        bool pageFocused,
+        bool permissionGranted)
+    {
+        if (!pageFocused && notification.AllowDevice && permissionGranted)
+        {
+            return NotificationChannel.Device;
+        }
+
+        return NotificationChannel.InApp;
+    }
+}
+
 /// <summary>
 /// Central, app-wide entry point for raising notifications. Inject this anywhere
 /// (services or components) and call <see cref="Notify"/> (or a helper). A single
