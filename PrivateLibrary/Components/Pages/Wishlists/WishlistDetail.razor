@@ -5,6 +5,7 @@
 @attribute [Authorize]
 @inject WishlistService WishlistService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject PrivateLibrary.Services.DeferredDeleteService DeferredDelete
 @inject NotificationService Notifications
 @inject NavigationManager Navigation
 
@@ -58,31 +59,35 @@
                 <ul class="wish-items">
                     @foreach (var item in _wishlist.Items)
                     {
-                        <li class="wish-item @(item.IsFulfilled ? "is-fulfilled" : "")" @key="item.Id">
-                            <div class="wish-item-main">
-                                <div class="wish-item-title">
-                                    @if (!string.IsNullOrWhiteSpace(item.Url))
+                        <li @key="item.Id">
+                            <SwipeToDelete DeleteLabel="Wunsch löschen" OnDelete="() => DeleteItemAsync(item)">
+                                <div class="wish-item @(item.IsFulfilled ? "is-fulfilled" : "")">
+                                    <div class="wish-item-main">
+                                        <div class="wish-item-title">
+                                            @if (!string.IsNullOrWhiteSpace(item.Url))
+                                            {
+                                                <a href="@item.Url" target="_blank" rel="noopener">@item.Title</a>
+                                            }
+                                            else { @item.Title }
+                                            @if (item.Price is not null) { <span class="wish-item-price">@item.Price.Value.ToString("0.00") €</span> }
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(item.Notes)) { <div class="text-muted small">@item.Notes</div> }
+                                    </div>
+                                    @if (_canEdit)
                                     {
-                                        <a href="@item.Url" target="_blank" rel="noopener">@item.Title</a>
+                                        <div class="wish-item-actions">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleFulfilledAsync(item)">
+                                                @(item.IsFulfilled ? "Offen" : "Erfüllt")
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteItemAsync(item)">Löschen</button>
+                                        </div>
                                     }
-                                    else { @item.Title }
-                                    @if (item.Price is not null) { <span class="wish-item-price">@item.Price.Value.ToString("0.00") €</span> }
+                                    else if (item.IsFulfilled)
+                                    {
+                                        <span class="badge text-bg-success">erfüllt</span>
+                                    }
                                 </div>
-                                @if (!string.IsNullOrWhiteSpace(item.Notes)) { <div class="text-muted small">@item.Notes</div> }
-                            </div>
-                            @if (_canEdit)
-                            {
-                                <div class="wish-item-actions">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleFulfilledAsync(item)">
-                                        @(item.IsFulfilled ? "Offen" : "Erfüllt")
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteItemAsync(item.Id)">Löschen</button>
-                                </div>
-                            }
-                            else if (item.IsFulfilled)
-                            {
-                                <span class="badge text-bg-success">erfüllt</span>
-                            }
+                            </SwipeToDelete>
                         </li>
                     }
                 </ul>
@@ -126,10 +131,31 @@
         _wishlist = await WishlistService.GetWishlistAsync(Id);
     }
 
-    private async Task DeleteItemAsync(int itemId)
+    private Task DeleteItemAsync(WishlistItem item)
     {
-        await WishlistService.DeleteItemAsync(itemId);
-        _wishlist = await WishlistService.GetWishlistAsync(Id);
+        if (_wishlist is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var index = _wishlist.Items.ToList().IndexOf(item);
+        _wishlist.Items.Remove(item);
+
+        DeferredDelete.DeleteWithUndo(
+            $"„{item.Title}“ gelöscht",
+            commit: () => WishlistService.DeleteItemAsync(item.Id),
+            restore: () =>
+            {
+                if (_wishlist is not null && !_wishlist.Items.Contains(item))
+                {
+                    var list = _wishlist.Items.ToList();
+                    list.Insert(Math.Clamp(index, 0, list.Count), item);
+                    _wishlist.Items = list;
+                }
+                return InvokeAsync(StateHasChanged);
+            });
+
+        return InvokeAsync(StateHasChanged);
     }
 
     private async Task DeleteListAsync()

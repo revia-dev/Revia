@@ -5,6 +5,7 @@
 @inject TvGuideService Guide
 @inject TmdbService TmdbService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject PrivateLibrary.Services.DeferredDeleteService DeferredDelete
 @using Microsoft.AspNetCore.Authorization
 
 <PageTitle>Fernsehprogramm</PageTitle>
@@ -105,7 +106,8 @@
                     <div class="tv-entries">
                         @foreach (var entry in day.OrderBy(e => e.StartsAt))
                         {
-                            <div class="tv-entry" @key="entry.Id">
+                            <SwipeToDelete @key="entry.Id" DeleteLabel="Eintrag löschen" OnDelete="() => DeleteEntryAsync(entry)">
+                            <div class="tv-entry">
                                 <div class="tv-entry-time">@entry.StartsAt.ToString("HH:mm")</div>
                                 <img class="tv-entry-poster" src="@Poster(entry.Movie)" alt="" loading="lazy" />
                                 <div class="tv-entry-body">
@@ -136,6 +138,7 @@
                                     }
                                 </div>
                             </div>
+                            </SwipeToDelete>
                         }
                     </div>
                 </div>
@@ -148,7 +151,7 @@
     private enum Tab { Private, Family }
     private Tab _tab = Tab.Private;
 
-    private IReadOnlyList<TvProgramEntry>? _entries;
+    private List<TvProgramEntry>? _entries;
     private IReadOnlyList<MovieOption> _options = Array.Empty<MovieOption>();
 
     private string _movieFilter = string.Empty;
@@ -170,9 +173,9 @@
 
     private async Task LoadAsync()
     {
-        _entries = _tab == Tab.Private
+        _entries = (_tab == Tab.Private
             ? await Guide.GetPrivateEntriesAsync()
-            : await Guide.GetHouseholdEntriesAsync();
+            : await Guide.GetHouseholdEntriesAsync()).ToList();
     }
 
     private async Task SetTab(Tab tab)
@@ -226,10 +229,33 @@
         await LoadAsync();
     }
 
-    private async Task DeleteEntryAsync(TvProgramEntry entry)
+    private Task DeleteEntryAsync(TvProgramEntry entry)
     {
-        await Guide.DeleteEntryAsync(entry.Id);
-        await LoadAsync();
+        if (!CanDelete(entry) || _entries is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var index = _entries.IndexOf(entry);
+        if (index < 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        _entries.RemoveAt(index);
+        var restoreIndex = index;
+
+        DeferredDelete.DeleteWithUndo(
+            $"„{entry.Movie?.Titel ?? "Eintrag"}“ gelöscht",
+            commit: () => Guide.DeleteEntryAsync(entry.Id),
+            restore: () =>
+            {
+                _entries ??= new List<TvProgramEntry>();
+                _entries.Insert(Math.Min(restoreIndex, _entries.Count), entry);
+                return InvokeAsync(StateHasChanged);
+            });
+
+        return InvokeAsync(StateHasChanged);
     }
 
     // In the family view, shared private entries are read-only here (edit them in "Mein Programm").

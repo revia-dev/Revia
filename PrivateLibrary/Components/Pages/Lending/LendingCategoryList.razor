@@ -74,17 +74,19 @@
                 <div class="ui-mobile-cards">
                     @foreach (var category in FilteredCategories)
                     {
-                        <article class="ui-mobile-card">
-                            <div class="ui-mobile-card-head">
-                                <div>
-                                    <div class="ui-mobile-card-title">@category.Name</div>
+                        <SwipeToDelete @key="category.Id" DeleteLabel="Kategorie löschen" OnDelete="() => DeleteCategoryAsync(category.Id)">
+                            <article class="ui-mobile-card">
+                                <div class="ui-mobile-card-head">
+                                    <div>
+                                        <div class="ui-mobile-card-title">@category.Name</div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="table-actions">
-                                <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/categories/edit/{category.Id}")">Bearbeiten</a>
-                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategoryAsync(category.Id)">Löschen</button>
-                            </div>
-                        </article>
+                                <div class="table-actions">
+                                    <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/categories/edit/{category.Id}")">Bearbeiten</a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategoryAsync(category.Id)">Löschen</button>
+                                </div>
+                            </article>
+                        </SwipeToDelete>
                     }
                 </div>
             }

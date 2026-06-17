@@ -6,6 +6,7 @@
 @inject PrivateLibrary.Services.MovieFilterService FilterService
 @inject PrivateLibrary.Services.TmdbService TmdbService
 @inject PrivateLibrary.Services.PosterResolverService PosterResolver
+@inject PrivateLibrary.Services.DeferredDeleteService DeferredDelete
 
 <PageTitle>Movie Library</PageTitle>
 
@@ -200,43 +201,45 @@
             <div class="movie-grid">
                 @foreach (var film in filteredFilme)
                 {
-                    <button type="button"
-                            class="movie-card"
-                            @onclick="() => SelectFilm(film)">
-                        <div class="movie-poster-wrap">
-                            <img src="@PosterResolver.ResolvePosterUrl(film)"
-                                 alt="@(film.Titel ?? "Unbekannt")"
-                                 class="movie-poster" />
+                    <SwipeToDelete @key="film.Id" DeleteLabel="Film löschen" OnDelete="() => DeleteFilmAsync(film)">
+                        <button type="button"
+                                class="movie-card"
+                                @onclick="() => SelectFilm(film)">
+                            <div class="movie-poster-wrap">
+                                <img src="@PosterResolver.ResolvePosterUrl(film)"
+                                     alt="@(film.Titel ?? "Unbekannt")"
+                                     class="movie-poster" />
 
-                            <div class="movie-card-overlay movie-card-overlay-hover">
-                                <div class="movie-card-title">
-                                    @(film.Titel ?? "Unbekannt")
-                                </div>
+                                <div class="movie-card-overlay movie-card-overlay-hover">
+                                    <div class="movie-card-title">
+                                        @(film.Titel ?? "Unbekannt")
+                                    </div>
 
-                                <div class="movie-card-meta">
-                                    @if (!string.IsNullOrWhiteSpace(film.Jahr))
-                                    {
-                                        <span>@film.Jahr</span>
-                                    }
-
-                                    @if (!string.IsNullOrWhiteSpace(film.Fsk))
-                                    {
-                                        <span>FSK @film.Fsk</span>
-                                    }
-                                </div>
-
-                                @if (film.Tags?.Any() == true)
-                                {
-                                    <div class="movie-card-tags">
-                                        @foreach (var tag in film.Tags.Take(3))
+                                    <div class="movie-card-meta">
+                                        @if (!string.IsNullOrWhiteSpace(film.Jahr))
                                         {
-                                            <span>@tag</span>
+                                            <span>@film.Jahr</span>
+                                        }
+
+                                        @if (!string.IsNullOrWhiteSpace(film.Fsk))
+                                        {
+                                            <span>FSK @film.Fsk</span>
                                         }
                                     </div>
-                                }
+
+                                    @if (film.Tags?.Any() == true)
+                                    {
+                                        <div class="movie-card-tags">
+                                            @foreach (var tag in film.Tags.Take(3))
+                                            {
+                                                <span>@tag</span>
+                                            }
+                                        </div>
+                                    }
+                                </div>
                             </div>
-                        </div>
-                    </button>
+                        </button>
+                    </SwipeToDelete>
                 }
             </div>
         </section>
@@ -415,6 +418,31 @@
         await MovieService.DeleteAsync(film.Id);
         CloseDetail();
         await ReloadMoviesAsync();
+    }
+
+    // Swipe-to-delete: remove the film from the list immediately and offer Undo.
+    // The real DB delete only happens once the Undo window elapses.
+    private Task DeleteFilmAsync(Film film)
+    {
+        filme.Remove(film);
+        ApplyFilters();
+
+        if (selectedFilm?.Id == film.Id)
+        {
+            CloseDetail();
+        }
+
+        DeferredDelete.DeleteWithUndo(
+            $"„{film.Titel ?? "Film"}“ gelöscht",
+            commit: () => MovieService.DeleteAsync(film.Id),
+            restore: () =>
+            {
+                filme.Add(film);
+                ApplyFilters();
+                return InvokeAsync(StateHasChanged);
+            });
+
+        return Task.CompletedTask;
     }
 
     private async Task SearchTmdbAsync()

@@ -1,0 +1,65 @@
+.swipe-row {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-lg, 18px);
+    touch-action: pan-y; /* allow vertical scroll; horizontal handled by JS */
+}
+
+/* The red delete affordance sits behind the surface, on the right edge. */
+.swipe-delete {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 88px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    background: var(--danger, #b53a2d);
+    color: #fff;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+
+/* The sliding content. */
+.swipe-surface {
+    position: relative;
+    z-index: 1;
+    background: var(--bg, #fff);
+    will-change: transform;
+}
+
+/* When opened via swipe, reveal the delete button and (as a CSS fallback to the
+   live JS transform) hold the surface aside so the button is fully tappable. */
+.swipe-row.swipe-open .swipe-delete {
+    opacity: 1;
+    z-index: 2;
+}
+
+.swipe-row.swipe-open .swipe-surface {
+    transform: translateX(-88px);
+    transition: transform 0.2s ease;
+}
+
+/* Desktop: no touch swipe, so reveal the delete button on hover/focus. */
+@media (hover: hover) and (pointer: fine) {
+    .swipe-row:hover .swipe-delete,
+    .swipe-row:focus-within .swipe-delete {
+        opacity: 1;
+    }
+
+    .swipe-row:hover .swipe-surface,
+    .swipe-row:focus-within .swipe-surface {
+        transform: translateX(-88px);
+        transition: transform 0.2s ease;
+    }
+}
+
+.swipe-delete:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--danger, #b53a2d) 40%, transparent);
+    outline-offset: -3px;
+}

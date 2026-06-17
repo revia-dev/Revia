@@ -4,6 +4,7 @@
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
 @inject GameService GameService
+@inject PrivateLibrary.Services.DeferredDeleteService DeferredDelete
 
 <PageTitle>Spiele</PageTitle>
 
@@ -63,16 +64,18 @@
             <div class="game-grid">
                 @foreach (var g in _games)
                 {
-                    <a class="game-card" href="@($"/games/{g.Id}")" @key="g.Id">
-                        <div class="game-card-title">@g.Name</div>
-                        <div class="game-card-meta">
-                            @foreach (var t in g.Types)
-                            {
-                                <span class="badge text-bg-info">@GameLabels.Type(t.Type)</span>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(g.Publisher)) { <span>@g.Publisher</span> }
-                        </div>
-                    </a>
+                    <SwipeToDelete @key="g.Id" DeleteLabel="Spiel löschen" OnDelete="() => DeleteGameAsync(g)">
+                        <a class="game-card" href="@($"/games/{g.Id}")">
+                            <div class="game-card-title">@g.Name</div>
+                            <div class="game-card-meta">
+                                @foreach (var t in g.Types)
+                                {
+                                    <span class="badge text-bg-info">@GameLabels.Type(t.Type)</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(g.Publisher)) { <span>@g.Publisher</span> }
+                            </div>
+                        </a>
+                    </SwipeToDelete>
                 }
             </div>
         }
@@ -93,5 +96,28 @@
     private async Task ReloadAsync()
     {
         _games = (await GameService.GetGamesAsync(string.IsNullOrWhiteSpace(_search) ? null : _search)).ToList();
+    }
+
+    private Task DeleteGameAsync(Game game)
+    {
+        var index = _games.IndexOf(game);
+        if (index < 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        _games.RemoveAt(index);
+        var restoreIndex = index;
+
+        DeferredDelete.DeleteWithUndo(
+            $"„{game.Name}“ gelöscht",
+            commit: () => GameService.DeleteGameAsync(game.Id),
+            restore: () =>
+            {
+                _games.Insert(Math.Min(restoreIndex, _games.Count), game);
+                return InvokeAsync(StateHasChanged);
+            });
+
+        return InvokeAsync(StateHasChanged);
     }
 }

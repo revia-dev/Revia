@@ -23,6 +23,25 @@
 .toast-item.toast-visible {
     opacity: 1;
     transform: translateY(0);
+    pointer-events: auto;
+}
+
+.toast-action {
+    margin-left: 0.4rem;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.15s ease;
+}
+
+.toast-action:hover {
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .toast-success { background-color: var(--success); }

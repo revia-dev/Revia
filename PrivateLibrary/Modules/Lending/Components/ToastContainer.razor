@@ -12,6 +12,12 @@
             else { <span>ℹ</span> }
         </span>
         <span class="toast-text">@toast.Text</span>
+        @if (!string.IsNullOrEmpty(toast.ActionLabel))
+        {
+            <button type="button" class="toast-action" @onclick="() => InvokeActionAsync(toast)">
+                @toast.ActionLabel
+            </button>
+        }
     </div>
 }
 
@@ -23,7 +29,7 @@
 
     private void HandleShow(ToastMessage msg)
     {
-        var toast = new ActiveToast(msg.Text, msg.Type);
+        var toast = new ActiveToast(msg);
         _toasts.Add(toast);
         InvokeAsync(async () =>
         {
@@ -31,22 +37,55 @@
             await Task.Delay(50);
             toast.Visible = true;
             StateHasChanged();
-            await Task.Delay(3500);
-            toast.Visible = false;
-            StateHasChanged();
-            await Task.Delay(400);
-            _toasts.Remove(toast);
-            StateHasChanged();
+
+            await Task.Delay(msg.DurationMs);
+
+            // The action (e.g. Undo) may have already dismissed this toast.
+            if (toast.Dismissed)
+            {
+                return;
+            }
+
+            await DismissAsync(toast);
         });
+    }
+
+    private async Task InvokeActionAsync(ActiveToast toast)
+    {
+        if (toast.Dismissed)
+        {
+            return;
+        }
+
+        toast.Dismissed = true;
+        if (toast.Message.OnAction is not null)
+        {
+            await toast.Message.OnAction.Invoke();
+        }
+
+        await DismissAsync(toast);
+    }
+
+    private async Task DismissAsync(ActiveToast toast)
+    {
+        toast.Dismissed = true;
+        toast.Visible = false;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(400);
+        _toasts.Remove(toast);
+        await InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
         => ToastService.OnShow -= HandleShow;
 
-    private class ActiveToast(string text, ToastType type)
+    private class ActiveToast(ToastMessage message)
     {
-        public string Text { get; } = text;
-        public ToastType Type { get; } = type;
+        public ToastMessage Message { get; } = message;
+        public string Text => Message.Text;
+        public ToastType Type => Message.Type;
+        public string? ActionLabel => Message.ActionLabel;
         public bool Visible { get; set; }
+        public bool Dismissed { get; set; }
     }
 }

@@ -3,6 +3,7 @@
 @using PrivateLibrary.Modules.Lending.Models
 @inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject PrivateLibrary.Services.DeferredDeleteService DeferredDelete
 @inject NavigationManager Navigation
 
 <PageTitle>Ausleihen</PageTitle>
@@ -95,7 +96,7 @@
                             <td class="actions">
                                 <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/{entry.Id}")">Details</a>
                                 <a class="btn btn-sm btn-outline-primary" href="@($"/lending/edit/{entry.Id}")">Bearbeiten</a>
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(entry.Id)">Löschen</button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(entry)">Löschen</button>
                             </td>
                         </tr>
                     }
@@ -106,37 +107,39 @@
         <div class="ui-mobile-cards">
             @foreach (var entry in FilteredItems)
             {
-                <article class="ui-mobile-card">
-                    <div class="ui-mobile-card-head">
-                        <div>
-                            <div class="ui-mobile-card-title">@entry.Title</div>
-                            <div class="ui-mobile-card-subtitle">@FormatItemNames(entry)</div>
+                <SwipeToDelete @key="entry.Id" DeleteLabel="Eintrag löschen" OnDelete="() => DeleteAsync(entry)">
+                    <article class="ui-mobile-card">
+                        <div class="ui-mobile-card-head">
+                            <div>
+                                <div class="ui-mobile-card-title">@entry.Title</div>
+                                <div class="ui-mobile-card-subtitle">@FormatItemNames(entry)</div>
+                            </div>
+                            <span class="status-pill @StatusClass(entry.Status)">@StatusLabel(entry.Status)</span>
                         </div>
-                        <span class="status-pill @StatusClass(entry.Status)">@StatusLabel(entry.Status)</span>
-                    </div>
-                    <div class="ui-mobile-meta">
-                        <div class="ui-mobile-meta-row"><span>Kategorie</span><span>@ValueOrFallback(entry.Category)</span></div>
-                        <div class="ui-mobile-meta-row"><span>Verleiher</span><span>@entry.Lender.DisplayName</span></div>
-                        <div class="ui-mobile-meta-row"><span>Entleiher</span><span>@entry.Borrower.DisplayName</span></div>
-                        <div class="ui-mobile-meta-row"><span>Fällig</span><span>@FormatDate(entry.DueDate)</span></div>
-                    </div>
-                    <div class="table-actions">
-                        <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/{entry.Id}")">Details</a>
-                        <a class="btn btn-sm btn-outline-primary" href="@($"/lending/edit/{entry.Id}")">Bearbeiten</a>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(entry.Id)">Löschen</button>
-                    </div>
-                </article>
+                        <div class="ui-mobile-meta">
+                            <div class="ui-mobile-meta-row"><span>Kategorie</span><span>@ValueOrFallback(entry.Category)</span></div>
+                            <div class="ui-mobile-meta-row"><span>Verleiher</span><span>@entry.Lender.DisplayName</span></div>
+                            <div class="ui-mobile-meta-row"><span>Entleiher</span><span>@entry.Borrower.DisplayName</span></div>
+                            <div class="ui-mobile-meta-row"><span>Fällig</span><span>@FormatDate(entry.DueDate)</span></div>
+                        </div>
+                        <div class="table-actions">
+                            <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/{entry.Id}")">Details</a>
+                            <a class="btn btn-sm btn-outline-primary" href="@($"/lending/edit/{entry.Id}")">Bearbeiten</a>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(entry)">Löschen</button>
+                        </div>
+                    </article>
+                </SwipeToDelete>
             }
         </div>
     }
 </div>
 
 @code {
-    private IReadOnlyList<LendingEntry>? _items;
+    private List<LendingEntry>? _items;
     private string _searchTerm = string.Empty;
     private LendingEntryStatus? _statusFilter;
 
-    private IEnumerable<LendingEntry> FilteredItems => (_items ?? Array.Empty<LendingEntry>())
+    private IEnumerable<LendingEntry> FilteredItems => (_items ?? Enumerable.Empty<LendingEntry>())
         .Where(entry => !_statusFilter.HasValue || entry.Status == _statusFilter)
         .Where(entry => string.IsNullOrWhiteSpace(_searchTerm)
             || Matches(entry.Title)
@@ -155,17 +158,33 @@
 
     private async Task LoadAsync()
     {
-        _items = await LendingService.GetAllAsync();
+        _items = (await LendingService.GetAllAsync()).ToList();
     }
 
-    private async Task DeleteAsync(int id)
+    // Swipe-to-delete with Undo: remove the entry from the list immediately, and
+    // only commit the DB delete once the Undo window elapses.
+    private Task DeleteAsync(LendingEntry entry)
     {
-        var deleted = await LendingService.DeleteAsync(id);
-        if (deleted)
+        var index = _items?.IndexOf(entry) ?? -1;
+        if (index < 0 || _items is null)
         {
-            ToastService.Success("Eintrag gelöscht.");
-            await LoadAsync();
+            return Task.CompletedTask;
         }
+
+        _items.RemoveAt(index);
+        var restoreIndex = index;
+
+        DeferredDelete.DeleteWithUndo(
+            $"„{ValueOrFallback(entry.Title)}“ gelöscht",
+            commit: () => LendingService.DeleteAsync(entry.Id),
+            restore: () =>
+            {
+                _items ??= new List<LendingEntry>();
+                _items.Insert(Math.Min(restoreIndex, _items.Count), entry);
+                return InvokeAsync(StateHasChanged);
+            });
+
+        return InvokeAsync(StateHasChanged);
     }
 
     private void OnStatusChanged(ChangeEventArgs e)
