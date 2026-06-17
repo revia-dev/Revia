@@ -1,7 +1,10 @@
 @using Microsoft.AspNetCore.Components.Forms
+@inject IJSRuntime JS
 
-@* Modern file picker: a "choose file" button plus an optional "take photo"
-   button that opens the device camera (capture). Both raise OnChange. *@
+@* Modern file picker: a "choose file" button plus an optional camera button.
+   When OnCapture is wired, the camera button opens a live webcam preview
+   (works on desktop and mobile). Otherwise it falls back to the device's
+   native capture dialog (mobile only). *@
 <div class="media-upload">
     <label class="media-btn @(Disabled ? "is-disabled" : "")">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z" fill="none"/><path d="M21 15l-5-5L5 21M3 7a2 2 0 0 1 2-2h4l2-2h2l2 2h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><circle cx="12" cy="13" r="3"/></svg>
@@ -18,20 +21,59 @@
 
     @if (AllowCamera)
     {
-        <label class="media-btn media-btn-camera @(Disabled ? "is-disabled" : "")">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
-            <span>@CameraLabel</span>
-            <InputFile class="media-input" OnChange="OnChange" accept="image/*" capture="environment" disabled="@Disabled" />
-        </label>
+        @if (OnCapture.HasDelegate)
+        {
+            <button type="button" class="media-btn media-btn-camera @(Disabled || _capturing ? "is-disabled" : "")"
+                    @onclick="CaptureLiveAsync" disabled="@(Disabled || _capturing)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
+                <span>@CameraLabel</span>
+            </button>
+        }
+        else
+        {
+            <label class="media-btn media-btn-camera @(Disabled ? "is-disabled" : "")">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
+                <span>@CameraLabel</span>
+                <InputFile class="media-input" OnChange="OnChange" accept="image/*" capture="environment" disabled="@Disabled" />
+            </label>
+        }
     }
 </div>
 
 @code {
     [Parameter] public EventCallback<InputFileChangeEventArgs> OnChange { get; set; }
+
+    /// <summary>Raised when a photo is captured from the live camera.</summary>
+    [Parameter] public EventCallback<CapturedPhoto> OnCapture { get; set; }
+
     [Parameter] public bool Multiple { get; set; }
     [Parameter] public string Accept { get; set; } = "image/*";
     [Parameter] public bool AllowCamera { get; set; } = true;
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public string LibraryLabel { get; set; } = "Datei wählen";
     [Parameter] public string CameraLabel { get; set; } = "Foto aufnehmen";
+
+    private bool _capturing;
+
+    private async Task CaptureLiveAsync()
+    {
+        if (_capturing) return;
+        _capturing = true;
+        try
+        {
+            var dataUrl = await JS.InvokeAsync<string?>("mediaCapture.openCamera");
+            if (string.IsNullOrEmpty(dataUrl)) return;
+
+            var comma = dataUrl.IndexOf(',');
+            if (comma < 0) return;
+
+            var bytes = Convert.FromBase64String(dataUrl[(comma + 1)..]);
+            var fileName = $"foto-{DateTime.Now:yyyyMMdd-HHmmss}.jpg";
+            await OnCapture.InvokeAsync(new CapturedPhoto(bytes, "image/jpeg", fileName));
+        }
+        finally
+        {
+            _capturing = false;
+        }
+    }
 }

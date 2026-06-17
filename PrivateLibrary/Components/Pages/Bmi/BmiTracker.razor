@@ -54,7 +54,8 @@
             </div>
             <div class="field field-wide">
                 <label>Schnappschuss-Foto (optional)</label>
-                <MediaUpload OnChange="OnPhotoSelected" />
+                <MediaUpload OnChange="OnPhotoSelected" OnCapture="OnPhotoCaptured" />
+                @if (_capturedPhoto is not null) { <div class="text-muted small">Foto aufgenommen ✓</div> }
             </div>
         </div>
         <div class="form-actions">
@@ -149,6 +150,7 @@
     private double? _formWeight;
     private double? _formHeight;
     private IBrowserFile? _photoFile;
+    private CapturedPhoto? _capturedPhoto;
     private bool _saving;
 
     private string _filterPersonId = string.Empty;
@@ -177,7 +179,9 @@
         _records = (await BmiService.GetAllAsync(string.IsNullOrWhiteSpace(_filterPersonId) ? null : _filterPersonId)).ToList();
     }
 
-    private void OnPhotoSelected(InputFileChangeEventArgs e) => _photoFile = e.File;
+    private void OnPhotoSelected(InputFileChangeEventArgs e) { _photoFile = e.File; _capturedPhoto = null; }
+
+    private void OnPhotoCaptured(CapturedPhoto p) { _capturedPhoto = p; _photoFile = null; ToastService.Success("Foto aufgenommen."); }
 
     private async Task AddAsync()
     {
@@ -190,7 +194,13 @@
             Stream? stream = null;
             string? contentType = null;
             string? name = null;
-            if (_photoFile is not null)
+            if (_capturedPhoto is not null)
+            {
+                stream = _capturedPhoto.OpenReadStream();
+                contentType = _capturedPhoto.ContentType;
+                name = _capturedPhoto.FileName;
+            }
+            else if (_photoFile is not null)
             {
                 stream = _photoFile.OpenReadStream(MaxPhotoBytes);
                 contentType = _photoFile.ContentType;
@@ -208,6 +218,7 @@
 
             _formWeight = null;
             _photoFile = null;
+            _capturedPhoto = null;
             ToastService.Success("Messung gespeichert.");
             await ReloadAsync();
         }

@@ -113,7 +113,7 @@
                 <h2 class="ui-section-title">Bilder</h2>
                 @if (!locked)
                 {
-                    <MediaUpload OnChange="OnPhotosSelected" Multiple="true" />
+                    <MediaUpload OnChange="OnPhotosSelected" OnCapture="OnPhotoCaptured" Multiple="true" />
                     @if (_uploading) { <div class="text-muted">Lade hoch ...</div> }
                 }
                 @if (_match.Photos.Count > 0)
@@ -271,6 +271,26 @@
                 await using var stream = file.OpenReadStream(MaxPhotoBytes);
                 await GameService.AddMatchPhotoAsync(MatchId.Value, stream, file.ContentType, file.Name);
             }
+            _match = await GameService.GetMatchAsync(MatchId.Value);
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error(ex.Message);
+        }
+        finally
+        {
+            _uploading = false;
+        }
+    }
+
+    private async Task OnPhotoCaptured(CapturedPhoto photo)
+    {
+        if (MatchId is null) return;
+        _uploading = true;
+        try
+        {
+            await using var stream = photo.OpenReadStream();
+            await GameService.AddMatchPhotoAsync(MatchId.Value, stream, photo.ContentType, photo.FileName);
             _match = await GameService.GetMatchAsync(MatchId.Value);
         }
         catch (Exception ex)

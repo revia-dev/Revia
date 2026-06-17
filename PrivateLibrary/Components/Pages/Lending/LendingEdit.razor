@@ -184,7 +184,7 @@
             @if (_id.HasValue)
             {
                 <div class="photo-upload">
-                    <MediaUpload OnChange="OnPhotosSelectedAsync" Multiple="true" />
+                    <MediaUpload OnChange="OnPhotosSelectedAsync" OnCapture="OnPhotoCapturedAsync" Multiple="true" />
                     @if (_uploadingPhotos)
                     {
                         <div class="photo-empty"><span class="spinner spinner-sm"></span> Fotos werden hochgeladen ...</div>
@@ -476,6 +476,32 @@
                     _photoError = $"'{file.Name}' konnte nicht hochgeladen werden: {ex.Message}";
                 }
             }
+        }
+        finally
+        {
+            _uploadingPhotos = false;
+        }
+    }
+
+    private async Task OnPhotoCapturedAsync(CapturedPhoto photo)
+    {
+        if (!_id.HasValue)
+        {
+            return;
+        }
+
+        _photoError = null;
+        _uploadingPhotos = true;
+
+        try
+        {
+            await using var stream = photo.OpenReadStream();
+            var added = await LendingService.AddPhotoAsync(_id.Value, stream, photo.ContentType, photo.FileName);
+            _photos.Add(added);
+        }
+        catch (Exception ex)
+        {
+            _photoError = $"Foto konnte nicht hochgeladen werden: {ex.Message}";
         }
         finally
         {

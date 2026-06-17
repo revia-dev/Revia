@@ -144,7 +144,7 @@
                                 }
                             </div>
                             <div class="profile-photo-controls">
-                                <MediaUpload OnChange="OnProfilePhotoSelectedAsync" />
+                                <MediaUpload OnChange="OnProfilePhotoSelectedAsync" OnCapture="OnProfilePhotoCapturedAsync" />
                                 @if (_uploadingPhoto)
                                 {
                                     <div class="photo-empty"><span class="spinner spinner-sm"></span> Bild wird hochgeladen ...</div>
@@ -343,11 +343,26 @@
             return;
         }
 
+        await using var stream = file.OpenReadStream(MaxPhotoBytes);
+        await StoreProfilePhotoAsync(stream, file.ContentType, file.Name);
+    }
+
+    private async Task OnProfilePhotoCapturedAsync(CapturedPhoto photo)
+    {
+        if (_id is null)
+            return;
+
+        _photoError = null;
+        await using var stream = photo.OpenReadStream();
+        await StoreProfilePhotoAsync(stream, photo.ContentType, photo.FileName);
+    }
+
+    private async Task StoreProfilePhotoAsync(Stream stream, string contentType, string fileName)
+    {
         _uploadingPhoto = true;
         try
         {
-            await using var stream = file.OpenReadStream(MaxPhotoBytes);
-            var result = await PersonService.SetProfilePhotoAsync(_id, stream, file.ContentType, file.Name);
+            var result = await PersonService.SetProfilePhotoAsync(_id!, stream, contentType, fileName);
             if (!result.Succeeded)
             {
                 _photoError = result.ErrorMessage ?? "Bild konnte nicht gespeichert werden.";
