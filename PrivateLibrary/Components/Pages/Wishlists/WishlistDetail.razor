@@ -5,6 +5,7 @@
 @attribute [Authorize]
 @inject WishlistService WishlistService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject NotificationService Notifications
 @inject NavigationManager Navigation
 
 <PageTitle>@(_wishlist?.Name ?? "Wunschzettel")</PageTitle>
@@ -111,8 +112,11 @@
     private async Task AddItemAsync()
     {
         if (string.IsNullOrWhiteSpace(_title)) { ToastService.Error("Bitte einen Titel eingeben."); return; }
+        var addedTitle = _title;
         await WishlistService.AddItemAsync(Id, _title, _url, _notes, _price);
         _title = string.Empty; _url = null; _notes = null; _price = null;
+        await Notifications.Notify(AppNotification.ItemAdded(
+            "Neuer Wunsch", $"„{addedTitle}“ wurde dem Wunschzettel hinzugefügt.", $"/wishlists/{Id}"));
         _wishlist = await WishlistService.GetWishlistAsync(Id);
     }
 

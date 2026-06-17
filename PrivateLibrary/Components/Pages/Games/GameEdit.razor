@@ -7,6 +7,7 @@
 @attribute [Authorize]
 @inject GameService GameService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject NotificationService Notifications
 @inject NavigationManager Navigation
 
 <PageTitle>@(Id is null ? "Neues Spiel" : "Spiel bearbeiten")</PageTitle>
@@ -89,7 +90,7 @@
                     }
                     @if (Id is not null)
                     {
-                        <InputFile OnChange="OnRulesSelected" accept="application/pdf,image/*" class="form-control" />
+                        <MediaUpload OnChange="OnRulesSelected" Accept="application/pdf,image/*" CameraLabel="Anleitung fotografieren" />
                         @if (_uploadingRules) { <div class="text-muted">Lade hoch ...</div> }
                     }
                     else
@@ -150,6 +151,8 @@
             {
                 var created = await GameService.CreateGameAsync(_game, _types, _scoreDefs);
                 ToastService.Success("Spiel angelegt.");
+                await Notifications.Notify(AppNotification.ItemAdded(
+                    "Neues Spiel", $"„{created.Name}“ wurde zur Sammlung hinzugefügt.", $"/games/{created.Id}"));
                 Navigation.NavigateTo($"/games/{created.Id}");
             }
             else

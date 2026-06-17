@@ -78,9 +78,7 @@
                                         }
                                     </div>
                                 }
-                                <label class="expansion-upload">
-                                    <InputFile OnChange="(e) => OnExpansionFileSelected(e, ex.Id)" accept="application/pdf,image/*" />
-                                </label>
+                                <MediaUpload OnChange="(e) => OnExpansionFileSelected(e, ex.Id)" Accept="application/pdf,image/*" CameraLabel="Foto" />
                             </div>
                             <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteExpansionAsync(ex.Id)">Entfernen</button>
                         </li>

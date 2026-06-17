@@ -1,0 +1,68 @@
+.media-upload {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.media-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-strong);
+    background: var(--surface-soft);
+    color: var(--text);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+}
+
+.media-btn:hover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.media-btn:active {
+    transform: translateY(1px);
+}
+
+.media-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+}
+
+.media-btn-camera {
+    color: #fff;
+    border-color: transparent;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff 12%), var(--accent));
+}
+
+.media-btn-camera:hover {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 80%, #fff 20%), var(--accent-hover));
+    border-color: transparent;
+}
+
+.media-btn.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* The real <input type=file> is hidden; the styled label triggers it. */
+.media-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+}

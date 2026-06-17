@@ -45,14 +45,14 @@
 .app-brand {
     display: grid;
     place-items: center;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 3.1rem;
+    height: 3.1rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--border);
     overflow: hidden;
     flex-shrink: 0;
     box-shadow: var(--shadow-sm);
-    margin-right: 0.5rem;
+    margin-right: 0.6rem;
 }
 
 .app-brand img {

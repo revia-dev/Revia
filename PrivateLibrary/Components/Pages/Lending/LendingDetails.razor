@@ -2,6 +2,7 @@
 @using PrivateLibrary.Modules.Lending.Models
 @inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject NotificationService Notifications
 @inject NavigationManager Navigation
 
 <PageTitle>Ausleih-Details</PageTitle>
@@ -164,6 +165,8 @@
         }
 
         ToastService.Success("Eintrag als zurückgegeben markiert.");
+        await Notifications.Notify(AppNotification.LendingReturned(
+            _item?.Title ?? PrimaryItemLabel(_item!), Id));
         _item = await LendingService.GetByIdAsync(Id);
     }
 

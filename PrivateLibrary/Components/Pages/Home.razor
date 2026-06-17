@@ -4,6 +4,7 @@
 @inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
 @inject DashboardService DashboardService
+@inject NotificationService Notifications
 
 <PageTitle>Dashboard</PageTitle>
 
@@ -399,15 +400,70 @@
     private LendingDashboardStats? _stats;
     private DashboardCounts? _counts;
 
+    private bool _overdueNotified;
+
     protected override async Task OnInitializedAsync()
     {
         _counts = await DashboardService.GetCountsAsync();
         await LoadAsync();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Surface overdue lendings once after the dashboard has loaded. When the
+        // tab is in the background this reaches the user as a device notification.
+        if (firstRender && !_overdueNotified && _stats is { OverdueEntries.Count: > 0 })
+        {
+            _overdueNotified = true;
+            await NotifyOverdueAsync();
+        }
+    }
+
     private async Task LoadAsync()
     {
         _stats = await LendingService.GetDashboardStatsAsync();
+    }
+
+    private async Task NotifyOverdueAsync()
+    {
+        if (_stats is null || _stats.OverdueEntries.Count == 0)
+        {
+            return;
+        }
+
+        if (_stats.OverdueEntries.Count == 1)
+        {
+            var entry = _stats.OverdueEntries[0];
+            await Notifications.Notify(AppNotification.LendingDue(
+                EntryLabel(entry), entry.DueDate ?? DateTime.Today, entry.Id, overdue: true));
+        }
+        else
+        {
+            await Notifications.Notify(new AppNotification
+            {
+                Title = "Überfällige Ausleihen",
+                Body = $"{_stats.OverdueEntries.Count} Ausleihen sind überfällig.",
+                Severity = NotificationSeverity.Error,
+                Kind = NotificationKind.LendingDue,
+                NavigateUrl = "/lending",
+                DurationMs = 8000
+            });
+        }
+    }
+
+    private static string EntryLabel(LendingEntry item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.Title))
+        {
+            return item.Title!;
+        }
+
+        var firstItem = item.Items
+            .OrderBy(x => x.SortOrder)
+            .Select(x => x.Name)
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+
+        return firstItem ?? "Ausleihe";
     }
 
     private static bool CanBeMarkedAsReturned(LendingEntry item)
@@ -442,6 +498,7 @@
         }
 
         ToastService.Success("Eintrag als zurückgegeben markiert.");
+        await Notifications.Notify(AppNotification.LendingReturned(EntryLabel(item), item.Id));
         await LoadAsync();
     }
 

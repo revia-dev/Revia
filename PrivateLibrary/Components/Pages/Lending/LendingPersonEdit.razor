@@ -144,7 +144,7 @@
                                 }
                             </div>
                             <div class="profile-photo-controls">
-                                <InputFile OnChange="OnProfilePhotoSelectedAsync" accept="image/*" class="form-control" />
+                                <MediaUpload OnChange="OnProfilePhotoSelectedAsync" />
                                 @if (_uploadingPhoto)
                                 {
                                     <div class="photo-empty"><span class="spinner spinner-sm"></span> Bild wird hochgeladen ...</div>

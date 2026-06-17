@@ -113,7 +113,7 @@
                 <h2 class="ui-section-title">Bilder</h2>
                 @if (!locked)
                 {
-                    <InputFile OnChange="OnPhotosSelected" multiple accept="image/*" class="form-control" />
+                    <MediaUpload OnChange="OnPhotosSelected" Multiple="true" />
                     @if (_uploading) { <div class="text-muted">Lade hoch ...</div> }
                 }
                 @if (_match.Photos.Count > 0)
