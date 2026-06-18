@@ -44,11 +44,21 @@ else
                     <div class="person-name">@p.DisplayName</div>
                     @if (!string.IsNullOrWhiteSpace(p.Email)) { <div class="wl-muted">@p.Email</div> }
                     @if (!string.IsNullOrWhiteSpace(p.Phone)) { <div class="wl-muted">@p.Phone</div> }
-                    @if (Connectivity.IsOnline)
-                    {
-                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => ShareAsync(p)">
-                            @(_copiedId == p.Id ? "Link kopiert ✓" : "Teilen-Link kopieren")
+                    <div class="person-actions">
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => ToggleQr(p.Id)">
+                            @(_qrId == p.Id ? "QR ausblenden" : "QR-Code")
                         </button>
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => CopyAsync(p)">
+                            @(_copiedId == p.Id ? "Link kopiert ✓" : "Link kopieren")
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => ShareAsync(p)">Teilen</button>
+                    </div>
+                    @if (_qrId == p.Id)
+                    {
+                        <div class="person-qr">
+                            <QrCode Value="@ShareUrl(p)" Size="180" />
+                            <span class="wl-muted">Im anderen Haushalt scannen, um @p.DisplayName zu übernehmen.</span>
+                        </div>
                     }
                 </div>
             }
@@ -63,6 +73,7 @@ else
     private List<PersonCardDto> _people = new();
     private List<LinkedHouseholdDto> _linked = new();
     private string? _copiedId;
+    private string? _qrId;
     private bool _loading = true;
 
     protected override async Task OnInitializedAsync()
@@ -72,11 +83,21 @@ else
         _loading = false;
     }
 
-    private async Task ShareAsync(PersonCardDto p)
+    private string ShareUrl(PersonCardDto p) => $"{Navigation.BaseUri.TrimEnd('/')}/persons/link/{p.LinkToken}";
+
+    private void ToggleQr(string id) => _qrId = _qrId == id ? null : id;
+
+    private async Task CopyAsync(PersonCardDto p)
     {
-        var url = $"{Navigation.BaseUri.TrimEnd('/')}/persons/link/{p.LinkToken}";
-        var ok = await JS.InvokeAsync<bool>("reviaCopy", url);
+        var ok = await JS.InvokeAsync<bool>("reviaCopy", ShareUrl(p));
         _copiedId = ok ? p.Id : null;
         StateHasChanged();
+    }
+
+    private async Task ShareAsync(PersonCardDto p)
+    {
+        // Native share sheet (incl. AirDrop where available); falls back to copy.
+        var shared = await JS.InvokeAsync<bool>("reviaShare", $"{p.DisplayName} übernehmen", ShareUrl(p));
+        if (!shared) { await CopyAsync(p); }
     }
 }

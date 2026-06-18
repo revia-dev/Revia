@@ -341,3 +341,8 @@ a.mv-card:hover { transform: translateY(-2px); }
 .movie-detail-plot { line-height: 1.55; }
 .badge-soft { background: rgba(0,0,0,0.05); }
 @media (max-width: 640px) { .movie-detail { grid-template-columns: 1fr; } }
+
+/* ---- QR code + person share actions ---- */
+.person-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.3rem; }
+.person-qr { margin-top: 0.6rem; display: grid; gap: 0.4rem; justify-items: center; text-align: center; }
+.qr-code { background: #fff; border-radius: 0.6rem; padding: 0.5rem; max-width: 100%; height: auto; }

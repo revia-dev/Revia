@@ -1,0 +1,26 @@
+@inject IJSRuntime JS
+
+@if (_dataUrl is not null)
+{
+    <img class="qr-code @CssClass" src="@_dataUrl" alt="QR-Code" width="@Size" height="@Size" />
+}
+
+@code {
+    /// <summary>The text to encode (e.g. a share URL or a transaction payload).</summary>
+    [Parameter, EditorRequired] public string? Value { get; set; }
+    [Parameter] public int Size { get; set; } = 180;
+    [Parameter] public string CssClass { get; set; } = "";
+
+    private string? _dataUrl;
+    private string? _rendered;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Re-render only when the value actually changes.
+        if (Value == _rendered) { return; }
+        _rendered = Value;
+        _dataUrl = string.IsNullOrEmpty(Value)
+            ? null
+            : await JS.InvokeAsync<string>("reviaQr", Value);
+    }
+}
