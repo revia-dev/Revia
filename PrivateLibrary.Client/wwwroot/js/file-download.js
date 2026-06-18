@@ -18,4 +18,14 @@
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     };
+
+    // Copies text to the clipboard; returns true on success.
+    window.reviaCopy = async function (text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch {
+            return false;
+        }
+    };
 })();

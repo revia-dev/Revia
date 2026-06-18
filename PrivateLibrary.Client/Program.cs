@@ -49,6 +49,7 @@ builder.Services.AddScoped<PrivateLibrary.Client.Features.Access.LayoutClientSer
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Access.AdminPermissionsClientService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Media.PhotoCacheService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Games.GameFilesClientService>();
+builder.Services.AddScoped<PrivateLibrary.Client.Features.Persons.PersonsClientService>();
 
 var host = builder.Build();
 

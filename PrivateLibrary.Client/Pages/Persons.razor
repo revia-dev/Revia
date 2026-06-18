@@ -1,0 +1,82 @@
+@page "/persons"
+@attribute [Authorize]
+@using PrivateLibrary.Client.Features.Persons
+@using PrivateLibrary.Client.Offline
+@using PrivateLibrary.Shared.Persons
+@inject PersonsClientService PersonsSvc
+@inject ConnectivityService Connectivity
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Personen – Revia</PageTitle>
+
+<ModuleGuard ModuleKey="persons">
+
+<div class="wl-head">
+    <h1>Personen</h1>
+    @if (!Connectivity.IsOnline) { <span class="wl-offline">⚡ Offline</span> }
+</div>
+
+@if (_loading)
+{
+    <p class="wl-muted">Lade…</p>
+}
+else
+{
+    @if (_linked.Count > 0)
+    {
+        <div class="glass linked-households">
+            <span class="wl-muted">Verknüpfte Haushalte (geteilte Ausleihen):</span>
+            @foreach (var h in _linked) { <span class="badge">@h.Name</span> }
+        </div>
+    }
+
+    @if (_people.Count == 0)
+    {
+        <p class="wl-muted">Keine Personen.</p>
+    }
+    else
+    {
+        <div class="person-grid">
+            @foreach (var p in _people)
+            {
+                <div class="person-card glass" @key="p.Id">
+                    <div class="person-name">@p.DisplayName</div>
+                    @if (!string.IsNullOrWhiteSpace(p.Email)) { <div class="wl-muted">@p.Email</div> }
+                    @if (!string.IsNullOrWhiteSpace(p.Phone)) { <div class="wl-muted">@p.Phone</div> }
+                    @if (Connectivity.IsOnline)
+                    {
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => ShareAsync(p)">
+                            @(_copiedId == p.Id ? "Link kopiert ✓" : "Teilen-Link kopieren")
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+        <p class="wl-muted">Teile den Link einer Person mit einem anderen Haushalt. Dort kann sie übernommen werden – danach sehen beide Haushalte ihre gemeinsamen Ausleihen.</p>
+    }
+}
+
+</ModuleGuard>
+
+@code {
+    private List<PersonCardDto> _people = new();
+    private List<LinkedHouseholdDto> _linked = new();
+    private string? _copiedId;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _people = await PersonsSvc.GetAllAsync();
+        _linked = await PersonsSvc.GetLinkedHouseholdsAsync();
+        _loading = false;
+    }
+
+    private async Task ShareAsync(PersonCardDto p)
+    {
+        var url = $"{Navigation.BaseUri.TrimEnd('/')}/persons/link/{p.LinkToken}";
+        var ok = await JS.InvokeAsync<bool>("reviaCopy", url);
+        _copiedId = ok ? p.Id : null;
+        StateHasChanged();
+    }
+}

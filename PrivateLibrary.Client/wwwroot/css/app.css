@@ -309,3 +309,12 @@ code {
 .expansion-name { font-weight: 700; }
 .expansion-add { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.4rem; }
 .file-dl { background: none; border: none; color: #007aff; text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
+
+/* ---- 9c: persons + household links ---- */
+.linked-households { padding: 0.6rem 0.85rem; margin-bottom: 1rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.person-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; }
+.person-card { padding: 0.85rem; display: grid; gap: 0.3rem; align-content: start; }
+.person-name { font-weight: 700; }
+.link-facts { list-style: none; margin: 0.5rem 0; padding: 0; display: grid; gap: 0.3rem; }
+.link-facts li { display: flex; gap: 0.5rem; align-items: baseline; }
+.link-facts span { min-width: 5rem; }

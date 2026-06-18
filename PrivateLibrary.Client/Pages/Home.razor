@@ -133,7 +133,7 @@ else
         ["games"] = ("Spiele", "/games"),
         ["bmi"] = ("BMI-Messungen", "/bmi"),
         ["wishlists"] = ("offene Wünsche", "/wishlists"),
-        ["persons"] = ("Personen", "/lending"),
+        ["persons"] = ("Personen", "/persons"),
     };
 
     private string TileLabel(string key) => TileMeta.TryGetValue(key, out var m) ? m.Label : key;
