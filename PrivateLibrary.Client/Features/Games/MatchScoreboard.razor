@@ -1,0 +1,182 @@
+@using System.Text.Json
+@using PrivateLibrary.Client.Features.Media
+@using PrivateLibrary.Shared.Games
+@inject IJSRuntime JS
+
+@*
+    Live scoreboard for a running match: each player's score can be counted up/down
+    during play (card game / board game style), and points can be handed to another
+    device via a QR code / share payload that the other device pastes back in.
+    Scores are reported up via OnChanged so the page can persist them.
+*@
+
+<div class="scoreboard">
+    <div class="sb-controls">
+        <label class="wl-muted">Schrittweite</label>
+        <input class="form-control sb-step" type="number" min="1" @bind="_step" />
+    </div>
+
+    <div class="sb-players">
+        @foreach (var p in Participants)
+        {
+            <div class="sb-player glass" @key="p.PersonId">
+                <div class="sb-name">@DisplayName(p)</div>
+                <div class="sb-score">@FormatScore(p.Score)</div>
+                <div class="sb-buttons">
+                    <button class="btn btn-outline-danger btn-sm" @onclick="() => Adjust(p, -_step)">−@_step</button>
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => Adjust(p, +_step)">+@_step</button>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="sb-transfer">
+        <h3 class="ui-section-title">Punkte übertragen</h3>
+        <div class="sb-transfer-form">
+            <select class="form-control" @bind="_fromId">
+                <option value="">Von…</option>
+                @foreach (var p in Participants) { <option value="@p.PersonId">@DisplayName(p)</option> }
+            </select>
+            <select class="form-control" @bind="_toId">
+                <option value="">An…</option>
+                @foreach (var p in Participants) { <option value="@p.PersonId">@DisplayName(p)</option> }
+            </select>
+            <input class="form-control" type="number" min="1" placeholder="Betrag" @bind="_amount" />
+            <button class="btn btn-primary" disabled="@(!CanCreateTransfer)" @onclick="CreateTransferAsync">QR erzeugen</button>
+        </div>
+
+        @if (_transferPayload is not null)
+        {
+            <div class="sb-transfer-out">
+                <QrCode Value="@_transferPayload" Size="200" />
+                <p class="wl-muted">@_transferSummary</p>
+                <div class="sb-transfer-actions">
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="ShareTransferAsync">Teilen</button>
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="CopyTransferAsync">@(_copied ? "Kopiert ✓" : "Code kopieren")</button>
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="ApplyOwnTransfer">Auf diesem Gerät anwenden</button>
+                </div>
+            </div>
+        }
+
+        <div class="sb-receive">
+            <label class="wl-muted">Übertragung empfangen (Code einfügen)</label>
+            <div class="sb-receive-form">
+                <input class="form-control" placeholder="Übertragungs-Code…" @bind="_receiveCode" />
+                <button class="btn btn-outline-secondary" @onclick="ReceiveTransfer">Anwenden</button>
+            </div>
+            @if (_receiveMsg is not null) { <span class="@(_receiveOk ? "wl-syncing" : "login-error")">@_receiveMsg</span> }
+        </div>
+    </div>
+</div>
+
+@code {
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    [Parameter, EditorRequired] public int MatchId { get; set; }
+    [Parameter, EditorRequired] public List<MatchParticipantInputDto> Participants { get; set; } = new();
+    /// <summary>Resolves a person id to a display name.</summary>
+    [Parameter] public Func<string, string>? NameOf { get; set; }
+    /// <summary>Raised after any score change so the page can persist + re-render.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private double _step = 100;
+    private string _fromId = "";
+    private string _toId = "";
+    private double? _amount;
+    private string? _transferPayload;
+    private string? _transferSummary;
+    private bool _copied;
+    private string _receiveCode = "";
+    private string? _receiveMsg;
+    private bool _receiveOk;
+
+    // Transfers already applied on this device, so a re-scanned QR is ignored.
+    private readonly HashSet<string> _applied = new(StringComparer.Ordinal);
+
+    private bool CanCreateTransfer =>
+        !string.IsNullOrEmpty(_fromId) && !string.IsNullOrEmpty(_toId)
+        && _fromId != _toId && _amount is > 0;
+
+    private string DisplayName(MatchParticipantInputDto p)
+        => NameOf?.Invoke(p.PersonId) is { Length: > 0 } n ? n : p.PersonId;
+
+    private static string FormatScore(double? s)
+        => s is null ? "0" : (s == Math.Floor(s.Value) ? s.Value.ToString("0") : s.Value.ToString("0.##"));
+
+    private async Task Adjust(MatchParticipantInputDto p, double delta)
+    {
+        p.Score = (p.Score ?? 0) + delta;
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task CreateTransferAsync()
+    {
+        if (!CanCreateTransfer) return;
+        var transfer = new PointTransfer
+        {
+            MatchId = MatchId,
+            FromPersonId = _fromId,
+            ToPersonId = _toId,
+            Amount = _amount!.Value,
+            FromName = NameOf?.Invoke(_fromId),
+            ToName = NameOf?.Invoke(_toId)
+        };
+        _transferPayload = JsonSerializer.Serialize(transfer, Json);
+        _transferSummary = $"{transfer.FromName ?? _fromId} → {transfer.ToName ?? _toId}: {FormatScore(transfer.Amount)}";
+        _copied = false;
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task ShareTransferAsync()
+    {
+        if (_transferPayload is null) return;
+        var ok = await JS.InvokeAsync<bool>("reviaShare", "Punkte-Übertragung", _transferPayload);
+        if (!ok) { await CopyTransferAsync(); }
+    }
+
+    private async Task CopyTransferAsync()
+    {
+        if (_transferPayload is null) return;
+        _copied = await JS.InvokeAsync<bool>("reviaCopy", _transferPayload);
+    }
+
+    /// <summary>Applies the transfer we just created on this same device (when both
+    /// players share one device).</summary>
+    private async Task ApplyOwnTransfer()
+    {
+        if (_transferPayload is not null) { await ApplyAsync(_transferPayload); }
+    }
+
+    private async Task ReceiveTransfer()
+    {
+        if (string.IsNullOrWhiteSpace(_receiveCode)) return;
+        await ApplyAsync(_receiveCode.Trim());
+        _receiveCode = "";
+    }
+
+    private async Task ApplyAsync(string payload)
+    {
+        PointTransfer? t;
+        try { t = JsonSerializer.Deserialize<PointTransfer>(payload, Json); }
+        catch { t = null; }
+
+        if (t is null || t.Amount <= 0)
+        {
+            _receiveOk = false; _receiveMsg = "Ungültiger Code."; return;
+        }
+        if (!_applied.Add(t.TransactionId))
+        {
+            _receiveOk = false; _receiveMsg = "Diese Übertragung wurde bereits angewendet."; return;
+        }
+
+        var from = Participants.FirstOrDefault(p => p.PersonId == t.FromPersonId);
+        var to = Participants.FirstOrDefault(p => p.PersonId == t.ToPersonId);
+        // Apply to whichever players are present on this device's match.
+        if (from is not null) { from.Score = (from.Score ?? 0) - t.Amount; }
+        if (to is not null) { to.Score = (to.Score ?? 0) + t.Amount; }
+
+        _receiveOk = true;
+        _receiveMsg = $"Übertragen: {t.FromName ?? t.FromPersonId} → {t.ToName ?? t.ToPersonId} ({FormatScore(t.Amount)}).";
+        await OnChanged.InvokeAsync();
+    }
+}

@@ -84,6 +84,17 @@
         {
             <p class="wl-muted">Fotos kannst du nach dem Speichern der Partie hinzufügen.</p>
         }
+
+        @if (_edit.Id > 0)
+        {
+            <details class="sb-details" open="@_scoreboardOpen">
+                <summary @onclick:preventDefault @onclick="() => _scoreboardOpen = !_scoreboardOpen">
+                    Live-Wertung & Punkte-Tausch
+                </summary>
+                <MatchScoreboard MatchId="_edit.Id" Participants="_edit.Participants"
+                                 NameOf="NameOf" OnChanged="OnScoreboardChangedAsync" />
+            </details>
+        }
     </div>
 }
 
@@ -150,6 +161,7 @@ else
     private List<PersonLookupDto> _persons = new();
     private SaveMatchRequest? _edit;
     private List<string> _editPhotos = new();
+    private bool _scoreboardOpen;
     private string? _gameName;
     private bool _loading = true;
     private int _pending;
@@ -169,6 +181,19 @@ else
     private async Task ReloadAsync()
     {
         _matches = await MatchSvc.GetForGameAsync(GameId);
+        StateHasChanged();
+    }
+
+    private string NameOf(string personId)
+        => _persons.FirstOrDefault(p => p.Id == personId)?.DisplayName ?? personId;
+
+    /// <summary>Persists the live scoreboard's scores (optimistic + queued).</summary>
+    private async Task OnScoreboardChangedAsync()
+    {
+        if (_edit is null) return;
+        var names = _persons.ToDictionary(p => p.Id, p => p.DisplayName);
+        await MatchSvc.SaveAsync(_edit, names);
+        await ReloadAsync();
         StateHasChanged();
     }
 

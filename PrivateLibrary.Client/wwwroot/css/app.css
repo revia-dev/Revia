@@ -391,3 +391,23 @@ a.mv-card:hover { transform: translateY(-2px); }
 .person-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.3rem; }
 .person-qr { margin-top: 0.6rem; display: grid; gap: 0.4rem; justify-items: center; text-align: center; }
 .qr-code { background: var(--surface); border-radius: 0.6rem; padding: 0.5rem; max-width: 100%; height: auto; }
+
+/* ---- match scoreboard (dynamic scoring + transfer) ---- */
+.sb-details { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.75rem; }
+.sb-details > summary { cursor: pointer; font-weight: 600; }
+.scoreboard { display: grid; gap: 1rem; margin-top: 0.75rem; }
+.sb-controls { display: flex; align-items: center; gap: 0.5rem; }
+.sb-step { width: 6rem; }
+.sb-players { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.6rem; }
+.sb-player { padding: 0.75rem; display: grid; gap: 0.4rem; justify-items: center; text-align: center; }
+.sb-name { font-weight: 600; }
+.sb-score { font-size: 1.8rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sb-buttons { display: flex; gap: 0.4rem; }
+.sb-transfer { display: grid; gap: 0.5rem; }
+.sb-transfer-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.sb-transfer-form .form-control { max-width: 12rem; }
+.sb-transfer-out { display: grid; gap: 0.4rem; justify-items: center; text-align: center; margin: 0.5rem 0; }
+.sb-transfer-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; }
+.sb-receive { display: grid; gap: 0.3rem; }
+.sb-receive-form { display: flex; gap: 0.5rem; }
+.sb-receive-form .form-control { flex: 1; }
