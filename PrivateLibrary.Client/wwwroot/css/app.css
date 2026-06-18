@@ -223,3 +223,15 @@ code {
 .match-participants { list-style: none; margin: 0.6rem 0 0; padding: 0; display: grid; gap: 0.3rem; }
 .match-participants li { display: flex; justify-content: space-between; padding: 0.3rem 0.5rem; border: 1px solid #eee; border-radius: 8px; }
 .match-score { font-weight: 700; color: #007aff; font-variant-numeric: tabular-nums; }
+
+/* ---- Lending (Phase 5) ---- */
+.lend-card { padding: 0.9rem; margin-bottom: 0.7rem; }
+.lend-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.lend-title { font-weight: 700; }
+.lend-meta { display: flex; flex-wrap: wrap; gap: 0.5rem; color: #888; font-size: 0.85rem; align-items: center; margin-top: 0.4rem; }
+.lend-meta .badge { background: #eef; color: #335; border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.75rem; }
+.status-pill { display: inline-block; margin-left: 0.5rem; padding: 0.1rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.st-active { background: #e7f0ff; color: #1d4ed8; }
+.st-overdue { background: #fde7e7; color: #b91c1c; }
+.st-returned { background: #e6f6ea; color: #1f7a45; }
+.st-other { background: #eee; color: #555; }

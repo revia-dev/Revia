@@ -1,0 +1,227 @@
+@page "/lending"
+@attribute [Authorize]
+@using PrivateLibrary.Client.Features.Lending
+@using PrivateLibrary.Client.Offline
+@using PrivateLibrary.Shared.Lending
+@using PrivateLibrary.Shared.Persons
+@inject LendingClientService LendSvc
+@inject ConnectivityService Connectivity
+@inject SyncEngine Sync
+@implements IDisposable
+
+<PageTitle>Ausleihen – Revia</PageTitle>
+
+<div class="wl-head">
+    <h1>Ausleihen</h1>
+    @if (!Connectivity.IsOnline)
+    {
+        <span class="wl-offline">⚡ Offline@(_pending > 0 ? $" · {_pending} ausstehend" : "")</span>
+    }
+    else if (_pending > 0)
+    {
+        <span class="wl-syncing">Synchronisiere @_pending…</span>
+    }
+    <button class="btn btn-primary" @onclick="StartCreate">Neu anlegen</button>
+</div>
+
+@if (_edit is not null)
+{
+    <div class="glass game-editor">
+        <h2 class="ui-section-title">@(_edit.Id > 0 ? "Eintrag bearbeiten" : "Neuer Eintrag")</h2>
+        <div class="game-form">
+            <div class="game-field game-wide"><label>Titel</label>
+                <input class="form-control" @bind="_edit.Title" @bind:event="oninput" /></div>
+            <div class="game-field game-wide"><label>Gegenstände (eine pro Zeile)</label>
+                <textarea class="form-control" rows="2" @bind="_itemsText"></textarea></div>
+            <div class="game-field"><label>Verleiher</label>
+                <select class="form-control" @bind="_edit.LenderId">
+                    <option value="">Person…</option>
+                    @foreach (var p in Persons) { <option value="@p.Id">@p.DisplayName</option> }
+                </select></div>
+            <div class="game-field"><label>Entleiher</label>
+                <select class="form-control" @bind="_edit.BorrowerId">
+                    <option value="">Person…</option>
+                    @foreach (var p in Persons) { <option value="@p.Id">@p.DisplayName</option> }
+                </select></div>
+            <div class="game-field"><label>Ausleihdatum</label>
+                <input class="form-control" type="date" @bind="_edit.LoanDate" /></div>
+            <div class="game-field"><label>Rückgabe bis</label>
+                <input class="form-control" type="date" @bind="_dueDate" /></div>
+            <div class="game-field"><label>Kategorie</label>
+                <select class="form-control" @bind="_categoryId">
+                    <option value="0">—</option>
+                    @foreach (var c in _categories) { <option value="@c.Id">@c.Name</option> }
+                </select></div>
+        </div>
+        <div class="game-actions">
+            <button class="btn btn-primary" @onclick="SaveAsync" disabled="@(!CanSave)">Speichern</button>
+            <button class="btn btn-outline-secondary" @onclick="() => _edit = null">Abbrechen</button>
+        </div>
+    </div>
+}
+
+<div class="wl-create glass">
+    <input class="form-control" placeholder="Suchen…" @bind="_search" @bind:event="oninput" @bind:after="StateHasChanged" />
+    <select class="form-control" @bind="_statusFilter">
+        <option value="">Alle Status</option>
+        <option value="@LendingStatusDto.Active">Aktiv</option>
+        <option value="@LendingStatusDto.Overdue">Überfällig</option>
+        <option value="@LendingStatusDto.Returned">Zurückgegeben</option>
+    </select>
+</div>
+
+@if (_loading)
+{
+    <p class="wl-muted">Lade…</p>
+}
+else if (!Filtered.Any())
+{
+    <p class="wl-muted">Keine Einträge.</p>
+}
+else
+{
+    @foreach (var e in Filtered)
+    {
+        <div class="lend-card glass" @key="e.Id">
+            <div class="lend-head">
+                <div>
+                    <span class="lend-title">@(string.IsNullOrWhiteSpace(e.Title) ? string.Join(", ", e.Items) : e.Title)</span>
+                    <span class="status-pill @StatusClass(e.Status)">@StatusLabel(e.Status)</span>
+                </div>
+                <div class="match-actions">
+                    @if (e.Status != LendingStatusDto.Returned)
+                    {
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => MarkReturnedAsync(e.Id)">Zurückgegeben</button>
+                    }
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => StartEdit(e)">Bearbeiten</button>
+                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(e.Id)">Löschen</button>
+                </div>
+            </div>
+            <div class="lend-meta">
+                @if (e.Items.Count > 0) { <span>@string.Join(", ", e.Items)</span> }
+                <span>@e.LenderName → @e.BorrowerName</span>
+                @if (e.DueDate is not null) { <span>fällig @e.DueDate.Value.ToString("dd.MM.yyyy")</span> }
+                @foreach (var c in e.CategoryNames) { <span class="badge">@c</span> }
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<LendingEntryDto> _entries = new();
+    private List<LendingCategoryDto> _categories = new();
+    private List<PersonLookupDto> _persons = new();
+    private SaveLendingEntryRequest? _edit;
+    private string _itemsText = string.Empty;
+    private DateTime? _dueDate;
+    private int _categoryId;
+    private string _search = string.Empty;
+    private string _statusFilter = string.Empty;
+    private bool _loading = true;
+    private int _pending;
+
+    private IEnumerable<PersonLookupDto> Persons => _persons.Where(p => !string.IsNullOrEmpty(p.Id));
+
+    private bool CanSave => _edit is not null && !string.IsNullOrEmpty(_edit.LenderId)
+        && !string.IsNullOrEmpty(_edit.BorrowerId) && _edit.LenderId != _edit.BorrowerId;
+
+    private IEnumerable<LendingEntryDto> Filtered => _entries
+        .Where(e => string.IsNullOrEmpty(_statusFilter) || e.Status.ToString() == _statusFilter)
+        .Where(e => string.IsNullOrWhiteSpace(_search)
+            || (e.Title?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false)
+            || e.Items.Any(i => i.Contains(_search, StringComparison.OrdinalIgnoreCase))
+            || e.LenderName.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || e.BorrowerName.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Connectivity.Changed += OnConnectivityChanged;
+        Sync.Synced += OnSynced;
+        _persons = await LendSvc.GetPersonsAsync();
+        _categories = await LendSvc.GetCategoriesAsync();
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+        _loading = false;
+    }
+
+    private async Task ReloadAsync()
+    {
+        _entries = await LendSvc.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void StartCreate()
+    {
+        _edit = new SaveLendingEntryRequest { LoanDate = DateTime.Today };
+        _itemsText = string.Empty; _dueDate = null; _categoryId = 0;
+    }
+
+    private void StartEdit(LendingEntryDto e)
+    {
+        _edit = new SaveLendingEntryRequest
+        {
+            Id = e.Id, Title = e.Title, Description = e.Description,
+            LenderId = e.LenderId, BorrowerId = e.BorrowerId,
+            LoanDate = e.LoanDate, ReturnedAt = e.ReturnedAt, Notes = e.Notes
+        };
+        _itemsText = string.Join("\n", e.Items);
+        _dueDate = e.DueDate;
+        _categoryId = e.CategoryIds.FirstOrDefault();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_edit is null || !CanSave) return;
+        _edit.Items = _itemsText.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        _edit.DueDate = _dueDate;
+        _edit.CategoryIds = _categoryId > 0 ? new() { _categoryId } : new();
+
+        var lenderName = _persons.FirstOrDefault(p => p.Id == _edit.LenderId)?.DisplayName ?? "";
+        var borrowerName = _persons.FirstOrDefault(p => p.Id == _edit.BorrowerId)?.DisplayName ?? "";
+        var catNames = _categoryId > 0
+            ? _categories.Where(c => c.Id == _categoryId).Select(c => c.Name).ToList()
+            : new List<string>();
+
+        await LendSvc.SaveAsync(_edit, lenderName, borrowerName, catNames);
+        _edit = null;
+        await AfterWriteAsync();
+    }
+
+    private async Task MarkReturnedAsync(int id) { await LendSvc.MarkReturnedAsync(id); await AfterWriteAsync(); }
+    private async Task DeleteAsync(int id) { await LendSvc.DeleteAsync(id); await AfterWriteAsync(); }
+
+    private async Task AfterWriteAsync()
+    {
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+        StateHasChanged();
+    }
+
+    private static string StatusLabel(LendingStatusDto s) => s switch
+    {
+        LendingStatusDto.Active => "Aktiv",
+        LendingStatusDto.Overdue => "Überfällig",
+        LendingStatusDto.Returned => "Zurückgegeben",
+        LendingStatusDto.Lost => "Verloren",
+        LendingStatusDto.GivenAway => "Verschenkt",
+        _ => s.ToString()
+    };
+
+    private static string StatusClass(LendingStatusDto s) => s switch
+    {
+        LendingStatusDto.Active => "st-active",
+        LendingStatusDto.Overdue => "st-overdue",
+        LendingStatusDto.Returned => "st-returned",
+        _ => "st-other"
+    };
+
+    private async void OnConnectivityChanged(bool online) => await InvokeAsync(ReloadAsync);
+    private async void OnSynced(SyncResult result)
+        => await InvokeAsync(async () => { await ReloadAsync(); _pending = result.Remaining; StateHasChanged(); });
+
+    public void Dispose()
+    {
+        Connectivity.Changed -= OnConnectivityChanged;
+        Sync.Synced -= OnSynced;
+    }
+}
