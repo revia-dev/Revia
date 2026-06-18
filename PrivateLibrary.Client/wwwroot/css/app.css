@@ -178,3 +178,21 @@ code {
 .bmi-table { width: 100%; border-collapse: collapse; }
 .bmi-table th, .bmi-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #eee; text-align: left; font-size: 0.9rem; }
 .bmi-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
+
+/* ---- TV (Phase 5) ---- */
+.tv-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.tv-tab { padding: 0.4rem 1rem; border: 1px solid #ccc; border-radius: 999px; background: #fff; cursor: pointer; }
+.tv-tab.is-active { background: #007aff; color: #fff; border-color: #007aff; }
+.tv-add { padding: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-bottom: 1.2rem; }
+.tv-add .form-control { padding: 0.45rem 0.7rem; border: 1px solid #ccc; border-radius: 10px; }
+.tv-share { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.9rem; }
+.tv-day { margin-bottom: 1rem; }
+.tv-day-head { font-weight: 700; margin-bottom: 0.4rem; }
+.tv-entry { display: flex; align-items: center; gap: 0.8rem; padding: 0.5rem 0.7rem; border: 1px solid #eee; border-radius: 10px; margin-bottom: 0.35rem; }
+.tv-time { font-weight: 700; color: #007aff; min-width: 3rem; }
+.tv-body { flex: 1 1 auto; }
+.tv-title { font-weight: 600; }
+.tv-meta { display: flex; gap: 0.4rem; color: #888; font-size: 0.85rem; align-items: center; }
+.tv-meta .badge { background: #eef; color: #335; border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.75rem; }
+.tv-meta .badge-ok { background: #e6f6ea; color: #1f7a45; }
+.tv-actions { display: flex; gap: 0.35rem; flex: 0 0 auto; }

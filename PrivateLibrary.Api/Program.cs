@@ -80,6 +80,7 @@ builder.Services.AddScoped<PrivateLibrary.Modules.Bmi.BmiService>();
 builder.Services.AddSingleton<PrivateLibrary.Modules.Bmi.IBmiPhotoStorage, PrivateLibrary.Modules.Bmi.BmiPhotoStorage>();
 builder.Services.AddScoped<IPersonService, PersonService>();
 builder.Services.AddSingleton<IPersonPhotoStorage, PersonPhotoStorage>();
+builder.Services.AddScoped<TvGuideService>();
 
 var app = builder.Build();
 

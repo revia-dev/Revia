@@ -1,0 +1,163 @@
+@page "/tv"
+@attribute [Authorize]
+@using PrivateLibrary.Client.Features.Tv
+@using PrivateLibrary.Client.Offline
+@using PrivateLibrary.Shared.Tv
+@inject TvClientService TvSvc
+@inject ConnectivityService Connectivity
+@inject SyncEngine Sync
+@implements IDisposable
+
+<PageTitle>TV – Revia</PageTitle>
+
+<div class="wl-head">
+    <h1>Fernsehprogramm</h1>
+    @if (!Connectivity.IsOnline)
+    {
+        <span class="wl-offline">⚡ Offline@(_pending > 0 ? $" · {_pending} ausstehend" : "")</span>
+    }
+    else if (_pending > 0)
+    {
+        <span class="wl-syncing">Synchronisiere @_pending…</span>
+    }
+</div>
+
+<div class="tv-tabs">
+    <button class="tv-tab @(_tab == Tab.Private ? "is-active" : "")" @onclick="() => SwitchTab(Tab.Private)">Mein Programm</button>
+    <button class="tv-tab @(_tab == Tab.Family ? "is-active" : "")" @onclick="() => SwitchTab(Tab.Family)">Familie</button>
+</div>
+
+@if (_tab == Tab.Private)
+{
+    <div class="glass tv-add">
+        <select class="form-control" @bind="_movieId">
+            <option value="">Film wählen…</option>
+            @foreach (var m in _options.Take(300))
+            {
+                <option value="@m.Id">@m.Title @(string.IsNullOrWhiteSpace(m.Year) ? "" : $"({m.Year})")</option>
+            }
+        </select>
+        <input class="form-control" type="datetime-local" @bind="_startsAt" @bind:event="oninput" />
+        <input class="form-control" placeholder="Sender" @bind="_channel" @bind:event="oninput" />
+        <label class="tv-share"><input type="checkbox" @bind="_shared" /> Freigeben</label>
+        <button class="btn btn-primary" @onclick="AddAsync" disabled="@(string.IsNullOrEmpty(_movieId))">Hinzufügen</button>
+    </div>
+}
+
+@if (_loading)
+{
+    <p class="wl-muted">Lade…</p>
+}
+else if (_entries.Count == 0)
+{
+    <p class="wl-muted">Keine Einträge.</p>
+}
+else
+{
+    @foreach (var day in _entries.GroupBy(e => e.StartsAt.Date).OrderBy(g => g.Key))
+    {
+        <div class="tv-day">
+            <div class="tv-day-head">@day.Key.ToString("dddd, dd.MM.yyyy")</div>
+            @foreach (var e in day.OrderBy(x => x.StartsAt))
+            {
+                <div class="tv-entry" @key="e.Id">
+                    <div class="tv-time">@e.StartsAt.ToString("HH:mm")</div>
+                    <div class="tv-body">
+                        <div class="tv-title">@e.MovieTitle</div>
+                        <div class="tv-meta">
+                            @if (!string.IsNullOrWhiteSpace(e.Channel)) { <span>@e.Channel</span> }
+                            @if (_tab == Tab.Family && e.HasPrivateOwner && !string.IsNullOrEmpty(e.OwnerDisplayName))
+                            {
+                                <span class="badge">von @e.OwnerDisplayName</span>
+                            }
+                            @if (_tab == Tab.Private && e.SharedWithHousehold) { <span class="badge badge-ok">freigegeben</span> }
+                        </div>
+                    </div>
+                    @if (_tab == Tab.Private)
+                    {
+                        <div class="tv-actions">
+                            <button class="btn btn-outline-secondary btn-sm" @onclick="() => ToggleShareAsync(e)">
+                                @(e.SharedWithHousehold ? "Freigabe zurück" : "Freigeben")
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(e.Id)">Löschen</button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private enum Tab { Private, Family }
+    private Tab _tab = Tab.Private;
+
+    private List<TvEntryDto> _entries = new();
+    private List<TvMovieOptionDto> _options = new();
+    private string _movieId = string.Empty;
+    private DateTime _startsAt = DateTime.Now.Date.AddHours(20).AddMinutes(15);
+    private string? _channel;
+    private bool _shared;
+    private bool _loading = true;
+    private int _pending;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Connectivity.Changed += OnConnectivityChanged;
+        Sync.Synced += OnSynced;
+        _options = await TvSvc.GetMovieOptionsAsync();
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+        _loading = false;
+    }
+
+    private async Task SwitchTab(Tab tab)
+    {
+        _tab = tab;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _entries = _tab == Tab.Private ? await TvSvc.GetPrivateAsync() : await TvSvc.GetFamilyAsync();
+        StateHasChanged();
+    }
+
+    private async Task AddAsync()
+    {
+        if (string.IsNullOrEmpty(_movieId) || !Guid.TryParse(_movieId, out var mid)) { return; }
+        var title = _options.FirstOrDefault(o => o.Id == mid)?.Title ?? "Film";
+        await TvSvc.AddPrivateAsync(mid, title, _startsAt, _channel, null, _shared);
+        _movieId = string.Empty; _channel = null; _shared = false;
+        await AfterWriteAsync();
+    }
+
+    private async Task ToggleShareAsync(TvEntryDto e)
+    {
+        await TvSvc.SetSharedAsync(e.Id, !e.SharedWithHousehold);
+        await AfterWriteAsync();
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        await TvSvc.DeleteAsync(id);
+        await AfterWriteAsync();
+    }
+
+    private async Task AfterWriteAsync()
+    {
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+        StateHasChanged();
+    }
+
+    private async void OnConnectivityChanged(bool online) => await InvokeAsync(ReloadAsync);
+    private async void OnSynced(SyncResult result)
+        => await InvokeAsync(async () => { await ReloadAsync(); _pending = result.Remaining; StateHasChanged(); });
+
+    public void Dispose()
+    {
+        Connectivity.Changed -= OnConnectivityChanged;
+        Sync.Synced -= OnSynced;
+    }
+}
