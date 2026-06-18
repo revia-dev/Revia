@@ -42,6 +42,7 @@ builder.Services.AddScoped<PrivateLibrary.Client.Features.Tv.TvClientService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Games.GameClientService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Games.GameMatchClientService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Lending.LendingClientService>();
+builder.Services.AddScoped<PrivateLibrary.Client.Features.Dashboard.DashboardClientService>();
 
 var host = builder.Build();
 

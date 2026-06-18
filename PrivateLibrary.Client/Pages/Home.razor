@@ -1,17 +1,88 @@
 @page "/"
 @attribute [Authorize]
+@using PrivateLibrary.Client.Features.Dashboard
+@using PrivateLibrary.Client.Offline
+@using PrivateLibrary.Shared.Dashboard
+@inject DashboardClientService DashSvc
+@inject ConnectivityService Connectivity
+@implements IDisposable
 
 <PageTitle>Revia</PageTitle>
 
-<h1>Willkommen bei Revia</h1>
+<div class="wl-head">
+    <h1>Dashboard</h1>
+    @if (!Connectivity.IsOnline)
+    {
+        <span class="wl-offline">⚡ Offline</span>
+    }
+</div>
 
-<p>Du bist angemeldet. Die einzelnen Module folgen in den nächsten Phasen.</p>
+@if (_loading)
+{
+    <p class="wl-muted">Lade…</p>
+}
+else
+{
+    <section class="dash-tiles">
+        @foreach (var t in Tiles)
+        {
+            <a class="dash-tile glass" href="@t.Route">
+                <div class="dash-tile-value">@t.Value(_d)</div>
+                <div class="dash-tile-label">@t.Label</div>
+            </a>
+        }
+    </section>
 
-<p class="home-links">
-    <a class="btn btn-primary" href="/wishlists">Wünsche</a>
-    <a class="btn btn-primary" href="/movies">Filme</a>
-    <a class="btn btn-primary" href="/bmi">BMI</a>
-    <a class="btn btn-primary" href="/tv">TV</a>
-    <a class="btn btn-primary" href="/games">Spiele</a>
-    <a class="btn btn-primary" href="/lending">Ausleihen</a>
-</p>
+    <section class="dash-kpis">
+        <div class="dash-kpi glass">
+            <div class="dash-kpi-value">@_d.ActiveLendings</div>
+            <div class="dash-kpi-label">Aktive Ausleihen</div>
+        </div>
+        <div class="dash-kpi glass">
+            <div class="dash-kpi-value">@_d.OverdueLendings</div>
+            <div class="dash-kpi-label">Überfällig</div>
+        </div>
+        <div class="dash-kpi glass">
+            <div class="dash-kpi-value">@_d.ReturnedLendings</div>
+            <div class="dash-kpi-label">Zurückgegeben</div>
+        </div>
+        <div class="dash-kpi glass">
+            <div class="dash-kpi-value">@_d.Persons</div>
+            <div class="dash-kpi-label">Personen</div>
+        </div>
+    </section>
+}
+
+@code {
+    private DashboardDto _d = new();
+    private bool _loading = true;
+
+    private sealed record Tile(string Label, string Route, Func<DashboardDto, int> Value);
+
+    private static readonly Tile[] Tiles =
+    {
+        new("Filme", "/movies", d => d.Movies),
+        new("TV-Einträge", "/tv", d => d.TvEntries),
+        new("Ausleihen (aktiv)", "/lending", d => d.ActiveLendings),
+        new("Spiele", "/games", d => d.Games),
+        new("BMI-Messungen", "/bmi", d => d.BmiRecords),
+        new("offene Wünsche", "/wishlists", d => d.OpenWishes),
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Connectivity.Changed += OnConnectivityChanged;
+        await LoadAsync();
+        _loading = false;
+    }
+
+    private async Task LoadAsync()
+    {
+        _d = await DashSvc.GetAsync();
+        StateHasChanged();
+    }
+
+    private async void OnConnectivityChanged(bool online) => await InvokeAsync(LoadAsync);
+
+    public void Dispose() => Connectivity.Changed -= OnConnectivityChanged;
+}

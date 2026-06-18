@@ -235,3 +235,14 @@ code {
 .st-overdue { background: #fde7e7; color: #b91c1c; }
 .st-returned { background: #e6f6ea; color: #1f7a45; }
 .st-other { background: #eee; color: #555; }
+
+/* ---- Dashboard (Phase 6) ---- */
+.dash-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.85rem; margin-bottom: 1.2rem; }
+.dash-tile { padding: 1rem 1.1rem; text-decoration: none; color: inherit; transition: transform 0.15s, border-color 0.15s; }
+.dash-tile:hover { transform: translateY(-2px); border-color: #007aff; }
+.dash-tile-value { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.03em; }
+.dash-tile-label { color: #888; font-size: 0.85rem; margin-top: 0.2rem; }
+.dash-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.85rem; }
+.dash-kpi { padding: 1.1rem 1.2rem; }
+.dash-kpi-value { font-size: 1.6rem; font-weight: 800; }
+.dash-kpi-label { color: #888; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem; }
