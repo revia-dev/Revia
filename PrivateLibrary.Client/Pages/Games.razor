@@ -92,6 +92,7 @@ else
                     @if (g.MatchCount > 0) { <span>@g.MatchCount Partien</span> }
                 </div>
                 <div class="game-card-actions">
+                    <a class="btn btn-outline-secondary btn-sm" href="@($"/games/{g.Id}/matches")">Partien</a>
                     <button class="btn btn-outline-secondary btn-sm" @onclick="() => StartEdit(g)">Bearbeiten</button>
                     <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(g.Id)">Löschen</button>
                 </div>
