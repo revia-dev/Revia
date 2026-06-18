@@ -43,6 +43,7 @@ builder.Services.AddScoped<PrivateLibrary.Client.Features.Games.GameClientServic
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Games.GameMatchClientService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Lending.LendingClientService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Dashboard.DashboardClientService>();
+builder.Services.AddScoped<PrivateLibrary.Client.Features.Analytics.AnalyticsClientService>();
 
 var host = builder.Build();
 

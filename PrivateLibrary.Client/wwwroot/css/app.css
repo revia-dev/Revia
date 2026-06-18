@@ -246,3 +246,19 @@ code {
 .dash-kpi { padding: 1.1rem 1.2rem; }
 .dash-kpi-value { font-size: 1.6rem; font-weight: 800; }
 .dash-kpi-label { color: #888; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem; }
+
+/* ---- Analytics board (Phase 6b) ---- */
+.an-board { margin-top: 1.5rem; }
+.an-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+.an-editor { padding: 1rem; margin-bottom: 1rem; }
+.an-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.85rem; }
+.an-card { padding: 0.9rem; display: grid; gap: 0.6rem; align-content: start; }
+.an-card-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.an-card-title { font-weight: 700; }
+.an-card-actions { display: flex; gap: 0.2rem; flex: 0 0 auto; }
+.an-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+.an-row { display: grid; grid-template-columns: minmax(0,1fr) 2.5fr auto; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+.an-row-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #888; }
+.an-bar-wrap { height: 0.5rem; border-radius: 999px; background: rgba(0,0,0,0.06); overflow: hidden; }
+.an-bar { display: block; height: 100%; border-radius: 999px; background: #007aff; }
+.an-row-value { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }

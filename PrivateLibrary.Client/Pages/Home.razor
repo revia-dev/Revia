@@ -1,6 +1,7 @@
 @page "/"
 @attribute [Authorize]
 @using PrivateLibrary.Client.Features.Dashboard
+@using PrivateLibrary.Client.Features.Analytics
 @using PrivateLibrary.Client.Offline
 @using PrivateLibrary.Shared.Dashboard
 @inject DashboardClientService DashSvc
@@ -51,6 +52,8 @@ else
             <div class="dash-kpi-label">Personen</div>
         </div>
     </section>
+
+    <AnalyticsBoard />
 }
 
 @code {
