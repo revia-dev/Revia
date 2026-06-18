@@ -1,4 +1,7 @@
 <Solution>
+  <Project Path="PrivateLibrary.Api/PrivateLibrary.Api.csproj" />
+  <Project Path="PrivateLibrary.Client/PrivateLibrary.Client.csproj" />
+  <Project Path="PrivateLibrary.Shared/PrivateLibrary.Shared.csproj" />
   <Project Path="PrivateLibrary.Tests/PrivateLibrary.Tests.csproj" />
   <Project Path="PrivateLibrary/PrivateLibrary.csproj" />
 </Solution>
