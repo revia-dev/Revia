@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PrivateLibrary.Api.Auth;
 using PrivateLibrary.Data;
 using PrivateLibrary.Modules.Wishlists;
 using PrivateLibrary.Services;
@@ -10,6 +11,7 @@ namespace PrivateLibrary.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/wishlists")]
+[ModuleAccess(AppModules.Wishlists)]
 public sealed class WishlistsController(
     WishlistService wishlists,
     CurrentUserContext currentUser) : ControllerBase

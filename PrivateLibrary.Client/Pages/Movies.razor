@@ -11,6 +11,8 @@
 
 <PageTitle>Filme – Revia</PageTitle>
 
+<ModuleGuard ModuleKey="movies">
+
 <div class="wl-head">
     <h1>Filme</h1>
     @if (!Connectivity.IsOnline)
@@ -55,6 +57,8 @@ else
         }
     </div>
 }
+
+</ModuleGuard>
 
 @code {
     private List<MovieDto> _all = new();

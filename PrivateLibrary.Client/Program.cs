@@ -44,6 +44,9 @@ builder.Services.AddScoped<PrivateLibrary.Client.Features.Games.GameMatchClientS
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Lending.LendingClientService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Dashboard.DashboardClientService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Analytics.AnalyticsClientService>();
+builder.Services.AddScoped<PrivateLibrary.Client.Features.Access.AccessClientService>();
+builder.Services.AddScoped<PrivateLibrary.Client.Features.Access.LayoutClientService>();
+builder.Services.AddScoped<PrivateLibrary.Client.Features.Access.AdminPermissionsClientService>();
 
 var host = builder.Build();
 
@@ -63,5 +66,10 @@ _ = host.Services.GetRequiredService<PrivateLibrary.Client.Features.Games.GameMa
 _ = host.Services.GetRequiredService<PrivateLibrary.Client.Features.Lending.LendingClientService>();
 
 await host.Services.GetRequiredService<SyncEngine>().InitializeAsync();
+
+// Resolve the current user's effective module access up front so the nav, tiles and
+// write actions can gate themselves on first render (cached for offline).
+await host.Services.GetRequiredService<PrivateLibrary.Client.Features.Access.AccessClientService>()
+    .GetMyAccessAsync();
 
 await host.RunAsync();

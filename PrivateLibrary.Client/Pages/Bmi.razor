@@ -11,6 +11,8 @@
 
 <PageTitle>BMI – Revia</PageTitle>
 
+<ModuleGuard ModuleKey="bmi">
+
 <div class="wl-head">
     <h1>Gewicht &amp; BMI</h1>
     @if (!Connectivity.IsOnline)
@@ -91,6 +93,8 @@ else
         </tbody>
     </table>
 }
+
+</ModuleGuard>
 
 @code {
     private List<BmiRecordDto> _records = new();

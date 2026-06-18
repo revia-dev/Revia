@@ -88,6 +88,9 @@ builder.Services.AddSingleton<ILendingPhotoStorage, LendingPhotoStorage>();
 builder.Services.AddScoped<HouseholdLinkService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<AnalyticsService>();
+builder.Services.AddScoped<PermissionService>();
+builder.Services.AddScoped<ModuleTileLayoutService>();
+builder.Services.AddScoped<DashboardLayoutService>();
 
 var app = builder.Build();
 

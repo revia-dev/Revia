@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PrivateLibrary.Api.Auth;
 using PrivateLibrary.Models;
 using PrivateLibrary.Services;
 using PrivateLibrary.Shared.Movies;
@@ -9,6 +10,7 @@ namespace PrivateLibrary.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/movies")]
+[ModuleAccess(AppModules.Movies)]
 public sealed class MoviesController(MovieService movies) : ControllerBase
 {
     private readonly MovieService _movies = movies;

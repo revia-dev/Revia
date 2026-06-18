@@ -57,7 +57,9 @@
             return;
         }
 
-        Navigation.NavigateTo(ResolveReturnUrl());
+        // Full reload so the app re-boots cleanly for the new user: the eager access
+        // resolve runs and no previous user's cached state (access, layout) lingers.
+        Navigation.NavigateTo(ResolveReturnUrl(), forceLoad: true);
     }
 
     private string ResolveReturnUrl()

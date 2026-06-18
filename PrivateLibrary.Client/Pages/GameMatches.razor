@@ -12,6 +12,8 @@
 
 <PageTitle>Partien – Revia</PageTitle>
 
+<ModuleGuard ModuleKey="games">
+
 <div class="wl-head">
     <h1>Partien@(_gameName is null ? "" : $": {_gameName}")</h1>
     @if (!Connectivity.IsOnline)
@@ -104,6 +106,8 @@ else
         </div>
     }
 }
+
+</ModuleGuard>
 
 @code {
     [Parameter] public int GameId { get; set; }

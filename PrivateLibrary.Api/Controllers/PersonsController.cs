@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PrivateLibrary.Api.Auth;
+using PrivateLibrary.Services;
 using PrivateLibrary.Modules.Lending.Services;
 using PrivateLibrary.Shared.Persons;
 
@@ -8,6 +10,7 @@ namespace PrivateLibrary.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/persons")]
+[ModuleAccess(AppModules.Persons)]
 public sealed class PersonsController(IPersonService persons) : ControllerBase
 {
     private readonly IPersonService _persons = persons;

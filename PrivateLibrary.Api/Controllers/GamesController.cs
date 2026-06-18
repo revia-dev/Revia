@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PrivateLibrary.Api.Auth;
+using PrivateLibrary.Services;
 using PrivateLibrary.Data;
 using PrivateLibrary.Modules.Games;
 using PrivateLibrary.Shared.Games;
@@ -9,6 +11,7 @@ namespace PrivateLibrary.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/games")]
+[ModuleAccess(AppModules.Games)]
 public sealed class GamesController(GameService games) : ControllerBase
 {
     private readonly GameService _games = games;

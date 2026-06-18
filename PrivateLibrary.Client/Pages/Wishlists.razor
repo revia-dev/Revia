@@ -11,6 +11,8 @@
 
 <PageTitle>Wünsche – Revia</PageTitle>
 
+<ModuleGuard ModuleKey="wishlists">
+
 <div class="wl-head">
     <h1>Wünsche</h1>
     @if (!Connectivity.IsOnline)
@@ -102,6 +104,8 @@ else
         </section>
     }
 }
+
+</ModuleGuard>
 
 @code {
     private List<WishlistDto> _lists = new();

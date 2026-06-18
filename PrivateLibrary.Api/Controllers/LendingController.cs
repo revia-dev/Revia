@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PrivateLibrary.Api.Auth;
+using PrivateLibrary.Services;
 using PrivateLibrary.Data;
 using PrivateLibrary.Modules.Lending.Models;
 using PrivateLibrary.Modules.Lending.Services;
@@ -10,6 +12,7 @@ namespace PrivateLibrary.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/lending")]
+[ModuleAccess(AppModules.Lending)]
 public sealed class LendingController(ILendingService lending) : ControllerBase
 {
     private readonly ILendingService _lending = lending;

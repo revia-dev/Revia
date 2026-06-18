@@ -2,9 +2,13 @@
 @attribute [Authorize]
 @using PrivateLibrary.Client.Features.Dashboard
 @using PrivateLibrary.Client.Features.Analytics
+@using PrivateLibrary.Client.Features.Access
 @using PrivateLibrary.Client.Offline
 @using PrivateLibrary.Shared.Dashboard
+@using PrivateLibrary.Shared.Access
 @inject DashboardClientService DashSvc
+@inject AccessClientService Access
+@inject LayoutClientService LayoutSvc
 @inject ConnectivityService Connectivity
 @implements IDisposable
 
@@ -16,65 +20,142 @@
     {
         <span class="wl-offline">⚡ Offline</span>
     }
+    <div class="dash-head-actions">
+        @if (Access.IsAdmin)
+        {
+            <a class="btn btn-outline-secondary btn-sm" href="/admin/permissions">Berechtigungen</a>
+        }
+        @if (LayoutSvc.IsOnline)
+        {
+            <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleCustomize">@(_customizing ? "Fertig" : "Anpassen")</button>
+        }
+    </div>
 </div>
 
 @if (_loading)
 {
     <p class="wl-muted">Lade…</p>
 }
+else if (_customizing)
+{
+    <div class="dash-customize glass">
+        <h2 class="ui-section-title">Modul-Kacheln</h2>
+        <ul class="cust-list">
+            @for (var i = 0; i < _tiles.Count; i++)
+            {
+                var idx = i; var t = _tiles[idx];
+                <li class="cust-row">
+                    <span class="cust-label">@TileLabel(t.Key)</span>
+                    <span class="cust-actions">
+                        <button class="btn btn-outline-secondary btn-sm" disabled="@(idx == 0)" @onclick="() => MoveTile(idx, -1)">↑</button>
+                        <button class="btn btn-outline-secondary btn-sm" disabled="@(idx == _tiles.Count - 1)" @onclick="() => MoveTile(idx, 1)">↓</button>
+                        <label class="cust-toggle"><input type="checkbox" checked="@t.Visible" @onchange="e => ToggleTile(idx, (bool)e.Value!)" /> sichtbar</label>
+                    </span>
+                </li>
+            }
+        </ul>
+
+        <h2 class="ui-section-title">Dashboard-Bereiche</h2>
+        <ul class="cust-list">
+            @for (var i = 0; i < _sections.Count; i++)
+            {
+                var idx = i; var s = _sections[idx];
+                <li class="cust-row">
+                    <span class="cust-label">@s.Label</span>
+                    <span class="cust-actions">
+                        <button class="btn btn-outline-secondary btn-sm" disabled="@(idx == 0)" @onclick="() => MoveSection(idx, -1)">↑</button>
+                        <button class="btn btn-outline-secondary btn-sm" disabled="@(idx == _sections.Count - 1)" @onclick="() => MoveSection(idx, 1)">↓</button>
+                        <label class="cust-toggle"><input type="checkbox" checked="@s.Visible" @onchange="e => ToggleSection(idx, (bool)e.Value!)" /> sichtbar</label>
+                    </span>
+                </li>
+            }
+        </ul>
+
+        <div class="game-actions">
+            <button class="btn btn-primary" @onclick="SaveLayoutAsync">Speichern</button>
+            <button class="btn btn-outline-secondary" @onclick="ResetLayoutAsync">Zurücksetzen</button>
+        </div>
+        @if (_layoutError is not null) { <div class="login-error">@_layoutError</div> }
+    </div>
+}
 else
 {
-    <section class="dash-tiles">
-        @foreach (var t in Tiles)
+    @foreach (var section in VisibleSections)
+    {
+        @switch (section)
         {
-            <a class="dash-tile glass" href="@t.Route">
-                <div class="dash-tile-value">@t.Value(_d)</div>
-                <div class="dash-tile-label">@t.Label</div>
-            </a>
+            case "modules":
+                <section class="dash-tiles">
+                    @foreach (var tile in VisibleTiles)
+                    {
+                        <a class="dash-tile glass" href="@TileRoute(tile.Key)">
+                            <div class="dash-tile-value">@TileValue(tile.Key)</div>
+                            <div class="dash-tile-label">@TileLabel(tile.Key)</div>
+                        </a>
+                    }
+                </section>
+                break;
+            case "kpis":
+                <section class="dash-kpis">
+                    <div class="dash-kpi glass"><div class="dash-kpi-value">@_d.ActiveLendings</div><div class="dash-kpi-label">Aktive Ausleihen</div></div>
+                    <div class="dash-kpi glass"><div class="dash-kpi-value">@_d.OverdueLendings</div><div class="dash-kpi-label">Überfällig</div></div>
+                    <div class="dash-kpi glass"><div class="dash-kpi-value">@_d.ReturnedLendings</div><div class="dash-kpi-label">Zurückgegeben</div></div>
+                    <div class="dash-kpi glass"><div class="dash-kpi-value">@_d.Persons</div><div class="dash-kpi-label">Personen</div></div>
+                </section>
+                break;
+            case "analytics":
+                <AnalyticsBoard />
+                break;
         }
-    </section>
-
-    <section class="dash-kpis">
-        <div class="dash-kpi glass">
-            <div class="dash-kpi-value">@_d.ActiveLendings</div>
-            <div class="dash-kpi-label">Aktive Ausleihen</div>
-        </div>
-        <div class="dash-kpi glass">
-            <div class="dash-kpi-value">@_d.OverdueLendings</div>
-            <div class="dash-kpi-label">Überfällig</div>
-        </div>
-        <div class="dash-kpi glass">
-            <div class="dash-kpi-value">@_d.ReturnedLendings</div>
-            <div class="dash-kpi-label">Zurückgegeben</div>
-        </div>
-        <div class="dash-kpi glass">
-            <div class="dash-kpi-value">@_d.Persons</div>
-            <div class="dash-kpi-label">Personen</div>
-        </div>
-    </section>
-
-    <AnalyticsBoard />
+    }
 }
 
 @code {
     private DashboardDto _d = new();
     private bool _loading = true;
+    private bool _customizing;
+    private List<TileLayoutItemDto> _tiles = new();
+    private List<SectionLayoutItemDto> _sections = new();
+    private string? _layoutError;
 
-    private sealed record Tile(string Label, string Route, Func<DashboardDto, int> Value);
+    // Tiles the user is allowed to read AND has visible.
+    private IEnumerable<TileLayoutItemDto> VisibleTiles =>
+        _tiles.Where(t => t.Visible && Access.CanRead(t.Key));
 
-    private static readonly Tile[] Tiles =
+    private IEnumerable<string> VisibleSections =>
+        _sections.Where(s => s.Visible).Select(s => s.Key);
+
+    private static readonly Dictionary<string, (string Label, string Route)> TileMeta = new()
     {
-        new("Filme", "/movies", d => d.Movies),
-        new("TV-Einträge", "/tv", d => d.TvEntries),
-        new("Ausleihen (aktiv)", "/lending", d => d.ActiveLendings),
-        new("Spiele", "/games", d => d.Games),
-        new("BMI-Messungen", "/bmi", d => d.BmiRecords),
-        new("offene Wünsche", "/wishlists", d => d.OpenWishes),
+        ["movies"] = ("Filme", "/movies"),
+        ["tv"] = ("TV-Einträge", "/tv"),
+        ["lending"] = ("Ausleihen (aktiv)", "/lending"),
+        ["games"] = ("Spiele", "/games"),
+        ["bmi"] = ("BMI-Messungen", "/bmi"),
+        ["wishlists"] = ("offene Wünsche", "/wishlists"),
+        ["persons"] = ("Personen", "/lending"),
+    };
+
+    private string TileLabel(string key) => TileMeta.TryGetValue(key, out var m) ? m.Label : key;
+    private string TileRoute(string key) => TileMeta.TryGetValue(key, out var m) ? m.Route : "/";
+    private int TileValue(string key) => key switch
+    {
+        "movies" => _d.Movies,
+        "tv" => _d.TvEntries,
+        "lending" => _d.ActiveLendings,
+        "games" => _d.Games,
+        "bmi" => _d.BmiRecords,
+        "wishlists" => _d.OpenWishes,
+        "persons" => _d.Persons,
+        _ => 0
     };
 
     protected override async Task OnInitializedAsync()
     {
         Connectivity.Changed += OnConnectivityChanged;
+        // Force a refresh so the dashboard always reflects the signed-in user's access
+        // (the in-memory copy is invalidated on login, but be explicit here too).
+        await Access.GetMyAccessAsync(forceRefresh: true);
         await LoadAsync();
         _loading = false;
     }
@@ -82,7 +163,39 @@ else
     private async Task LoadAsync()
     {
         _d = await DashSvc.GetAsync();
+        var layout = await LayoutSvc.GetAsync();
+        _tiles = layout.Tiles;
+        _sections = layout.Sections;
         StateHasChanged();
+    }
+
+    private void ToggleCustomize() => _customizing = !_customizing;
+
+    private void MoveTile(int i, int delta) => Move(_tiles, i, delta);
+    private void MoveSection(int i, int delta) => Move(_sections, i, delta);
+    private static void Move<T>(List<T> list, int i, int delta)
+    {
+        var j = i + delta;
+        if (j < 0 || j >= list.Count) return;
+        (list[i], list[j]) = (list[j], list[i]);
+    }
+
+    private void ToggleTile(int i, bool visible) => _tiles[i].Visible = visible;
+    private void ToggleSection(int i, bool visible) => _sections[i].Visible = visible;
+
+    private async Task SaveLayoutAsync()
+    {
+        _layoutError = null;
+        var ok = await LayoutSvc.SaveAsync(new LayoutDto { Tiles = _tiles, Sections = _sections });
+        if (ok) { _customizing = false; await LoadAsync(); }
+        else { _layoutError = "Speichern fehlgeschlagen (offline?)."; }
+    }
+
+    private async Task ResetLayoutAsync()
+    {
+        _layoutError = null;
+        if (await LayoutSvc.ResetAsync()) { _customizing = false; await LoadAsync(); }
+        else { _layoutError = "Zurücksetzen fehlgeschlagen (offline?)."; }
     }
 
     private async void OnConnectivityChanged(bool online) => await InvokeAsync(LoadAsync);

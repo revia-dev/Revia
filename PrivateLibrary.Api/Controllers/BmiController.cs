@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PrivateLibrary.Api.Auth;
 using PrivateLibrary.Data;
 using PrivateLibrary.Modules.Bmi;
 using PrivateLibrary.Services;
@@ -11,6 +12,7 @@ namespace PrivateLibrary.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/bmi")]
+[ModuleAccess(AppModules.Bmi)]
 public sealed class BmiController(
     BmiService bmi,
     AppDbContext db,

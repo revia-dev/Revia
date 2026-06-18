@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PrivateLibrary.Api.Auth;
 using PrivateLibrary.Data;
 using PrivateLibrary.Services;
 using PrivateLibrary.Shared.Tv;
@@ -9,6 +10,7 @@ namespace PrivateLibrary.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/tv")]
+[ModuleAccess(AppModules.Tv)]
 public sealed class TvController(TvGuideService guide) : ControllerBase
 {
     private readonly TvGuideService _guide = guide;

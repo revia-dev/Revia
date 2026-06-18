@@ -10,6 +10,8 @@
 
 <PageTitle>Spiele – Revia</PageTitle>
 
+<ModuleGuard ModuleKey="games">
+
 <div class="wl-head">
     <h1>Spiele</h1>
     @if (!Connectivity.IsOnline)
@@ -100,6 +102,8 @@ else
         }
     </div>
 }
+
+</ModuleGuard>
 
 @code {
     private static readonly GameTypeDto[] AllTypes =
