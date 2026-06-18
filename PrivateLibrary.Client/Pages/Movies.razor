@@ -44,7 +44,7 @@ else
     <div class="mv-grid">
         @foreach (var film in _filtered)
         {
-            <div class="mv-card" @key="film.Id">
+            <a class="mv-card" @key="film.Id" href="@($"/movies/{film.Id}")">
                 <img class="mv-poster" src="@PosterUrl(film)" alt="@film.Titel" loading="lazy" />
                 <div class="mv-meta">
                     <div class="mv-title">@(film.Titel ?? "Unbekannt")</div>
@@ -53,7 +53,7 @@ else
                         @if (!string.IsNullOrWhiteSpace(film.Fsk)) { <span>FSK @film.Fsk</span> }
                     </div>
                 </div>
-            </div>
+            </a>
         }
     </div>
 }

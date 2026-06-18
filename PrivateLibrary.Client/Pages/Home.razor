@@ -103,6 +103,38 @@ else
                     <div class="dash-kpi glass"><div class="dash-kpi-value">@_d.Persons</div><div class="dash-kpi-label">Personen</div></div>
                 </section>
                 break;
+            case "chart":
+                <section class="dash-chart glass">
+                    <h2 class="ui-section-title">Ausleihen nach Status</h2>
+                    @{
+                        var total = _d.ActiveLendings + _d.OverdueLendings + _d.ReturnedLendings;
+                    }
+                    @if (total == 0)
+                    {
+                        <p class="wl-muted">Noch keine Ausleihen.</p>
+                    }
+                    else
+                    {
+                        <div class="chart-bars">
+                            <div class="chart-row">
+                                <span class="chart-label">Aktiv</span>
+                                <span class="chart-track"><span class="chart-fill chart-active" style="width:@Pct(_d.ActiveLendings, total)%"></span></span>
+                                <span class="chart-value">@_d.ActiveLendings</span>
+                            </div>
+                            <div class="chart-row">
+                                <span class="chart-label">Überfällig</span>
+                                <span class="chart-track"><span class="chart-fill chart-overdue" style="width:@Pct(_d.OverdueLendings, total)%"></span></span>
+                                <span class="chart-value">@_d.OverdueLendings</span>
+                            </div>
+                            <div class="chart-row">
+                                <span class="chart-label">Zurück</span>
+                                <span class="chart-track"><span class="chart-fill chart-returned" style="width:@Pct(_d.ReturnedLendings, total)%"></span></span>
+                                <span class="chart-value">@_d.ReturnedLendings</span>
+                            </div>
+                        </div>
+                    }
+                </section>
+                break;
             case "analytics":
                 <AnalyticsBoard />
                 break;
@@ -124,6 +156,13 @@ else
 
     private IEnumerable<string> VisibleSections =>
         _sections.Where(s => s.Visible).Select(s => s.Key);
+
+    /// <summary>Dashboard sections this client knows how to render. Others coming from
+    /// the saved layout (e.g. legacy "overdue"/"recent") are filtered out.</summary>
+    private static readonly HashSet<string> Renderable =
+        new(StringComparer.Ordinal) { "modules", "kpis", "chart", "analytics" };
+
+    private static int Pct(int value, int total) => total <= 0 ? 0 : (int)Math.Round(value * 100.0 / total);
 
     private static readonly Dictionary<string, (string Label, string Route)> TileMeta = new()
     {
@@ -165,7 +204,9 @@ else
         _d = await DashSvc.GetAsync();
         var layout = await LayoutSvc.GetAsync();
         _tiles = layout.Tiles;
-        _sections = layout.Sections;
+        // Only keep sections the dashboard can actually render, so the customise
+        // panel never offers a section that would show nothing.
+        _sections = layout.Sections.Where(s => Renderable.Contains(s.Key)).ToList();
         StateHasChanged();
     }
 

@@ -1,0 +1,80 @@
+@page "/movies/{Id:guid}"
+@attribute [Authorize]
+@using PrivateLibrary.Client.Features.Movies
+@using PrivateLibrary.Client.Offline
+@using PrivateLibrary.Shared.Movies
+@inject MovieClientService MovieSvc
+@inject NavigationManager Navigation
+
+<PageTitle>@(_film?.Titel ?? "Film") – Revia</PageTitle>
+
+<ModuleGuard ModuleKey="movies">
+
+<div class="wl-head">
+    <h1>@(_film?.Titel ?? "Film")</h1>
+    <a class="btn btn-outline-secondary btn-sm" href="/movies">Zurück</a>
+</div>
+
+@if (_loading)
+{
+    <p class="wl-muted">Lade…</p>
+}
+else if (_film is null)
+{
+    <p class="wl-muted">Film nicht gefunden.</p>
+}
+else
+{
+    <div class="movie-detail glass">
+        <img class="movie-detail-poster" src="@PosterUrl(_film)" alt="@_film.Titel" />
+        <div class="movie-detail-info">
+            <div class="movie-detail-facts">
+                @if (!string.IsNullOrWhiteSpace(_film.Jahr)) { <span><span class="wl-muted">Jahr</span> @_film.Jahr</span> }
+                @if (_film.Runtime is int rt) { <span><span class="wl-muted">Laufzeit</span> @rt min</span> }
+                @if (!string.IsNullOrWhiteSpace(_film.Fsk)) { <span><span class="wl-muted">FSK</span> @_film.Fsk</span> }
+                @if (!string.IsNullOrWhiteSpace(_film.Kategorie)) { <span><span class="wl-muted">Kategorie</span> @_film.Kategorie</span> }
+            </div>
+
+            @if (_film.Anbieter is { Count: > 0 })
+            {
+                <div class="movie-detail-tags">
+                    @foreach (var a in _film.Anbieter) { <span class="badge">@a</span> }
+                </div>
+            }
+            @if (_film.Tags is { Count: > 0 })
+            {
+                <div class="movie-detail-tags">
+                    @foreach (var t in _film.Tags) { <span class="badge badge-soft">@t</span> }
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_film.Handlung))
+            {
+                <p class="movie-detail-plot">@_film.Handlung</p>
+            }
+        </div>
+    </div>
+}
+
+</ModuleGuard>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private MovieDto? _film;
+    private bool _loading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        // Read from the cached collection so the detail works offline too.
+        var all = await MovieSvc.GetAllAsync();
+        _film = all.FirstOrDefault(f => f.Id == Id);
+        _loading = false;
+    }
+
+    private static string PosterUrl(MovieDto f)
+        => string.IsNullOrWhiteSpace(f.PosterPath)
+            ? "/images/placeholder.png"
+            : $"https://image.tmdb.org/t/p/w400{f.PosterPath}";
+}

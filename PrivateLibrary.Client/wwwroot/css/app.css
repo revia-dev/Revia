@@ -318,3 +318,26 @@ code {
 .link-facts { list-style: none; margin: 0.5rem 0; padding: 0; display: grid; gap: 0.3rem; }
 .link-facts li { display: flex; gap: 0.5rem; align-items: baseline; }
 .link-facts span { min-width: 5rem; }
+
+/* ---- bugfix: dashboard status chart ---- */
+.dash-chart { padding: 1rem; margin-top: 1rem; }
+.chart-bars { display: grid; gap: 0.5rem; margin-top: 0.5rem; }
+.chart-row { display: grid; grid-template-columns: 6rem 1fr auto; align-items: center; gap: 0.6rem; font-size: 0.9rem; }
+.chart-track { height: 0.6rem; border-radius: 999px; background: rgba(0,0,0,0.06); overflow: hidden; }
+.chart-fill { display: block; height: 100%; border-radius: 999px; }
+.chart-active { background: #007aff; }
+.chart-overdue { background: #ff3b30; }
+.chart-returned { background: #34c759; }
+.chart-value { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ---- bugfix: clickable movie cards + detail ---- */
+a.mv-card { text-decoration: none; color: inherit; display: block; transition: transform 0.12s ease; }
+a.mv-card:hover { transform: translateY(-2px); }
+.movie-detail { display: grid; grid-template-columns: minmax(0, 220px) 1fr; gap: 1.25rem; padding: 1.25rem; }
+.movie-detail-poster { width: 100%; border-radius: 0.75rem; object-fit: cover; }
+.movie-detail-info { display: grid; gap: 0.75rem; align-content: start; }
+.movie-detail-facts { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; }
+.movie-detail-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.movie-detail-plot { line-height: 1.55; }
+.badge-soft { background: rgba(0,0,0,0.05); }
+@media (max-width: 640px) { .movie-detail { grid-template-columns: 1fr; } }
