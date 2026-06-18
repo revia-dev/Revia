@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @inject AuthService Auth
 @inject NavigationManager Navigation
+@inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
 
 <div class="app-shell">
     <header class="app-topbar">
@@ -13,7 +14,7 @@
             <Authorized>
                 <PrivateLibrary.Client.Features.Sync.SyncStatus />
                 <span class="app-user">@context.User.Identity?.Name</span>
-                <button class="btn btn-outline-secondary btn-sm" @onclick="LogoutAsync">Logout</button>
+                <button class="btn btn-outline-secondary btn-sm" @onclick="LogoutAsync">@Loc["App_Logout"]</button>
             </Authorized>
         </AuthorizeView>
     </header>

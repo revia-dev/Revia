@@ -10,24 +10,25 @@
 @inject AccessClientService Access
 @inject LayoutClientService LayoutSvc
 @inject ConnectivityService Connectivity
+@inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
 @implements IDisposable
 
 <PageTitle>Revia</PageTitle>
 
 <div class="wl-head">
-    <h1>Dashboard</h1>
+    <h1>@Loc["Dashboard_Title"]</h1>
     @if (!Connectivity.IsOnline)
     {
-        <span class="wl-offline">⚡ Offline</span>
+        <span class="wl-offline">⚡ @Loc["App_Offline"]</span>
     }
     <div class="dash-head-actions">
         @if (Access.IsAdmin)
         {
-            <a class="btn btn-outline-secondary btn-sm" href="/admin/permissions">Berechtigungen</a>
+            <a class="btn btn-outline-secondary btn-sm" href="/admin/permissions">@Loc["Dashboard_Permissions"]</a>
         }
         @if (LayoutSvc.IsOnline)
         {
-            <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleCustomize">@(_customizing ? "Fertig" : "Anpassen")</button>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleCustomize">@(_customizing ? Loc["Dashboard_Done"] : Loc["Dashboard_Customize"])</button>
         }
     </div>
 </div>

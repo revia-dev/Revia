@@ -9,6 +9,10 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
+// Localization: UI text comes from .resx (German default, English fallback). The
+// active culture follows the browser; resources resolve via IStringLocalizer.
+builder.Services.AddLocalization();
+
 var apiBase = new Uri(builder.HostEnvironment.BaseAddress);
 
 // Auth plumbing.
