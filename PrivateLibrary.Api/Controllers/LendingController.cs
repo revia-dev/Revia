@@ -7,6 +7,7 @@ using PrivateLibrary.Data;
 using PrivateLibrary.Modules.Lending.Models;
 using PrivateLibrary.Modules.Lending.Services;
 using PrivateLibrary.Shared.Lending;
+using PrivateLibrary.Shared.Media;
 
 namespace PrivateLibrary.Api.Controllers;
 
@@ -118,6 +119,25 @@ public sealed class LendingController(ILendingService lending) : ControllerBase
         if (!System.IO.File.Exists(path)) return NotFound();
         return PhysicalFile(path, photo.ContentType);
     }
+
+    /// <summary>Attaches a photo (base64) to an existing lending entry.</summary>
+    [HttpPost("{id:int}/photos")]
+    public async Task<IActionResult> AddPhoto(int id, [FromBody] UploadPhotoRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Base64)) return BadRequest("Kein Foto.");
+        byte[] bytes;
+        try { bytes = Convert.FromBase64String(request.Base64); }
+        catch (FormatException) { return BadRequest("Ungültiges Foto."); }
+
+        using var stream = new MemoryStream(bytes);
+        await _lending.AddPhotoAsync(id, stream, request.ContentType, request.FileName, ct);
+        return NoContent();
+    }
+
+    /// <summary>Removes a lending photo.</summary>
+    [HttpDelete("photos/{photoId:int}")]
+    public async Task<IActionResult> RemovePhoto(int photoId, CancellationToken ct)
+        => await _lending.RemovePhotoAsync(photoId, ct) ? NoContent() : NotFound();
 
     // ---- mapping ----
 

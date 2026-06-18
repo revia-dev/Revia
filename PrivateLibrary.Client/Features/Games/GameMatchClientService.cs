@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using PrivateLibrary.Client.Offline;
 using PrivateLibrary.Shared.Games;
+using PrivateLibrary.Shared.Media;
 using PrivateLibrary.Shared.Offline;
 using PrivateLibrary.Shared.Persons;
 
@@ -52,6 +53,26 @@ public sealed class GameMatchClientService
             catch { }
         }
         return await _store.CacheGetAsync<List<GameMatchDto>>(Key(gameId)) ?? new();
+    }
+
+    /// <summary>Attaches a photo to a match. Online-only — the photo needs the
+    /// server-persisted match to exist. Returns true on success.</summary>
+    public async Task<bool> UploadPhotoAsync(int matchId, UploadPhotoRequest request)
+    {
+        if (!_connectivity.IsOnline) return false;
+        try
+        {
+            var r = await _http.PostAsJsonAsync($"api/games/matches/{matchId}/photos", request);
+            return r.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
+    public async Task<bool> DeletePhotoAsync(int photoId)
+    {
+        if (!_connectivity.IsOnline) return false;
+        try { return (await _http.DeleteAsync($"api/games/matches/photo/{photoId}")).IsSuccessStatusCode; }
+        catch { return false; }
     }
 
     public async Task<List<PersonLookupDto>> GetPersonsAsync()

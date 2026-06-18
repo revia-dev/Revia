@@ -3,6 +3,7 @@
 @using PrivateLibrary.Client.Features.Games
 @using PrivateLibrary.Client.Offline
 @using PrivateLibrary.Shared.Games
+@using PrivateLibrary.Shared.Media
 @using PrivateLibrary.Shared.Persons
 @inject GameMatchClientService MatchSvc
 @inject GameClientService GameSvc
@@ -59,6 +60,30 @@
             <button class="btn btn-primary" @onclick="SaveAsync">Speichern</button>
             <button class="btn btn-outline-secondary" @onclick="() => _edit = null">Abbrechen</button>
         </div>
+
+        @if (_edit.Id > 0)
+        {
+            <div class="game-field game-wide">
+                <label>Fotos</label>
+                @if (_editPhotos.Count > 0)
+                {
+                    <div class="match-photos">
+                        @foreach (var url in _editPhotos)
+                        {
+                            <div class="photo-edit-item">
+                                <AuthImage Src="@url" CssClass="match-photo" Alt="Partie-Foto" />
+                                <button class="btn btn-outline-danger btn-sm" @onclick="() => DeletePhotoAsync(url)">×</button>
+                            </div>
+                        }
+                    </div>
+                }
+                <PhotoUploader OnUpload="UploadMatchPhotoAsync" OnUploaded="RefreshEditPhotosAsync" Label="Foto(s) hinzufügen" />
+            </div>
+        }
+        else
+        {
+            <p class="wl-muted">Fotos kannst du nach dem Speichern der Partie hinzufügen.</p>
+        }
     </div>
 }
 
@@ -124,6 +149,7 @@ else
     private List<GameMatchDto> _matches = new();
     private List<PersonLookupDto> _persons = new();
     private SaveMatchRequest? _edit;
+    private List<string> _editPhotos = new();
     private string? _gameName;
     private bool _loading = true;
     private int _pending;
@@ -146,18 +172,55 @@ else
         StateHasChanged();
     }
 
-    private void StartCreate() => _edit = new SaveMatchRequest
+    private void StartCreate()
     {
-        GameId = GameId, PlayedOn = DateTime.Today,
-        Participants = new() { new MatchParticipantInputDto() }
-    };
+        _editPhotos = new();
+        _edit = new SaveMatchRequest
+        {
+            GameId = GameId, PlayedOn = DateTime.Today,
+            Participants = new() { new MatchParticipantInputDto() }
+        };
+    }
 
-    private void StartEdit(GameMatchDto m) => _edit = new SaveMatchRequest
+    private void StartEdit(GameMatchDto m)
     {
-        Id = m.Id, GameId = GameId, Title = m.Title, PlayedOn = m.PlayedOn,
-        ScoreDefinitionId = m.ScoreDefinitionId, Notes = m.Notes,
-        Participants = m.Participants.Select(p => new MatchParticipantInputDto { PersonId = p.PersonId, Score = p.Score }).ToList()
-    };
+        _editPhotos = new(m.PhotoUrls);
+        _edit = new SaveMatchRequest
+        {
+            Id = m.Id, GameId = GameId, Title = m.Title, PlayedOn = m.PlayedOn,
+            ScoreDefinitionId = m.ScoreDefinitionId, Notes = m.Notes,
+            Participants = m.Participants.Select(p => new MatchParticipantInputDto { PersonId = p.PersonId, Score = p.Score }).ToList()
+        };
+    }
+
+    private async Task<bool> UploadMatchPhotoAsync(UploadPhotoRequest request)
+        => _edit is not null && await MatchSvc.UploadPhotoAsync(_edit.Id, request);
+
+    private async Task DeletePhotoAsync(string url)
+    {
+        if (TryPhotoId(url, out var photoId) && await MatchSvc.DeletePhotoAsync(photoId))
+        {
+            await RefreshEditPhotosAsync();
+        }
+    }
+
+    /// <summary>Re-reads the matches so the editor's photo strip reflects the server
+    /// after an upload/delete.</summary>
+    private async Task RefreshEditPhotosAsync()
+    {
+        if (_edit is null) return;
+        _matches = await MatchSvc.GetForGameAsync(GameId);
+        var current = _matches.FirstOrDefault(x => x.Id == _edit.Id);
+        _editPhotos = current is null ? new() : new(current.PhotoUrls);
+        StateHasChanged();
+    }
+
+    private static bool TryPhotoId(string url, out int id)
+    {
+        id = 0;
+        var last = url.TrimEnd('/').Split('/').LastOrDefault();
+        return int.TryParse(last, out id);
+    }
 
     private async Task SaveAsync()
     {

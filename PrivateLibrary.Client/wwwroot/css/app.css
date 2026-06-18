@@ -293,3 +293,9 @@ code {
 .sync-error { background: rgba(255,59,48,0.15); color: #c01a12; }
 .sync-retry { border: none; background: transparent; color: inherit; text-decoration: underline;
     cursor: pointer; font: inherit; padding: 0; }
+
+/* ---- 9a: photo upload in editors ---- */
+.photo-edit-item { position: relative; display: inline-block; }
+.photo-edit-item .btn { position: absolute; top: -6px; right: -6px; padding: 0 0.35rem; line-height: 1.2;
+    border-radius: 999px; }
+.photo-uploader { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.5rem; }

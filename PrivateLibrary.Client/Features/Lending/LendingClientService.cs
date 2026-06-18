@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using PrivateLibrary.Client.Offline;
 using PrivateLibrary.Shared.Lending;
+using PrivateLibrary.Shared.Media;
 using PrivateLibrary.Shared.Offline;
 using PrivateLibrary.Shared.Persons;
 
@@ -41,6 +42,26 @@ public sealed class LendingClientService
 
     public Task<List<LendingCategoryDto>> GetCategoriesAsync()
         => CachedOrFetchAsync<LendingCategoryDto>(CategoriesKey, "api/lending/categories");
+
+    /// <summary>Attaches a photo to a lending entry. Online-only (needs the
+    /// server-persisted entry). Returns true on success.</summary>
+    public async Task<bool> UploadPhotoAsync(int entryId, UploadPhotoRequest request)
+    {
+        if (!_connectivity.IsOnline) return false;
+        try
+        {
+            var r = await _http.PostAsJsonAsync($"api/lending/{entryId}/photos", request);
+            return r.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
+    public async Task<bool> DeletePhotoAsync(int photoId)
+    {
+        if (!_connectivity.IsOnline) return false;
+        try { return (await _http.DeleteAsync($"api/lending/photos/{photoId}")).IsSuccessStatusCode; }
+        catch { return false; }
+    }
 
     public async Task<List<PersonLookupDto>> GetPersonsAsync()
     {

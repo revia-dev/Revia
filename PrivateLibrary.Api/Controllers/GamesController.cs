@@ -6,6 +6,7 @@ using PrivateLibrary.Services;
 using PrivateLibrary.Data;
 using PrivateLibrary.Modules.Games;
 using PrivateLibrary.Shared.Games;
+using PrivateLibrary.Shared.Media;
 
 namespace PrivateLibrary.Api.Controllers;
 
@@ -112,6 +113,28 @@ public sealed class GamesController(GameService games) : ControllerBase
         var path = storage.GetPath(photo.FileName);
         if (!System.IO.File.Exists(path)) return NotFound();
         return PhysicalFile(path, photo.ContentType);
+    }
+
+    /// <summary>Attaches a photo (base64) to an existing match.</summary>
+    [HttpPost("matches/{matchId:int}/photos")]
+    public async Task<IActionResult> AddMatchPhoto(int matchId, [FromBody] UploadPhotoRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Base64)) return BadRequest("Kein Foto.");
+        byte[] bytes;
+        try { bytes = Convert.FromBase64String(request.Base64); }
+        catch (FormatException) { return BadRequest("Ungültiges Foto."); }
+
+        using var stream = new MemoryStream(bytes);
+        await _games.AddMatchPhotoAsync(matchId, stream, request.ContentType, request.FileName, ct);
+        return NoContent();
+    }
+
+    /// <summary>Removes a match photo.</summary>
+    [HttpDelete("matches/photo/{photoId:int}")]
+    public async Task<IActionResult> RemoveMatchPhoto(int photoId, CancellationToken ct)
+    {
+        await _games.RemoveMatchPhotoAsync(photoId, ct);
+        return NoContent();
     }
 
     // ---- mapping ----

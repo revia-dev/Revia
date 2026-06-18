@@ -3,6 +3,7 @@
 @using PrivateLibrary.Client.Features.Lending
 @using PrivateLibrary.Client.Offline
 @using PrivateLibrary.Shared.Lending
+@using PrivateLibrary.Shared.Media
 @using PrivateLibrary.Shared.Persons
 @inject LendingClientService LendSvc
 @inject ConnectivityService Connectivity
@@ -59,6 +60,30 @@
             <button class="btn btn-primary" @onclick="SaveAsync" disabled="@(!CanSave)">Speichern</button>
             <button class="btn btn-outline-secondary" @onclick="() => _edit = null">Abbrechen</button>
         </div>
+
+        @if (_edit.Id > 0)
+        {
+            <div class="game-field game-wide">
+                <label>Fotos</label>
+                @if (_editPhotos.Count > 0)
+                {
+                    <div class="lend-photos">
+                        @foreach (var url in _editPhotos)
+                        {
+                            <div class="photo-edit-item">
+                                <AuthImage Src="@url" CssClass="lend-photo" Alt="Ausleih-Foto" />
+                                <button class="btn btn-outline-danger btn-sm" @onclick="() => DeletePhotoAsync(url)">×</button>
+                            </div>
+                        }
+                    </div>
+                }
+                <PhotoUploader OnUpload="UploadLendingPhotoAsync" OnUploaded="RefreshEditPhotosAsync" Label="Foto(s) hinzufügen" />
+            </div>
+        }
+        else
+        {
+            <p class="wl-muted">Fotos kannst du nach dem Speichern des Eintrags hinzufügen.</p>
+        }
     </div>
 }
 
@@ -125,6 +150,7 @@ else
     private List<LendingCategoryDto> _categories = new();
     private List<PersonLookupDto> _persons = new();
     private SaveLendingEntryRequest? _edit;
+    private List<string> _editPhotos = new();
     private string _itemsText = string.Empty;
     private DateTime? _dueDate;
     private int _categoryId;
@@ -167,6 +193,7 @@ else
     {
         _edit = new SaveLendingEntryRequest { LoanDate = DateTime.Today };
         _itemsText = string.Empty; _dueDate = null; _categoryId = 0;
+        _editPhotos = new();
     }
 
     private void StartEdit(LendingEntryDto e)
@@ -180,6 +207,34 @@ else
         _itemsText = string.Join("\n", e.Items);
         _dueDate = e.DueDate;
         _categoryId = e.CategoryIds.FirstOrDefault();
+        _editPhotos = new(e.PhotoUrls);
+    }
+
+    private async Task<bool> UploadLendingPhotoAsync(UploadPhotoRequest request)
+        => _edit is not null && await LendSvc.UploadPhotoAsync(_edit.Id, request);
+
+    private async Task DeletePhotoAsync(string url)
+    {
+        if (TryPhotoId(url, out var photoId) && await LendSvc.DeletePhotoAsync(photoId))
+        {
+            await RefreshEditPhotosAsync();
+        }
+    }
+
+    private async Task RefreshEditPhotosAsync()
+    {
+        if (_edit is null) return;
+        _entries = await LendSvc.GetAllAsync();
+        var current = _entries.FirstOrDefault(x => x.Id == _edit.Id);
+        _editPhotos = current is null ? new() : new(current.PhotoUrls);
+        StateHasChanged();
+    }
+
+    private static bool TryPhotoId(string url, out int id)
+    {
+        id = 0;
+        var last = url.TrimEnd('/').Split('/').LastOrDefault();
+        return int.TryParse(last, out id);
     }
 
     private async Task SaveAsync()
