@@ -5,9 +5,11 @@
     <ProjectReference Include="..\PrivateLibrary.Client\PrivateLibrary.Client.csproj" />
     <!-- Reference the Server project for its compiled code (DbContext, entities,
          services). Build it with static web assets disabled so its wwwroot
-         (bootstrap, favicon, app.css, …) doesn't clash with the WASM client's. -->
+         (bootstrap, favicon, app.css, …) doesn't clash with the WASM client's,
+         and don't pull its content (appsettings.json, etc.) into our publish. -->
     <ProjectReference Include="..\PrivateLibrary\PrivateLibrary.csproj"
-                      AdditionalProperties="StaticWebAssetsEnabled=false" />
+                      AdditionalProperties="StaticWebAssetsEnabled=false"
+                      ExcludeAssets="contentFiles" />
   </ItemGroup>
 
   <ItemGroup>
@@ -20,5 +22,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
+  <!-- The referenced Server project ships its own appsettings*.json which collide
+       with the Api's on publish. Drop the ones coming from the Server project; the
+       Api uses its own configuration. -->
+  <Target Name="RemoveServerAppSettingsFromPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="$([System.String]::Copy('%(ResolvedFileToPublish.FullPath)').Contains('PrivateLibrary/appsettings'))" />
+    </ItemGroup>
+  </Target>
 
 </Project>

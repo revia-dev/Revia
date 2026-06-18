@@ -4,7 +4,15 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <!-- Keep blazor.webassembly.js at a stable name so index.html can reference it
+         without the #[.{fingerprint}] placeholder (which isn't resolved in this
+         hosted-publish setup). The service worker handles cache-busting via its
+         versioned assets manifest. -->
+    <WasmFingerprintDotnetJs>false</WasmFingerprintDotnetJs>
+    <OverrideHtmlAssetPlaceholders>false</OverrideHtmlAssetPlaceholders>
+    <!-- PWA: emit the manifest of cacheable assets used by the service worker for
+         offline app-shell caching. -->
+    <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,12 +26,11 @@
     <ProjectReference Include="..\PrivateLibrary.Shared\PrivateLibrary.Shared.csproj" />
   </ItemGroup>
 
-  <!-- We import hand-authored JS modules (wwwroot/js/*.js) by their stable path
-       from C# JSInterop. WASM asset fingerprinting rewrites the importmap to a
-       fingerprinted URL that isn't served, so disable fingerprinting here. Caching
-       is handled by the PWA service worker (Phase 7). -->
-  <PropertyGroup>
-    <StaticWebAssetFingerprintingEnabled>false</StaticWebAssetFingerprintingEnabled>
-  </PropertyGroup>
+  <!-- PWA service worker: dev SW is a no-op; on publish it is replaced by
+       service-worker.published.js (real offline caching). -->
+  <ItemGroup>
+    <ServiceWorker Include="wwwroot\service-worker.js"
+                   PublishedContent="wwwroot\service-worker.published.js" />
+  </ItemGroup>
 
 </Project>
