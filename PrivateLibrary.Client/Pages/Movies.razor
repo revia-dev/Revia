@@ -1,0 +1,118 @@
+@page "/movies"
+@attribute [Authorize]
+@using PrivateLibrary.Client.Features.Movies
+@using PrivateLibrary.Client.Offline
+@using PrivateLibrary.Shared.Movies
+@using PrivateLibrary.Shared.Offline
+@inject MovieClientService MovieSvc
+@inject ConnectivityService Connectivity
+@inject SyncEngine Sync
+@implements IDisposable
+
+<PageTitle>Filme – Revia</PageTitle>
+
+<div class="wl-head">
+    <h1>Filme</h1>
+    @if (!Connectivity.IsOnline)
+    {
+        <span class="wl-offline">⚡ Offline@(_pending > 0 ? $" · {_pending} ausstehend" : "")</span>
+    }
+    else if (_pending > 0)
+    {
+        <span class="wl-syncing">Synchronisiere @_pending…</span>
+    }
+    <span class="mv-count">@_filtered.Count / @_all.Count</span>
+</div>
+
+<div class="wl-create glass">
+    <input class="form-control" placeholder="Nach Titel oder Tag suchen…"
+           @bind="_search" @bind:event="oninput" @bind:after="ApplyFilter" />
+</div>
+
+@if (_loading)
+{
+    <p class="wl-muted">Lade Filme…</p>
+}
+else if (_filtered.Count == 0)
+{
+    <p class="wl-muted">Keine Filme gefunden.</p>
+}
+else
+{
+    <div class="mv-grid">
+        @foreach (var film in _filtered)
+        {
+            <div class="mv-card" @key="film.Id">
+                <img class="mv-poster" src="@PosterUrl(film)" alt="@film.Titel" loading="lazy" />
+                <div class="mv-meta">
+                    <div class="mv-title">@(film.Titel ?? "Unbekannt")</div>
+                    <div class="mv-sub">
+                        @if (!string.IsNullOrWhiteSpace(film.Jahr)) { <span>@film.Jahr</span> }
+                        @if (!string.IsNullOrWhiteSpace(film.Fsk)) { <span>FSK @film.Fsk</span> }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<MovieDto> _all = new();
+    private List<MovieDto> _filtered = new();
+    private string _search = string.Empty;
+    private bool _loading = true;
+    private int _pending;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Connectivity.Changed += OnConnectivityChanged;
+        Sync.Synced += OnSynced;
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+        _loading = false;
+    }
+
+    private async Task ReloadAsync()
+    {
+        _all = await MovieSvc.GetAllAsync();
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(_search))
+        {
+            _filtered = _all;
+        }
+        else
+        {
+            var q = _search.Trim();
+            _filtered = _all.Where(f =>
+                (f.Titel?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (f.Tags?.Any(t => t.Contains(q, StringComparison.OrdinalIgnoreCase)) ?? false))
+                .ToList();
+        }
+        StateHasChanged();
+    }
+
+    private static string PosterUrl(MovieDto f)
+        => string.IsNullOrWhiteSpace(f.PosterPath)
+            ? "/images/placeholder.png"
+            : $"https://image.tmdb.org/t/p/w400{f.PosterPath}";
+
+    private async void OnConnectivityChanged(bool online) => await InvokeAsync(ReloadAsync);
+
+    private async void OnSynced(SyncResult result)
+        => await InvokeAsync(async () =>
+        {
+            await ReloadAsync();
+            _pending = result.Remaining;
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        Connectivity.Changed -= OnConnectivityChanged;
+        Sync.Synced -= OnSynced;
+    }
+}

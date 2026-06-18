@@ -34,8 +34,9 @@ builder.Services.AddScoped<OfflineStore>();
 builder.Services.AddScoped<ConnectivityService>();
 builder.Services.AddScoped<SyncEngine>();
 
-// Pilot feature: wishlists (offline-capable).
+// Offline-capable features.
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Wishlists.WishlistClientService>();
+builder.Services.AddScoped<PrivateLibrary.Client.Features.Movies.MovieClientService>();
 
 var host = builder.Build();
 
@@ -47,6 +48,7 @@ await connectivity.InitializeAsync();
 // Eagerly resolve feature services so they register their sync replay handlers
 // before the engine performs its first flush.
 _ = host.Services.GetRequiredService<PrivateLibrary.Client.Features.Wishlists.WishlistClientService>();
+_ = host.Services.GetRequiredService<PrivateLibrary.Client.Features.Movies.MovieClientService>();
 
 await host.Services.GetRequiredService<SyncEngine>().InitializeAsync();
 

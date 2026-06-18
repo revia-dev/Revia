@@ -72,8 +72,9 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuthenticationStateProvider, HttpContextAuthStateProvider>();
 builder.Services.AddScoped<CurrentUserContext>();
 
-// Reused domain services (Phase 4 pilot: wishlists).
+// Reused domain services.
 builder.Services.AddScoped<WishlistService>();
+builder.Services.AddScoped<MovieService>();
 
 var app = builder.Build();
 

@@ -159,3 +159,13 @@ code {
 .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.85rem; border-radius: 8px; }
 .btn-outline-danger { color: #b53a2d; background: transparent; border: 1px solid rgba(181,58,45,0.4); }
 .btn-outline-secondary { color: #444; background: transparent; border: 1px solid #ccc; }
+
+/* ---- Movies (Phase 5) ---- */
+.home-links { display: flex; gap: 0.6rem; }
+.mv-count { margin-left: auto; color: #888; font-size: 0.9rem; }
+.mv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.85rem; }
+.mv-card { border: 1px solid rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden; background: #fff; }
+.mv-poster { display: block; width: 100%; aspect-ratio: 2/3; object-fit: cover; background: #eee; }
+.mv-meta { padding: 0.5rem 0.6rem; }
+.mv-title { font-weight: 600; font-size: 0.92rem; line-height: 1.2; }
+.mv-sub { display: flex; gap: 0.4rem; margin-top: 0.2rem; color: #888; font-size: 0.8rem; }
