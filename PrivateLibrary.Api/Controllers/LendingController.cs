@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using PrivateLibrary.Api.Auth;
 using PrivateLibrary.Services;
 using PrivateLibrary.Data;
@@ -96,6 +97,28 @@ public sealed class LendingController(ILendingService lending) : ControllerBase
     public async Task<IActionResult> DeleteCategory(int id, CancellationToken ct)
         => await _lending.DeleteCategoryAsync(id, ct) ? NoContent() : NotFound();
 
+    // ---- photos ----
+
+    /// <summary>Streams a lending photo. Authenticated; lending is shared across the
+    /// linked households, so visibility follows the same model as the entries.</summary>
+    [HttpGet("photos/{id:int}")]
+    public async Task<IActionResult> Photo(
+        int id,
+        [FromServices] AppDbContext db,
+        [FromServices] ILendingPhotoStorage storage,
+        CancellationToken ct)
+    {
+        var photo = await db.LendingPhotos.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.FileName, x.ContentType })
+            .FirstOrDefaultAsync(ct);
+
+        if (photo is null) return NotFound();
+        var path = storage.GetPath(photo.FileName);
+        if (!System.IO.File.Exists(path)) return NotFound();
+        return PhysicalFile(path, photo.ContentType);
+    }
+
     // ---- mapping ----
 
     private static LendingEntry ToEntity(SaveLendingEntryRequest r) => new()
@@ -138,6 +161,10 @@ public sealed class LendingController(ILendingService lending) : ControllerBase
         DueDate = e.DueDate,
         ReturnedAt = e.ReturnedAt,
         Status = (LendingStatusDto)(int)e.Status,
-        Notes = e.Notes
+        Notes = e.Notes,
+        PhotoUrls = (e.Photos ?? new List<LendingPhoto>())
+            .OrderBy(p => p.SortOrder).ThenBy(p => p.Id)
+            .Select(p => $"api/lending/photos/{p.Id}")
+            .ToList()
     };
 }

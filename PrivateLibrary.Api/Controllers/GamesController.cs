@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using PrivateLibrary.Api.Auth;
 using PrivateLibrary.Services;
 using PrivateLibrary.Data;
@@ -92,6 +93,27 @@ public sealed class GamesController(GameService games) : ControllerBase
     public async Task<IActionResult> DeleteMatch(int matchId, CancellationToken ct)
         => await _games.DeleteMatchAsync(matchId, ct) ? NoContent() : NotFound();
 
+    /// <summary>Streams a match photo, scoped to the caller's household.</summary>
+    [HttpGet("matches/photo/{photoId:int}")]
+    public async Task<IActionResult> MatchPhoto(
+        int photoId,
+        [FromServices] AppDbContext db,
+        [FromServices] CurrentUserContext currentUser,
+        [FromServices] IGameFileStorage storage,
+        CancellationToken ct)
+    {
+        var householdId = await currentUser.RequireHouseholdIdAsync();
+        var photo = await db.GameMatchPhotos.AsNoTracking()
+            .Where(x => x.Id == photoId && x.GameMatch!.HouseholdId == householdId)
+            .Select(x => new { x.FileName, x.ContentType })
+            .FirstOrDefaultAsync(ct);
+
+        if (photo is null) return NotFound();
+        var path = storage.GetPath(photo.FileName);
+        if (!System.IO.File.Exists(path)) return NotFound();
+        return PhysicalFile(path, photo.ContentType);
+    }
+
     // ---- mapping ----
 
     private static Game ToGame(SaveGameRequest r) => new()
@@ -166,6 +188,10 @@ public sealed class GamesController(GameService games) : ControllerBase
                 PersonId = p.PersonId,
                 PersonDisplayName = p.Person?.DisplayName ?? string.Empty,
                 Score = p.Score
-            }).ToList()
+            }).ToList(),
+        PhotoUrls = (m.Photos ?? new List<GameMatchPhoto>())
+            .OrderBy(p => p.SortOrder).ThenBy(p => p.Id)
+            .Select(p => $"api/games/matches/photo/{p.Id}")
+            .ToList()
     };
 }

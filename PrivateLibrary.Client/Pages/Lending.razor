@@ -105,6 +105,15 @@ else
                 @if (e.DueDate is not null) { <span>fällig @e.DueDate.Value.ToString("dd.MM.yyyy")</span> }
                 @foreach (var c in e.CategoryNames) { <span class="badge">@c</span> }
             </div>
+            @if (e.PhotoUrls.Count > 0)
+            {
+                <div class="lend-photos">
+                    @foreach (var url in e.PhotoUrls)
+                    {
+                        <AuthImage Src="@url" CssClass="lend-photo" Alt="Ausleih-Foto" />
+                    }
+                </div>
+            }
         </div>
     }
 }

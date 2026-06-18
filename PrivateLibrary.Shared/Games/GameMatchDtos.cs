@@ -12,6 +12,10 @@ public sealed class GameMatchDto
     public int? ScoreDefinitionId { get; set; }
     public string? Notes { get; set; }
     public List<MatchParticipantDto> Participants { get; set; } = new();
+
+    /// <summary>Authenticated photo paths (e.g. "api/games/matches/photo/12"),
+    /// in display order. Rendered via AuthImage and cached for offline viewing.</summary>
+    public List<string> PhotoUrls { get; set; } = new();
 }
 
 public sealed class MatchParticipantDto

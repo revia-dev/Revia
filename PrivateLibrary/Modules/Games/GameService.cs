@@ -230,6 +230,7 @@ public sealed class GameService(AppDbContext db, CurrentUserContext currentUser,
             .AsNoTracking()
             .Where(x => x.GameId == gameId && x.HouseholdId == householdId)
             .Include(x => x.Participants).ThenInclude(p => p.Person)
+            .Include(x => x.Photos.OrderBy(p => p.SortOrder).ThenBy(p => p.Id))
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))

@@ -103,6 +103,15 @@ else
                     </li>
                 }
             </ul>
+            @if (m.PhotoUrls.Count > 0)
+            {
+                <div class="match-photos">
+                    @foreach (var url in m.PhotoUrls)
+                    {
+                        <AuthImage Src="@url" CssClass="match-photo" Alt="Partie-Foto" />
+                    }
+                </div>
+            }
         </div>
     }
 }

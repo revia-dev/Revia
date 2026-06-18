@@ -278,3 +278,9 @@ code {
 .perm-table { width: 100%; border-collapse: collapse; padding: 0.5rem; }
 .perm-table th, .perm-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.06); }
 .perm-table .perm-col { text-align: center; width: 7rem; }
+
+/* ---- 7b: match + lending photo strips ---- */
+.match-photos, .lend-photos { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.match-photo, .lend-photo { width: 84px; height: 84px; object-fit: cover; border-radius: 0.5rem; }
+.auth-img-loading, .auth-img-missing { display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.05); border-radius: 0.5rem; color: #999; }

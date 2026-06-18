@@ -24,6 +24,10 @@ public sealed class LendingEntryDto
     public DateTime? ReturnedAt { get; set; }
     public LendingStatusDto Status { get; set; }
     public string? Notes { get; set; }
+
+    /// <summary>Authenticated photo paths (e.g. "api/lending/photos/8"), in display
+    /// order. Rendered via AuthImage and cached for offline viewing.</summary>
+    public List<string> PhotoUrls { get; set; } = new();
 }
 
 public sealed class SaveLendingEntryRequest

@@ -38,6 +38,7 @@ public sealed class LendingService : ILendingService
             .Include(x => x.Items.OrderBy(i => i.SortOrder))
             .Include(x => x.CategoryLinks)
                 .ThenInclude(x => x.LendingCategory)
+            .Include(x => x.Photos.OrderBy(p => p.SortOrder).ThenBy(p => p.Id))
             .OrderByDescending(x => x.LoanDate)
             .ThenByDescending(x => x.Id)
             .ToListAsync(cancellationToken);
