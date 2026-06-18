@@ -48,6 +48,9 @@ builder.Services.AddScoped<MovieService>();
 builder.Services.AddScoped<TvGuideService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<DashboardLayoutService>();
+builder.Services.AddScoped<ModuleTileLayoutService>();
+builder.Services.AddScoped<PermissionService>();
+builder.Services.AddScoped<AnalyticsService>();
 builder.Services.AddScoped<PosterResolverService>();
 builder.Services.AddHostedService<PosterBackfillService>();
 

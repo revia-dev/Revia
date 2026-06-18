@@ -8,6 +8,7 @@
 @inject GameService GameService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
 @inject NotificationService Notifications
+@inject PrivateLibrary.Services.PermissionService Permissions
 @inject NavigationManager Navigation
 
 <PageTitle>@(Id is null ? "Neues Spiel" : "Spiel bearbeiten")</PageTitle>
@@ -119,6 +120,12 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        if (!await Permissions.CanWriteAsync(AppModules.Games))
+        {
+            Navigation.NavigateTo("/games");
+            return;
+        }
+
         if (Id is null)
         {
             _game = new Game();

@@ -9,13 +9,14 @@ public static class DashboardSections
     public const string ModuleTiles = "modules";
     public const string Kpis = "kpis";
     public const string StatusChart = "chart";
+    public const string Analytics = "analytics";
     public const string Overdue = "overdue";
     public const string Recent = "recent";
 
     /// <summary>Default order shown to a user who hasn't customised anything.</summary>
     public static readonly IReadOnlyList<string> DefaultOrder = new[]
     {
-        ModuleTiles, Kpis, StatusChart, Overdue, Recent
+        ModuleTiles, Kpis, StatusChart, Analytics, Overdue, Recent
     };
 
     /// <summary>Human-readable German labels for the customise panel.</summary>
@@ -24,6 +25,7 @@ public static class DashboardSections
         [ModuleTiles] = "Modul-Kacheln",
         [Kpis] = "Kennzahlen",
         [StatusChart] = "Statusverteilung",
+        [Analytics] = "Analysen",
         [Overdue] = "Überfällige Ausleihen",
         [Recent] = "Zuletzt hinzugefügt",
     };

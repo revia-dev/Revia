@@ -8,6 +8,7 @@
 @inject GameService GameService
 @inject PrivateLibrary.Modules.Lending.Services.IPersonService PersonService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject PrivateLibrary.Services.PermissionService Permissions
 @inject NavigationManager Navigation
 
 <PageTitle>Partie</PageTitle>
@@ -163,6 +164,12 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        if (!await Permissions.CanWriteAsync(AppModules.Games))
+        {
+            Navigation.NavigateTo("/games");
+            return;
+        }
+
         _loading = true;
         _game = await GameService.GetGameAsync(GameId);
         if (_game is null) { Navigation.NavigateTo("/games"); return; }

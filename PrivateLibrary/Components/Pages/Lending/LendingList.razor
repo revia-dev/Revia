@@ -4,6 +4,7 @@
 @inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
 @inject PrivateLibrary.Services.DeferredDeleteService DeferredDelete
+@inject PrivateLibrary.Services.PermissionService Permissions
 @inject NavigationManager Navigation
 
 <PageTitle>Ausleihen</PageTitle>
@@ -15,7 +16,10 @@
             <p>Verliehene und geliehene Gegenstände verwalten.</p>
         </div>
         <div class="header-actions">
-            <a class="btn btn-primary" href="/lending/new">Neu anlegen</a>
+            @if (_canWrite)
+            {
+                <a class="btn btn-primary" href="/lending/new">Neu anlegen</a>
+            }
             <a class="btn btn-outline-secondary" href="/lending/persons">Personen</a>
             <a class="btn btn-outline-secondary" href="/lending/categories">Kategorien</a>
             <a class="btn btn-outline-secondary" href="/lending/export.csv" target="_blank" rel="noopener">CSV-Export</a>
@@ -95,8 +99,11 @@
                             <td>@FormatDate(entry.DueDate)</td>
                             <td class="actions">
                                 <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/{entry.Id}")">Details</a>
-                                <a class="btn btn-sm btn-outline-primary" href="@($"/lending/edit/{entry.Id}")">Bearbeiten</a>
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(entry)">Löschen</button>
+                                @if (_canWrite)
+                                {
+                                    <a class="btn btn-sm btn-outline-primary" href="@($"/lending/edit/{entry.Id}")">Bearbeiten</a>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(entry)">Löschen</button>
+                                }
                             </td>
                         </tr>
                     }
@@ -107,28 +114,16 @@
         <div class="ui-mobile-cards">
             @foreach (var entry in FilteredItems)
             {
-                <SwipeToDelete @key="entry.Id" DeleteLabel="Eintrag löschen" OnDelete="() => DeleteAsync(entry)">
-                    <article class="ui-mobile-card">
-                        <div class="ui-mobile-card-head">
-                            <div>
-                                <div class="ui-mobile-card-title">@entry.Title</div>
-                                <div class="ui-mobile-card-subtitle">@FormatItemNames(entry)</div>
-                            </div>
-                            <span class="status-pill @StatusClass(entry.Status)">@StatusLabel(entry.Status)</span>
-                        </div>
-                        <div class="ui-mobile-meta">
-                            <div class="ui-mobile-meta-row"><span>Kategorie</span><span>@ValueOrFallback(entry.Category)</span></div>
-                            <div class="ui-mobile-meta-row"><span>Verleiher</span><span>@entry.Lender.DisplayName</span></div>
-                            <div class="ui-mobile-meta-row"><span>Entleiher</span><span>@entry.Borrower.DisplayName</span></div>
-                            <div class="ui-mobile-meta-row"><span>Fällig</span><span>@FormatDate(entry.DueDate)</span></div>
-                        </div>
-                        <div class="table-actions">
-                            <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/{entry.Id}")">Details</a>
-                            <a class="btn btn-sm btn-outline-primary" href="@($"/lending/edit/{entry.Id}")">Bearbeiten</a>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(entry)">Löschen</button>
-                        </div>
-                    </article>
-                </SwipeToDelete>
+                @if (_canWrite)
+                {
+                    <SwipeToDelete @key="entry.Id" DeleteLabel="Eintrag löschen" OnDelete="() => DeleteAsync(entry)">
+                        @LendingCard(entry)
+                    </SwipeToDelete>
+                }
+                else
+                {
+                    <div @key="entry.Id">@LendingCard(entry)</div>
+                }
             }
         </div>
     }
@@ -138,6 +133,31 @@
     private List<LendingEntry>? _items;
     private string _searchTerm = string.Empty;
     private LendingEntryStatus? _statusFilter;
+    private bool _canWrite = true;
+
+    private RenderFragment LendingCard(LendingEntry entry) => @<article class="ui-mobile-card">
+        <div class="ui-mobile-card-head">
+            <div>
+                <div class="ui-mobile-card-title">@entry.Title</div>
+                <div class="ui-mobile-card-subtitle">@FormatItemNames(entry)</div>
+            </div>
+            <span class="status-pill @StatusClass(entry.Status)">@StatusLabel(entry.Status)</span>
+        </div>
+        <div class="ui-mobile-meta">
+            <div class="ui-mobile-meta-row"><span>Kategorie</span><span>@ValueOrFallback(entry.Category)</span></div>
+            <div class="ui-mobile-meta-row"><span>Verleiher</span><span>@entry.Lender.DisplayName</span></div>
+            <div class="ui-mobile-meta-row"><span>Entleiher</span><span>@entry.Borrower.DisplayName</span></div>
+            <div class="ui-mobile-meta-row"><span>Fällig</span><span>@FormatDate(entry.DueDate)</span></div>
+        </div>
+        <div class="table-actions">
+            <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/{entry.Id}")">Details</a>
+            @if (_canWrite)
+            {
+                <a class="btn btn-sm btn-outline-primary" href="@($"/lending/edit/{entry.Id}")">Bearbeiten</a>
+                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(entry)">Löschen</button>
+            }
+        </div>
+    </article>;
 
     private IEnumerable<LendingEntry> FilteredItems => (_items ?? Enumerable.Empty<LendingEntry>())
         .Where(entry => !_statusFilter.HasValue || entry.Status == _statusFilter)
@@ -153,6 +173,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var access = await Permissions.GetAccessAsync(AppModules.Lending);
+        if (!access.CanRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _canWrite = access.CanWrite;
         await LoadAsync();
     }
 

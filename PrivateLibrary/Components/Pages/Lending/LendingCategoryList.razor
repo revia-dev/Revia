@@ -2,6 +2,8 @@
 @using PrivateLibrary.Modules.Lending.Models
 @inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject PrivateLibrary.Services.PermissionService Permissions
+@inject NavigationManager Navigation
 
 <PageTitle>Kategorien</PageTitle>
 
@@ -11,7 +13,10 @@
             <h1>Kategorien</h1>
             <p>Kategorien für Ausleihen verwalten.</p>
         </div>
-        <a class="btn btn-primary" href="/lending/categories/new">Neu anlegen</a>
+        @if (_canWrite)
+        {
+            <a class="btn btn-primary" href="/lending/categories/new">Neu anlegen</a>
+        }
     </div>
 
     @if (!string.IsNullOrWhiteSpace(_errorMessage))
@@ -62,8 +67,11 @@
                                 <tr>
                                     <td><div class="item-title">@category.Name</div></td>
                                     <td class="actions">
-                                        <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/categories/edit/{category.Id}")">Bearbeiten</a>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategoryAsync(category.Id)">Löschen</button>
+                                        @if (_canWrite)
+                                        {
+                                            <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/categories/edit/{category.Id}")">Bearbeiten</a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategoryAsync(category.Id)">Löschen</button>
+                                        }
                                     </td>
                                 </tr>
                             }
@@ -74,19 +82,16 @@
                 <div class="ui-mobile-cards">
                     @foreach (var category in FilteredCategories)
                     {
-                        <SwipeToDelete @key="category.Id" DeleteLabel="Kategorie löschen" OnDelete="() => DeleteCategoryAsync(category.Id)">
-                            <article class="ui-mobile-card">
-                                <div class="ui-mobile-card-head">
-                                    <div>
-                                        <div class="ui-mobile-card-title">@category.Name</div>
-                                    </div>
-                                </div>
-                                <div class="table-actions">
-                                    <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/categories/edit/{category.Id}")">Bearbeiten</a>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategoryAsync(category.Id)">Löschen</button>
-                                </div>
-                            </article>
-                        </SwipeToDelete>
+                        @if (_canWrite)
+                        {
+                            <SwipeToDelete @key="category.Id" DeleteLabel="Kategorie löschen" OnDelete="() => DeleteCategoryAsync(category.Id)">
+                                @CategoryCard(category)
+                            </SwipeToDelete>
+                        }
+                        else
+                        {
+                            <div @key="category.Id">@CategoryCard(category)</div>
+                        }
                     }
                 </div>
             }
@@ -98,6 +103,22 @@
     private IReadOnlyList<LendingCategory>? _categories;
     private string _searchTerm = string.Empty;
     private string? _errorMessage;
+    private bool _canWrite = true;
+
+    private RenderFragment CategoryCard(LendingCategory category) => @<article class="ui-mobile-card">
+        <div class="ui-mobile-card-head">
+            <div>
+                <div class="ui-mobile-card-title">@category.Name</div>
+            </div>
+        </div>
+        <div class="table-actions">
+            @if (_canWrite)
+            {
+                <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/categories/edit/{category.Id}")">Bearbeiten</a>
+                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategoryAsync(category.Id)">Löschen</button>
+            }
+        </div>
+    </article>;
 
     private IEnumerable<LendingCategory> FilteredCategories => (_categories ?? Array.Empty<LendingCategory>())
         .Where(category => string.IsNullOrWhiteSpace(_searchTerm)
@@ -105,6 +126,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var access = await Permissions.GetAccessAsync(AppModules.Lending);
+        if (!access.CanRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _canWrite = access.CanWrite;
         await LoadAsync();
     }
 

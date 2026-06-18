@@ -32,6 +32,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<LendingCategory> LendingCategories => Set<LendingCategory>();
     public DbSet<LendingEntryCategory> LendingEntryCategories => Set<LendingEntryCategory>();
     public DbSet<LendingPhoto> LendingPhotos => Set<LendingPhoto>();
+    public DbSet<ModulePermission> ModulePermissions => Set<ModulePermission>();
+    public DbSet<AnalyticsWidget> AnalyticsWidgets => Set<AnalyticsWidget>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -211,6 +213,26 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<IdentityRole>(builder =>
         {
             builder.Property(x => x.Name).HasMaxLength(256);
+        });
+
+        modelBuilder.Entity<ModulePermission>(builder =>
+        {
+            builder.HasIndex(x => new { x.UserId, x.Module }).IsUnique();
+
+            builder.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AnalyticsWidget>(builder =>
+        {
+            builder.HasIndex(x => new { x.UserId, x.SortOrder });
+
+            builder.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 

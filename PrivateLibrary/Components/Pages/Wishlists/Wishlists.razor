@@ -5,6 +5,8 @@
 @attribute [Authorize]
 @inject WishlistService WishlistService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject PrivateLibrary.Services.PermissionService Permissions
+@inject NavigationManager Navigation
 
 <PageTitle>Wunschzettel</PageTitle>
 
@@ -19,13 +21,16 @@
         </div>
     </div>
 
-    <div class="glass-card ui-section">
-        <h2 class="ui-section-title">Neuen Wunschzettel anlegen</h2>
-        <div class="wishlist-add">
-            <input class="form-control" placeholder="Bezeichnung (z. B. Geburtstag)" @bind="_newName" />
-            <button type="button" class="btn btn-primary" @onclick="CreateAsync">Anlegen</button>
+    @if (_canWrite)
+    {
+        <div class="glass-card ui-section">
+            <h2 class="ui-section-title">Neuen Wunschzettel anlegen</h2>
+            <div class="wishlist-add">
+                <input class="form-control" placeholder="Bezeichnung (z. B. Geburtstag)" @bind="_newName" />
+                <button type="button" class="btn btn-primary" @onclick="CreateAsync">Anlegen</button>
+            </div>
         </div>
-    </div>
+    }
 
     @{
         var visible = _showCompleted ? _wishlists : _wishlists.Where(w => !IsFullyFulfilled(w)).ToList();
@@ -72,12 +77,23 @@
 @code {
     private List<Wishlist> _wishlists = new();
     private string _newName = string.Empty;
+    private bool _canWrite = true;
     private bool _showCompleted;
 
     private static bool IsFullyFulfilled(Wishlist w)
         => w.Items.Count > 0 && w.Items.All(i => i.IsFulfilled);
 
-    protected override async Task OnInitializedAsync() => await ReloadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        var access = await Permissions.GetAccessAsync(AppModules.Wishlists);
+        if (!access.CanRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _canWrite = access.CanWrite;
+        await ReloadAsync();
+    }
 
     private async Task ReloadAsync()
     {

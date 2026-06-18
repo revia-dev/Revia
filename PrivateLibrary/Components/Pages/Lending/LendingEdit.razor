@@ -7,6 +7,7 @@
 @inject PrivateLibrary.Modules.Lending.Services.IPersonService PersonService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
 @inject NotificationService Notifications
+@inject PrivateLibrary.Services.PermissionService Permissions
 @inject NavigationManager Navigation
 
 <PageTitle>@(_id.HasValue ? "Ausleih-Eintrag bearbeiten" : "Neuer Ausleih-Eintrag")</PageTitle>
@@ -245,6 +246,12 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        if (!await Permissions.CanWriteAsync(AppModules.Lending))
+        {
+            Navigation.NavigateTo("/lending");
+            return;
+        }
+
         _loadError = null;
         _id = Id;
 

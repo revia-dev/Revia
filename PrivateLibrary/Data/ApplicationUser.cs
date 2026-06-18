@@ -59,6 +59,12 @@ public sealed class ApplicationUser : IdentityUser
     [StringLength(500)]
     public string? DashboardLayout { get; set; }
 
+    /// <summary>Per-user module-tile layout: a compact CSV of module keys in display
+    /// order, each optionally prefixed with '-' to mark it hidden. Empty/null means
+    /// "use the default order, all visible". See <c>ModuleTileLayoutService</c>.</summary>
+    [StringLength(500)]
+    public string? ModuleTileLayout { get; set; }
+
     public ICollection<LendingEntry> LentEntries { get; set; } = new List<LendingEntry>();
     public ICollection<LendingEntry> BorrowedEntries { get; set; } = new List<LendingEntry>();
 

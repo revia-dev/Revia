@@ -4,6 +4,7 @@
 @using PrivateLibrary.Modules.Lending.Models
 @inject PrivateLibrary.Modules.Lending.Services.ILendingService LendingService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject PrivateLibrary.Services.PermissionService Permissions
 @inject NavigationManager Navigation
 
 <PageTitle>@(_id.HasValue ? "Kategorie bearbeiten" : "Neue Kategorie")</PageTitle>
@@ -57,6 +58,12 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        if (!await Permissions.CanWriteAsync(AppModules.Lending))
+        {
+            Navigation.NavigateTo("/lending/categories");
+            return;
+        }
+
         _id = Id;
         _loadError = null;
 

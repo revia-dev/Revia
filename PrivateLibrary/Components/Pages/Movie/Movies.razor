@@ -7,6 +7,8 @@
 @inject PrivateLibrary.Services.TmdbService TmdbService
 @inject PrivateLibrary.Services.PosterResolverService PosterResolver
 @inject PrivateLibrary.Services.DeferredDeleteService DeferredDelete
+@inject PrivateLibrary.Services.PermissionService Permissions
+@inject NavigationManager Navigation
 
 <PageTitle>Movie Library</PageTitle>
 
@@ -28,11 +30,14 @@
                     <Icon Name="funnel" Size="14" /> @(isFilterVisible ? "Filter schließen" : "Filter öffnen")
                 </button>
 
-                <button type="button"
-                        class="btn btn-primary"
-                        @onclick="CreateMovie">
-                    Neuer Datensatz
-                </button>
+                @if (_canWrite)
+                {
+                    <button type="button"
+                            class="btn btn-primary"
+                            @onclick="CreateMovie">
+                        Neuer Datensatz
+                    </button>
+                }
 
                 <a class="btn btn-outline-secondary" href="/movies/export.csv" target="_blank" rel="noopener">
                     CSV-Export
@@ -201,45 +206,16 @@
             <div class="movie-grid">
                 @foreach (var film in filteredFilme)
                 {
-                    <SwipeToDelete @key="film.Id" DeleteLabel="Film löschen" OnDelete="() => DeleteFilmAsync(film)">
-                        <button type="button"
-                                class="movie-card"
-                                @onclick="() => SelectFilm(film)">
-                            <div class="movie-poster-wrap">
-                                <img src="@PosterResolver.ResolvePosterUrl(film)"
-                                     alt="@(film.Titel ?? "Unbekannt")"
-                                     class="movie-poster" />
-
-                                <div class="movie-card-overlay movie-card-overlay-hover">
-                                    <div class="movie-card-title">
-                                        @(film.Titel ?? "Unbekannt")
-                                    </div>
-
-                                    <div class="movie-card-meta">
-                                        @if (!string.IsNullOrWhiteSpace(film.Jahr))
-                                        {
-                                            <span>@film.Jahr</span>
-                                        }
-
-                                        @if (!string.IsNullOrWhiteSpace(film.Fsk))
-                                        {
-                                            <span>FSK @film.Fsk</span>
-                                        }
-                                    </div>
-
-                                    @if (film.Tags?.Any() == true)
-                                    {
-                                        <div class="movie-card-tags">
-                                            @foreach (var tag in film.Tags.Take(3))
-                                            {
-                                                <span>@tag</span>
-                                            }
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-                        </button>
-                    </SwipeToDelete>
+                    @if (_canWrite)
+                    {
+                        <SwipeToDelete @key="film.Id" DeleteLabel="Film löschen" OnDelete="() => DeleteFilmAsync(film)">
+                            @MovieCard(film)
+                        </SwipeToDelete>
+                    }
+                    else
+                    {
+                        <div @key="film.Id">@MovieCard(film)</div>
+                    }
                 }
             </div>
         </section>
@@ -250,6 +226,7 @@
 {
     <MovieDetail Film="selectedFilm"
                  AllFilms="filme"
+                 CanWrite="_canWrite"
                  OnClose="CloseDetail"
                  OnFilmSelected="SelectFilm"
                  OnEdit="OpenEditFromDetails"
@@ -257,6 +234,27 @@
 }
 
 @code {
+    private RenderFragment MovieCard(Film film) => @<button type="button" class="movie-card" @onclick="() => SelectFilm(film)">
+        <div class="movie-poster-wrap">
+            <img src="@PosterResolver.ResolvePosterUrl(film)" alt="@(film.Titel ?? "Unbekannt")" class="movie-poster" />
+            <div class="movie-card-overlay movie-card-overlay-hover">
+                <div class="movie-card-title">@(film.Titel ?? "Unbekannt")</div>
+                <div class="movie-card-meta">
+                    @if (!string.IsNullOrWhiteSpace(film.Jahr)) { <span>@film.Jahr</span> }
+                    @if (!string.IsNullOrWhiteSpace(film.Fsk)) { <span>FSK @film.Fsk</span> }
+                </div>
+                @if (film.Tags?.Any() == true)
+                {
+                    <div class="movie-card-tags">
+                        @foreach (var tag in film.Tags.Take(3)) { <span>@tag</span> }
+                    </div>
+                }
+            </div>
+        </div>
+    </button>;
+
+    private bool _canWrite = true;
+
     private List<Film> filme = new();
     private List<Film> filteredFilme = new();
     private List<FilterGroup> filterData = new();
@@ -293,6 +291,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var access = await Permissions.GetAccessAsync(AppModules.Movies);
+        if (!access.CanRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _canWrite = access.CanWrite;
         await ReloadMoviesAsync();
     }
 

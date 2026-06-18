@@ -8,6 +8,8 @@
 @inject BmiService BmiService
 @inject PrivateLibrary.Modules.Lending.Services.IPersonService PersonService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
+@inject PrivateLibrary.Services.PermissionService Permissions
+@inject NavigationManager Navigation
 
 <PageTitle>Gewicht &amp; BMI</PageTitle>
 
@@ -23,6 +25,8 @@
     </div>
 
     @* ---- Add form ---- *@
+    @if (_canWrite)
+    {
     <div class="glass-card ui-section">
         <h2 class="ui-section-title">Neue Messung</h2>
         <div class="bmi-form-grid">
@@ -62,6 +66,7 @@
             <button type="button" class="btn btn-primary btn-modern" disabled="@_saving" @onclick="AddAsync">Messung speichern</button>
         </div>
     </div>
+    }
 
     @* ---- Filter ---- *@
     <div class="glass-card ui-section ui-stack">
@@ -132,7 +137,7 @@
                             <td>@r.WeightKg.ToString("0.#")</td>
                             <td>@r.HeightCm.ToString("0.#")</td>
                             <td>@r.Bmi.ToString("0.#")</td>
-                            <td><button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(r.Id)">Löschen</button></td>
+                            <td>@if (_canWrite) { <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(r.Id)">Löschen</button> }</td>
                         </tr>
                     }
                 </tbody>
@@ -152,6 +157,7 @@
     private IBrowserFile? _photoFile;
     private CapturedPhoto? _capturedPhoto;
     private bool _saving;
+    private bool _canWrite = true;
 
     private string _filterPersonId = string.Empty;
 
@@ -169,6 +175,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var access = await Permissions.GetAccessAsync(AppModules.Bmi);
+        if (!access.CanRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _canWrite = access.CanWrite;
         _persons = await PersonService.GetLookupAsync();
         await ReloadAsync();
     }

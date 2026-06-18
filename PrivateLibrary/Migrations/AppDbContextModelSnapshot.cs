@@ -145,6 +145,49 @@ namespace PrivateLibrary.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.AnalyticsWidget", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Metric")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OptionsJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "SortOrder");
+
+                    b.ToTable("AnalyticsWidgets");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Data.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -203,6 +246,10 @@ namespace PrivateLibrary.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ModuleTileLayout")
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Nickname")
@@ -630,6 +677,35 @@ namespace PrivateLibrary.Migrations
                     b.ToTable("HouseholdLinks");
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.ModulePermission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CanRead")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CanWrite")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Module")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Module")
+                        .IsUnique();
+
+                    b.ToTable("ModulePermissions");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Data.Movie", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1044,6 +1120,17 @@ namespace PrivateLibrary.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.AnalyticsWidget", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Data.ApplicationUser", b =>
                 {
                     b.HasOne("PrivateLibrary.Data.Household", "Household")
@@ -1155,6 +1242,17 @@ namespace PrivateLibrary.Migrations
                         .IsRequired();
 
                     b.Navigation("Game");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.ModulePermission", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("PrivateLibrary.Data.TvProgram", b =>

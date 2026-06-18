@@ -6,6 +6,8 @@
 @inject TmdbService TmdbService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
 @inject PrivateLibrary.Services.DeferredDeleteService DeferredDelete
+@inject PrivateLibrary.Services.PermissionService Permissions
+@inject NavigationManager Navigation
 @using Microsoft.AspNetCore.Authorization
 
 <PageTitle>Fernsehprogramm</PageTitle>
@@ -28,6 +30,8 @@
         </div>
 
         @* ---- Add form ---- *@
+        @if (_canWrite)
+        {
         <div class="tv-add">
             <div class="tv-add-grid">
                 <div class="field field-wide">
@@ -87,6 +91,7 @@
                 <button type="button" class="btn btn-primary btn-modern" @onclick="AddEntryAsync">Zum Programm hinzufügen</button>
             </div>
         </div>
+        }
 
         @* ---- Linear schedule ---- *@
         @if (_entries is null)
@@ -106,39 +111,16 @@
                     <div class="tv-entries">
                         @foreach (var entry in day.OrderBy(e => e.StartsAt))
                         {
-                            <SwipeToDelete @key="entry.Id" DeleteLabel="Eintrag löschen" OnDelete="() => DeleteEntryAsync(entry)">
-                            <div class="tv-entry">
-                                <div class="tv-entry-time">@entry.StartsAt.ToString("HH:mm")</div>
-                                <img class="tv-entry-poster" src="@Poster(entry.Movie)" alt="" loading="lazy" />
-                                <div class="tv-entry-body">
-                                    <div class="tv-entry-title">@(entry.Movie?.Titel ?? "Unbekannt")</div>
-                                    <div class="tv-entry-meta">
-                                        @if (!string.IsNullOrWhiteSpace(entry.Channel)) { <span>@entry.Channel</span> }
-                                        @if (_tab == Tab.Family && entry.TvProgram?.OwnerUser is not null)
-                                        {
-                                            <span class="badge text-bg-info">von @entry.TvProgram.OwnerUser.DisplayName</span>
-                                        }
-                                        @if (_tab == Tab.Private && entry.SharedWithHousehold)
-                                        {
-                                            <span class="badge text-bg-success">freigegeben</span>
-                                        }
-                                    </div>
-                                    @if (!string.IsNullOrWhiteSpace(entry.Note)) { <div class="tv-entry-note">@entry.Note</div> }
-                                </div>
-                                <div class="tv-entry-actions">
-                                    @if (_tab == Tab.Private)
-                                    {
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleShareAsync(entry)">
-                                            @(entry.SharedWithHousehold ? "Freigabe zurücknehmen" : "Freigeben")
-                                        </button>
-                                    }
-                                    @if (CanDelete(entry))
-                                    {
-                                        <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteEntryAsync(entry)">Löschen</button>
-                                    }
-                                </div>
-                            </div>
-                            </SwipeToDelete>
+                            @if (CanDelete(entry))
+                            {
+                                <SwipeToDelete @key="entry.Id" DeleteLabel="Eintrag löschen" OnDelete="() => DeleteEntryAsync(entry)">
+                                    @TvEntryCard(entry)
+                                </SwipeToDelete>
+                            }
+                            else
+                            {
+                                <div @key="entry.Id">@TvEntryCard(entry)</div>
+                            }
                         }
                     </div>
                 </div>
@@ -150,6 +132,39 @@
 @code {
     private enum Tab { Private, Family }
     private Tab _tab = Tab.Private;
+    private bool _canWrite = true;
+
+    private RenderFragment TvEntryCard(TvProgramEntry entry) => @<div class="tv-entry">
+        <div class="tv-entry-time">@entry.StartsAt.ToString("HH:mm")</div>
+        <img class="tv-entry-poster" src="@Poster(entry.Movie)" alt="" loading="lazy" />
+        <div class="tv-entry-body">
+            <div class="tv-entry-title">@(entry.Movie?.Titel ?? "Unbekannt")</div>
+            <div class="tv-entry-meta">
+                @if (!string.IsNullOrWhiteSpace(entry.Channel)) { <span>@entry.Channel</span> }
+                @if (_tab == Tab.Family && entry.TvProgram?.OwnerUser is not null)
+                {
+                    <span class="badge text-bg-info">von @entry.TvProgram.OwnerUser.DisplayName</span>
+                }
+                @if (_tab == Tab.Private && entry.SharedWithHousehold)
+                {
+                    <span class="badge text-bg-success">freigegeben</span>
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(entry.Note)) { <div class="tv-entry-note">@entry.Note</div> }
+        </div>
+        <div class="tv-entry-actions">
+            @if (_tab == Tab.Private && _canWrite)
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleShareAsync(entry)">
+                    @(entry.SharedWithHousehold ? "Freigabe zurücknehmen" : "Freigeben")
+                </button>
+            }
+            @if (CanDelete(entry))
+            {
+                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteEntryAsync(entry)">Löschen</button>
+            }
+        </div>
+    </div>;
 
     private List<TvProgramEntry>? _entries;
     private IReadOnlyList<MovieOption> _options = Array.Empty<MovieOption>();
@@ -167,6 +182,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var access = await Permissions.GetAccessAsync(AppModules.Tv);
+        if (!access.CanRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _canWrite = access.CanWrite;
         _options = await Guide.GetMovieOptionsAsync();
         await LoadAsync();
     }
@@ -260,7 +282,7 @@
 
     // In the family view, shared private entries are read-only here (edit them in "Mein Programm").
     private bool CanDelete(TvProgramEntry entry)
-        => _tab == Tab.Private || entry.TvProgram?.OwnerUserId is null;
+        => _canWrite && (_tab == Tab.Private || entry.TvProgram?.OwnerUserId is null);
 
     private string Poster(Movie? movie)
         => string.IsNullOrWhiteSpace(movie?.PosterPath)

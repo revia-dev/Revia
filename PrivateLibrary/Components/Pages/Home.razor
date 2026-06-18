@@ -5,6 +5,9 @@
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
 @inject DashboardService DashboardService
 @inject DashboardLayoutService LayoutService
+@inject ModuleTileLayoutService TileService
+@inject PermissionService Permissions
+@inject AnalyticsService Analytics
 @inject NotificationService Notifications
 
 <PageTitle>Dashboard</PageTitle>
@@ -45,6 +48,8 @@
                 <h2 class="ui-section-title">Dashboard anpassen</h2>
                 <p class="section-subtitle">Blende Bereiche ein oder aus und ändere ihre Reihenfolge. Deine Einstellung wird automatisch gespeichert.</p>
             </div>
+
+            <div class="dashboard-customize-group-title">Bereiche</div>
             <ul class="dashboard-customize-list">
                 @for (var i = 0; i < _layout.Count; i++)
                 {
@@ -63,6 +68,30 @@
                                         AriaLabel="@(row.Visible ? "Ausblenden" : "Einblenden")"
                                         CssClass="@(row.Visible ? "" : "btn-icon-muted")"
                                         OnClick="() => ToggleSectionAsync(index)" />
+                        </div>
+                    </li>
+                }
+            </ul>
+
+            <div class="dashboard-customize-group-title">Modul-Kacheln</div>
+            <ul class="dashboard-customize-list">
+                @for (var i = 0; i < _tiles.Count; i++)
+                {
+                    var index = i;
+                    var tile = _tiles[index];
+                    <li class="dashboard-customize-row @(tile.Visible ? "" : "is-hidden")">
+                        <span class="dashboard-customize-name">@tile.Label</span>
+                        <div class="dashboard-customize-actions">
+                            <IconButton IconName="arrow-up" AriaLabel="Nach oben"
+                                        Disabled="index == 0"
+                                        OnClick="() => MoveTileAsync(index, -1)" />
+                            <IconButton IconName="arrow-down" AriaLabel="Nach unten"
+                                        Disabled="index == _tiles.Count - 1"
+                                        OnClick="() => MoveTileAsync(index, 1)" />
+                            <IconButton IconName="@(tile.Visible ? "eye" : "eye-slash")"
+                                        AriaLabel="@(tile.Visible ? "Ausblenden" : "Einblenden")"
+                                        CssClass="@(tile.Visible ? "" : "btn-icon-muted")"
+                                        OnClick="() => ToggleTileAsync(index)" />
                         </div>
                     </li>
                 }
@@ -101,10 +130,19 @@
 
     .dashboard-customize-list {
         list-style: none;
-        margin: 0;
+        margin: 0 0 0.5rem;
         padding: 0;
         display: grid;
         gap: 0.5rem;
+    }
+
+    .dashboard-customize-group-title {
+        margin: 0.75rem 0 0.4rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-soft, #858585);
     }
 
     .dashboard-customize-row {
@@ -259,12 +297,24 @@
     private LendingDashboardStats? _stats;
     private DashboardCounts? _counts;
     private List<DashboardSectionState> _layout = new();
+    private List<ModuleTileState> _tiles = new();
+    private readonly HashSet<string> _readableModules = new(StringComparer.Ordinal);
     private bool _editLayout;
     private bool _overdueNotified;
 
     protected override async Task OnInitializedAsync()
     {
         _layout = await LayoutService.GetLayoutAsync();
+        _tiles = await TileService.GetLayoutAsync();
+
+        foreach (var module in AppModules.All)
+        {
+            if (await Permissions.CanReadAsync(module.Key))
+            {
+                _readableModules.Add(module.Key);
+            }
+        }
+
         _counts = await DashboardService.GetCountsAsync();
         await LoadAsync();
     }
@@ -310,10 +360,31 @@
         await LayoutService.SaveLayoutAsync(_layout);
     }
 
+    private async Task MoveTileAsync(int index, int delta)
+    {
+        var target = index + delta;
+        if (target < 0 || target >= _tiles.Count)
+        {
+            return;
+        }
+
+        (_tiles[index], _tiles[target]) = (_tiles[target], _tiles[index]);
+        await TileService.SaveLayoutAsync(_tiles);
+    }
+
+    private async Task ToggleTileAsync(int index)
+    {
+        var tile = _tiles[index];
+        _tiles[index] = tile with { Visible = !tile.Visible };
+        await TileService.SaveLayoutAsync(_tiles);
+    }
+
     private async Task ResetLayoutAsync()
     {
         await LayoutService.ResetLayoutAsync();
+        await TileService.ResetLayoutAsync();
         _layout = await LayoutService.GetLayoutAsync();
+        _tiles = await TileService.GetLayoutAsync();
     }
 
     // ----- Section rendering, dispatched by the user's layout -----
@@ -323,42 +394,58 @@
         DashboardSections.ModuleTiles => ModuleTiles,
         DashboardSections.Kpis => Kpis,
         DashboardSections.StatusChart => StatusChart,
+        DashboardSections.Analytics => AnalyticsSection,
         DashboardSections.Overdue => Overdue,
         DashboardSections.Recent => Recent,
         _ => _ => { }
     };
 
+    private RenderFragment AnalyticsSection => @<AnalyticsBoard />;
+
     private RenderFragment ModuleTiles => @<text>
         @if (_counts is not null)
         {
             <section class="module-tiles">
-                <a class="glass-card module-tile" href="/movies">
-                    <div class="module-tile-value">@_counts.Movies</div>
-                    <div class="module-tile-label">Filme</div>
-                </a>
-                <a class="glass-card module-tile" href="/tv">
-                    <div class="module-tile-value">@_counts.TvEntries</div>
-                    <div class="module-tile-label">TV-Einträge</div>
-                </a>
-                <a class="glass-card module-tile" href="/games">
-                    <div class="module-tile-value">@_counts.Games</div>
-                    <div class="module-tile-label">Spiele · @_counts.OpenMatches offene Partien</div>
-                </a>
-                <a class="glass-card module-tile" href="/bmi">
-                    <div class="module-tile-value">@_counts.BmiRecords</div>
-                    <div class="module-tile-label">BMI-Messungen</div>
-                </a>
-                <a class="glass-card module-tile" href="/wishlists">
-                    <div class="module-tile-value">@_counts.OpenWishes</div>
-                    <div class="module-tile-label">offene Wünsche · @_counts.Wishlists Listen</div>
-                </a>
-                <a class="glass-card module-tile" href="/lending/persons">
-                    <div class="module-tile-value">@_counts.Persons</div>
-                    <div class="module-tile-label">Personen</div>
-                </a>
+                @foreach (var tile in _tiles)
+                {
+                    if (!tile.Visible || !_readableModules.Contains(tile.Key))
+                    {
+                        continue;
+                    }
+                    var module = tile.Module;
+                    if (module is null) { continue; }
+                    <a class="glass-card module-tile" href="@module.Route">
+                        <div class="module-tile-value">@TileValue(tile.Key)</div>
+                        <div class="module-tile-label">@TileLabel(tile.Key)</div>
+                    </a>
+                }
             </section>
         }
     </text>;
+
+    private string TileValue(string key) => key switch
+    {
+        AppModules.Movies => _counts!.Movies.ToString(),
+        AppModules.Tv => _counts!.TvEntries.ToString(),
+        AppModules.Games => _counts!.Games.ToString(),
+        AppModules.Bmi => _counts!.BmiRecords.ToString(),
+        AppModules.Wishlists => _counts!.OpenWishes.ToString(),
+        AppModules.Persons => _counts!.Persons.ToString(),
+        AppModules.Lending => (_stats?.TotalActive ?? 0).ToString(),
+        _ => "—"
+    };
+
+    private string TileLabel(string key) => key switch
+    {
+        AppModules.Movies => "Filme",
+        AppModules.Tv => "TV-Einträge",
+        AppModules.Games => $"Spiele · {_counts!.OpenMatches} offene Partien",
+        AppModules.Bmi => "BMI-Messungen",
+        AppModules.Wishlists => $"offene Wünsche · {_counts!.Wishlists} Listen",
+        AppModules.Persons => "Personen",
+        AppModules.Lending => "Aktive Ausleihen",
+        _ => AppModules.Label(key)
+    };
 
     private RenderFragment Kpis => @<text>
         @if (_stats is null)

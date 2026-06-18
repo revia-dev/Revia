@@ -1,0 +1,125 @@
+@page "/admin/permissions"
+@using Microsoft.AspNetCore.Authorization
+@using PrivateLibrary.Data
+@using PrivateLibrary.Modules.Lending.Services
+@using PrivateLibrary.Services
+@attribute [Authorize(Roles = "Admin")]
+@inject IPersonService PersonService
+@inject PermissionService Permissions
+@inject ToastService ToastService
+
+<PageTitle>Berechtigungen</PageTitle>
+
+<div class="page-shell">
+    <div class="glass-card page-header">
+        <div>
+            <div class="admin-eyebrow">Geschützter Bereich</div>
+            <h1>Berechtigungen</h1>
+            <p>Lege je Benutzer und Modul fest, wer lesen und schreiben darf. Administratoren haben immer vollen Zugriff.</p>
+        </div>
+        <div class="header-actions">
+            <a class="btn btn-outline-secondary" href="/admin">Zurück</a>
+        </div>
+    </div>
+
+    @if (_users is null)
+    {
+        <div class="glass-card ui-section">Lade Benutzer…</div>
+    }
+    else
+    {
+        <div class="glass-card ui-section ui-stack">
+            <div class="field" style="max-width: 22rem;">
+                <label for="user-select">Benutzer</label>
+                <select id="user-select" class="form-select" @bind="_selectedUserId" @bind:after="LoadGrantsAsync">
+                    <option value="">Bitte wählen</option>
+                    @foreach (var user in _users)
+                    {
+                        <option value="@user.Id">@user.DisplayName</option>
+                    }
+                </select>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_selectedUserId) && _grants is not null)
+            {
+                <div class="ui-table-wrap">
+                    <table class="table ui-data-table align-middle perm-table">
+                        <thead>
+                            <tr>
+                                <th>Modul</th>
+                                <th class="perm-col">Lesen</th>
+                                <th class="perm-col">Schreiben</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var module in AppModules.All)
+                            {
+                                var access = _grants[module.Key];
+                                <tr>
+                                    <td>
+                                        <span class="perm-module">
+                                            <Icon Name="@module.Icon" /> @module.Label
+                                        </span>
+                                    </td>
+                                    <td class="perm-col">
+                                        <input type="checkbox" class="form-check-input"
+                                               checked="@access.CanRead"
+                                               @onchange="e => SetAsync(module.Key, (bool)e.Value!, access.CanWrite)" />
+                                    </td>
+                                    <td class="perm-col">
+                                        <input type="checkbox" class="form-check-input"
+                                               checked="@access.CanWrite"
+                                               @onchange="e => SetAsync(module.Key, access.CanRead || (bool)e.Value!, (bool)e.Value!)" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <p class="section-subtitle">Schreibrecht schließt Leserecht automatisch ein. Änderungen werden sofort gespeichert.</p>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .perm-col { text-align: center; width: 7rem; }
+    .perm-module { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; }
+</style>
+
+@code {
+    private IReadOnlyList<ApplicationUser>? _users;
+    private string _selectedUserId = string.Empty;
+    private Dictionary<string, ModuleAccess>? _grants;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = (await PersonService.GetAllAsync())
+            .Where(u => !u.IsLoginless)
+            .OrderBy(u => u.DisplayName)
+            .ToList();
+    }
+
+    private async Task LoadGrantsAsync()
+    {
+        if (string.IsNullOrEmpty(_selectedUserId))
+        {
+            _grants = null;
+            return;
+        }
+        _grants = await Permissions.GetGrantsForUserAsync(_selectedUserId);
+    }
+
+    private async Task SetAsync(string moduleKey, bool canRead, bool canWrite)
+    {
+        if (string.IsNullOrEmpty(_selectedUserId))
+        {
+            return;
+        }
+
+        await Permissions.SetAccessAsync(_selectedUserId, moduleKey, canRead, canWrite);
+        Permissions.Invalidate();
+        _grants = await Permissions.GetGrantsForUserAsync(_selectedUserId);
+        ToastService.Success($"„{AppModules.Label(moduleKey)}“ aktualisiert.");
+    }
+}

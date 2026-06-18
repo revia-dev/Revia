@@ -6,6 +6,7 @@
 @inject WishlistService WishlistService
 @inject PrivateLibrary.Modules.Lending.Services.ToastService ToastService
 @inject PrivateLibrary.Services.DeferredDeleteService DeferredDelete
+@inject PrivateLibrary.Services.PermissionService Permissions
 @inject NotificationService Notifications
 @inject NavigationManager Navigation
 
@@ -109,9 +110,17 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        var access = await Permissions.GetAccessAsync(AppModules.Wishlists);
+        if (!access.CanRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
         _wishlist = await WishlistService.GetWishlistAsync(Id);
         if (_wishlist is null) { Navigation.NavigateTo("/wishlists"); return; }
-        _canEdit = await WishlistService.CanEditAsync(Id);
+        // Editing requires both ownership (CanEditAsync) and module write permission.
+        _canEdit = access.CanWrite && await WishlistService.CanEditAsync(Id);
     }
 
     private async Task AddItemAsync()

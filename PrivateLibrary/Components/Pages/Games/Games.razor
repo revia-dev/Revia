@@ -5,6 +5,8 @@
 @attribute [Authorize]
 @inject GameService GameService
 @inject PrivateLibrary.Services.DeferredDeleteService DeferredDelete
+@inject PrivateLibrary.Services.PermissionService Permissions
+@inject NavigationManager Navigation
 
 <PageTitle>Spiele</PageTitle>
 
@@ -15,7 +17,10 @@
             <p>Spielesammlung, Partien und Erweiterungen.</p>
         </div>
         <div class="header-actions">
-            <a class="btn btn-primary" href="/games/new">Neues Spiel</a>
+            @if (_canWrite)
+            {
+                <a class="btn btn-primary" href="/games/new">Neues Spiel</a>
+            }
             <a class="btn btn-outline-secondary" href="/games/export.csv" target="_blank" rel="noopener">Spiele-CSV</a>
             <a class="btn btn-outline-secondary" href="/games/matches/export.csv" target="_blank" rel="noopener">Partien-CSV</a>
         </div>
@@ -64,18 +69,16 @@
             <div class="game-grid">
                 @foreach (var g in _games)
                 {
-                    <SwipeToDelete @key="g.Id" DeleteLabel="Spiel löschen" OnDelete="() => DeleteGameAsync(g)">
-                        <a class="game-card" href="@($"/games/{g.Id}")">
-                            <div class="game-card-title">@g.Name</div>
-                            <div class="game-card-meta">
-                                @foreach (var t in g.Types)
-                                {
-                                    <span class="badge text-bg-info">@GameLabels.Type(t.Type)</span>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(g.Publisher)) { <span>@g.Publisher</span> }
-                            </div>
-                        </a>
-                    </SwipeToDelete>
+                    @if (_canWrite)
+                    {
+                        <SwipeToDelete @key="g.Id" DeleteLabel="Spiel löschen" OnDelete="() => DeleteGameAsync(g)">
+                            @GameCard(g)
+                        </SwipeToDelete>
+                    }
+                    else
+                    {
+                        <div @key="g.Id">@GameCard(g)</div>
+                    }
                 }
             </div>
         }
@@ -86,9 +89,28 @@
     private IReadOnlyList<GameMatch> _recent = Array.Empty<GameMatch>();
     private List<Game> _games = new();
     private string _search = string.Empty;
+    private bool _canWrite = true;
+
+    private RenderFragment GameCard(Game g) => @<a class="game-card" href="@($"/games/{g.Id}")">
+        <div class="game-card-title">@g.Name</div>
+        <div class="game-card-meta">
+            @foreach (var t in g.Types)
+            {
+                <span class="badge text-bg-info">@GameLabels.Type(t.Type)</span>
+            }
+            @if (!string.IsNullOrWhiteSpace(g.Publisher)) { <span>@g.Publisher</span> }
+        </div>
+    </a>;
 
     protected override async Task OnInitializedAsync()
     {
+        var access = await Permissions.GetAccessAsync(AppModules.Games);
+        if (!access.CanRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _canWrite = access.CanWrite;
         _recent = await GameService.GetRecentMatchesAsync();
         await ReloadAsync();
     }

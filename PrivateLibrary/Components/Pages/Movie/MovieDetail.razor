@@ -20,10 +20,13 @@
             <IconButton IconName="x-lg" AriaLabel="Detailansicht schließen" OnClick="HandleClose" />
         </header>
 
-        <div class="movie-detail-actions">
-            <button type="button" class="btn btn-outline-secondary" @onclick="HandleEdit">Bearbeiten</button>
-            <button type="button" class="btn btn-outline-danger" @onclick="HandleDelete">Löschen</button>
-        </div>
+        @if (CanWrite)
+        {
+            <div class="movie-detail-actions">
+                <button type="button" class="btn btn-outline-secondary" @onclick="HandleEdit">Bearbeiten</button>
+                <button type="button" class="btn btn-outline-danger" @onclick="HandleDelete">Löschen</button>
+            </div>
+        }
 
         <div class="movie-detail-body">
             <div class="movie-detail-poster-col">
@@ -119,6 +122,7 @@
     [Parameter] public EventCallback<Film> OnFilmSelected { get; set; }
     [Parameter] public EventCallback<Film> OnEdit { get; set; }
     [Parameter] public EventCallback<Film> OnDelete { get; set; }
+    [Parameter] public bool CanWrite { get; set; } = true;
 
     // series key -> films sharing it (each key is one tab)
     private Dictionary<string, List<Film>> _seriesGroups = new();
