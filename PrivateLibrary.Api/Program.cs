@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PrivateLibrary.Api.Auth;
 using PrivateLibrary.Data;
+using PrivateLibrary.Modules.Lending.Services;
 using PrivateLibrary.Modules.Wishlists;
 using PrivateLibrary.Services;
 
@@ -75,6 +76,10 @@ builder.Services.AddScoped<CurrentUserContext>();
 // Reused domain services.
 builder.Services.AddScoped<WishlistService>();
 builder.Services.AddScoped<MovieService>();
+builder.Services.AddScoped<PrivateLibrary.Modules.Bmi.BmiService>();
+builder.Services.AddSingleton<PrivateLibrary.Modules.Bmi.IBmiPhotoStorage, PrivateLibrary.Modules.Bmi.BmiPhotoStorage>();
+builder.Services.AddScoped<IPersonService, PersonService>();
+builder.Services.AddSingleton<IPersonPhotoStorage, PersonPhotoStorage>();
 
 var app = builder.Build();
 

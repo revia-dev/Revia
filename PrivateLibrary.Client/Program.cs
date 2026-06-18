@@ -37,6 +37,7 @@ builder.Services.AddScoped<SyncEngine>();
 // Offline-capable features.
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Wishlists.WishlistClientService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Movies.MovieClientService>();
+builder.Services.AddScoped<PrivateLibrary.Client.Features.Bmi.BmiClientService>();
 
 var host = builder.Build();
 
@@ -49,6 +50,7 @@ await connectivity.InitializeAsync();
 // before the engine performs its first flush.
 _ = host.Services.GetRequiredService<PrivateLibrary.Client.Features.Wishlists.WishlistClientService>();
 _ = host.Services.GetRequiredService<PrivateLibrary.Client.Features.Movies.MovieClientService>();
+_ = host.Services.GetRequiredService<PrivateLibrary.Client.Features.Bmi.BmiClientService>();
 
 await host.Services.GetRequiredService<SyncEngine>().InitializeAsync();
 

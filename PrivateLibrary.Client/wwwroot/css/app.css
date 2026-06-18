@@ -169,3 +169,12 @@ code {
 .mv-meta { padding: 0.5rem 0.6rem; }
 .mv-title { font-weight: 600; font-size: 0.92rem; line-height: 1.2; }
 .mv-sub { display: flex; gap: 0.4rem; margin-top: 0.2rem; color: #888; font-size: 0.8rem; }
+
+/* ---- BMI (Phase 5) ---- */
+.bmi-form { padding: 1rem; margin-bottom: 1.2rem; display: grid; gap: 0.7rem; max-width: 520px; }
+.bmi-row { display: grid; grid-template-columns: 130px 1fr; align-items: center; gap: 0.7rem; }
+.bmi-row .form-control { padding: 0.45rem 0.7rem; border: 1px solid #ccc; border-radius: 10px; width: 100%; }
+.bmi-preview { font-weight: 700; color: #007aff; }
+.bmi-table { width: 100%; border-collapse: collapse; }
+.bmi-table th, .bmi-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #eee; text-align: left; font-size: 0.9rem; }
+.bmi-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
