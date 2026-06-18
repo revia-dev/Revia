@@ -29,7 +29,23 @@ public sealed class OutboxMutation
 
     /// <summary>How many replay attempts have failed (for backoff/diagnostics).</summary>
     public int Attempts { get; set; }
+
+    /// <summary>ISO timestamp before which this mutation should not be retried
+    /// (exponential backoff after a transient failure). Null = retry immediately.</summary>
+    public string? NextAttemptAt { get; set; }
+
+    /// <summary>Set once the attempt cap is reached: the mutation keeps failing
+    /// transiently. It is skipped (so it can't block the queue) and surfaced to the
+    /// user, but kept so it can be retried manually.</summary>
+    public bool Poison { get; set; }
+
+    /// <summary>Last replay error (HTTP status or exception message), for diagnostics.</summary>
+    public string? LastError { get; set; }
 }
 
 /// <summary>Result of attempting to flush the outbox.</summary>
-public sealed record SyncResult(int Sent, int Failed, int Remaining);
+/// <param name="Sent">Mutations successfully replayed (or dropped as server-wins).</param>
+/// <param name="Failed">Mutations that failed transiently this pass.</param>
+/// <param name="Remaining">Mutations still queued (includes poisoned).</param>
+/// <param name="Poisoned">Of those remaining, how many are poisoned (cap reached).</param>
+public sealed record SyncResult(int Sent, int Failed, int Remaining, int Poisoned = 0);

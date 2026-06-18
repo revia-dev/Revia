@@ -11,6 +11,7 @@
         <div class="app-topbar-spacer"></div>
         <AuthorizeView>
             <Authorized>
+                <PrivateLibrary.Client.Features.Sync.SyncStatus />
                 <span class="app-user">@context.User.Identity?.Name</span>
                 <button class="btn btn-outline-secondary btn-sm" @onclick="LogoutAsync">Logout</button>
             </Authorized>

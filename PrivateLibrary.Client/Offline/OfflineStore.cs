@@ -35,6 +35,11 @@ public sealed class OfflineStore(IJSRuntime js)
     public async Task OutboxAddAsync(OutboxMutation mutation)
         => await _js.InvokeVoidAsync("reviaOffline.outboxAdd", JsonSerializer.Serialize(mutation, Json));
 
+    /// <summary>Persists changes to an existing mutation (same id ⇒ IndexedDB put
+    /// overwrites). Used to record attempts/backoff/poison state.</summary>
+    public async Task OutboxUpdateAsync(OutboxMutation mutation)
+        => await _js.InvokeVoidAsync("reviaOffline.outboxAdd", JsonSerializer.Serialize(mutation, Json));
+
     public async Task<List<OutboxMutation>> OutboxAllAsync()
     {
         var json = await _js.InvokeAsync<string>("reviaOffline.outboxAll");

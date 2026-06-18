@@ -127,6 +127,7 @@ public sealed class TvClientService
             Collection = Collection, Kind = kind, EntityId = entityId,
             PayloadJson = payload is null ? null : JsonSerializer.Serialize(payload, Json)
         });
+        _sync.NotifyQueued();
         if (_connectivity.IsOnline)
         {
             await _sync.FlushAsync();

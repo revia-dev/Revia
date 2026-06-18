@@ -138,6 +138,7 @@ public sealed class GameMatchClientService
             Collection = Collection, Kind = kind, EntityId = path,
             PayloadJson = payload is null ? null : JsonSerializer.Serialize(payload, Json)
         });
+        _sync.NotifyQueued();
         if (_connectivity.IsOnline)
         {
             await _sync.FlushAsync();

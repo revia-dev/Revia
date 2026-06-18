@@ -284,3 +284,12 @@ code {
 .match-photo, .lend-photo { width: 84px; height: 84px; object-fit: cover; border-radius: 0.5rem; }
 .auth-img-loading, .auth-img-missing { display: inline-flex; align-items: center; justify-content: center;
     background: rgba(0,0,0,0.05); border-radius: 0.5rem; color: #999; }
+
+/* ---- 7c: global sync status chip ---- */
+.sync-chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.6rem;
+    border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+.sync-offline { background: rgba(255,149,0,0.15); color: #b35900; }
+.sync-busy { background: rgba(0,122,255,0.12); color: #0061d5; }
+.sync-error { background: rgba(255,59,48,0.15); color: #c01a12; }
+.sync-retry { border: none; background: transparent; color: inherit; text-decoration: underline;
+    cursor: pointer; font: inherit; padding: 0; }

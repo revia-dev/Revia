@@ -140,6 +140,8 @@ public sealed class WishlistClientService
             PayloadJson = payload is null ? null : JsonSerializer.Serialize(payload, Json)
         });
 
+        _sync.NotifyQueued();
+
         if (_connectivity.IsOnline)
         {
             await _sync.FlushAsync();
