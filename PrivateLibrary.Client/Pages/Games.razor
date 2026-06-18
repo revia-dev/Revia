@@ -1,0 +1,186 @@
+@page "/games"
+@attribute [Authorize]
+@using PrivateLibrary.Client.Features.Games
+@using PrivateLibrary.Client.Offline
+@using PrivateLibrary.Shared.Games
+@inject GameClientService GameSvc
+@inject ConnectivityService Connectivity
+@inject SyncEngine Sync
+@implements IDisposable
+
+<PageTitle>Spiele – Revia</PageTitle>
+
+<div class="wl-head">
+    <h1>Spiele</h1>
+    @if (!Connectivity.IsOnline)
+    {
+        <span class="wl-offline">⚡ Offline@(_pending > 0 ? $" · {_pending} ausstehend" : "")</span>
+    }
+    else if (_pending > 0)
+    {
+        <span class="wl-syncing">Synchronisiere @_pending…</span>
+    }
+    <button class="btn btn-primary" @onclick="StartCreate">Neues Spiel</button>
+</div>
+
+@if (_edit is not null)
+{
+    <div class="glass game-editor">
+        <h2 class="ui-section-title">@(_edit.Id > 0 ? "Spiel bearbeiten" : "Neues Spiel")</h2>
+        <div class="game-form">
+            <div class="game-field"><label>Name</label>
+                <input class="form-control" @bind="_edit.Name" @bind:event="oninput" /></div>
+            <div class="game-field"><label>Verlag</label>
+                <input class="form-control" @bind="_edit.Publisher" /></div>
+            <div class="game-field"><label>Min. Spieler</label>
+                <input class="form-control" type="number" @bind="_edit.MinPlayers" /></div>
+            <div class="game-field"><label>Max. Spieler</label>
+                <input class="form-control" type="number" @bind="_edit.MaxPlayers" /></div>
+            <div class="game-field game-wide"><label>Typen</label>
+                <div class="game-types">
+                    @foreach (var t in AllTypes)
+                    {
+                        <label class="game-type-chk">
+                            <input type="checkbox" checked="@_edit.Types.Contains(t)"
+                                   @onchange="e => ToggleType(t, (bool)e.Value!)" />
+                            @TypeLabel(t)
+                        </label>
+                    }
+                </div>
+            </div>
+            <div class="game-field game-wide"><label>Beschreibung</label>
+                <textarea class="form-control" rows="2" @bind="_edit.Description"></textarea></div>
+
+            <div class="game-field game-wide"><label>Wertungen</label>
+                @foreach (var sd in _edit.ScoreDefinitions)
+                {
+                    <div class="game-score-row" @key="sd">
+                        <input class="form-control" placeholder="Name" @bind="sd.Name" />
+                        <input class="form-control" placeholder="Einheit" @bind="sd.Unit" />
+                        <label class="game-type-chk"><input type="checkbox" @bind="sd.HigherIsBetter" /> höher = besser</label>
+                        <button class="btn btn-outline-danger btn-sm" @onclick="() => _edit.ScoreDefinitions.Remove(sd)">×</button>
+                    </div>
+                }
+                <button class="btn btn-outline-secondary btn-sm" @onclick="() => _edit.ScoreDefinitions.Add(new GameScoreDefinitionDto())">+ Wertung</button>
+            </div>
+        </div>
+        <div class="game-actions">
+            <button class="btn btn-primary" @onclick="SaveAsync" disabled="@string.IsNullOrWhiteSpace(_edit.Name)">Speichern</button>
+            <button class="btn btn-outline-secondary" @onclick="() => _edit = null">Abbrechen</button>
+        </div>
+    </div>
+}
+
+@if (_loading)
+{
+    <p class="wl-muted">Lade…</p>
+}
+else if (_games.Count == 0)
+{
+    <p class="wl-muted">Noch keine Spiele.</p>
+}
+else
+{
+    <div class="game-grid">
+        @foreach (var g in _games)
+        {
+            <div class="game-card glass" @key="g.Id">
+                <div class="game-card-title">@g.Name</div>
+                <div class="game-card-meta">
+                    @foreach (var t in g.Types) { <span class="badge">@TypeLabel(t)</span> }
+                    @if (!string.IsNullOrWhiteSpace(g.Publisher)) { <span>@g.Publisher</span> }
+                    @if (g.MatchCount > 0) { <span>@g.MatchCount Partien</span> }
+                </div>
+                <div class="game-card-actions">
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => StartEdit(g)">Bearbeiten</button>
+                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(g.Id)">Löschen</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private static readonly GameTypeDto[] AllTypes =
+        new[] { GameTypeDto.Brettspiel, GameTypeDto.Konsolenspiel, GameTypeDto.Kartenspiel, GameTypeDto.Sonstiges };
+
+    private List<GameDto> _games = new();
+    private SaveGameRequest? _edit;
+    private bool _loading = true;
+    private int _pending;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Connectivity.Changed += OnConnectivityChanged;
+        Sync.Synced += OnSynced;
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+        _loading = false;
+    }
+
+    private async Task ReloadAsync()
+    {
+        _games = await GameSvc.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private void StartCreate() => _edit = new SaveGameRequest();
+
+    private void StartEdit(GameDto g) => _edit = new SaveGameRequest
+    {
+        Id = g.Id, Name = g.Name, Publisher = g.Publisher,
+        ReleaseYear = g.ReleaseYear, MinPlayers = g.MinPlayers, MaxPlayers = g.MaxPlayers,
+        Description = g.Description,
+        Types = g.Types.ToList(),
+        ScoreDefinitions = g.ScoreDefinitions
+            .Select(s => new GameScoreDefinitionDto { Id = s.Id, Name = s.Name, Unit = s.Unit, HigherIsBetter = s.HigherIsBetter })
+            .ToList()
+    };
+
+    private void ToggleType(GameTypeDto t, bool on)
+    {
+        if (_edit is null) return;
+        if (on && !_edit.Types.Contains(t)) _edit.Types.Add(t);
+        else if (!on) _edit.Types.Remove(t);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_edit is null || string.IsNullOrWhiteSpace(_edit.Name)) return;
+        _edit.ScoreDefinitions = _edit.ScoreDefinitions.Where(s => !string.IsNullOrWhiteSpace(s.Name)).ToList();
+        await GameSvc.SaveAsync(_edit);
+        _edit = null;
+        await AfterWriteAsync();
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        await GameSvc.DeleteAsync(id);
+        await AfterWriteAsync();
+    }
+
+    private async Task AfterWriteAsync()
+    {
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+        StateHasChanged();
+    }
+
+    private static string TypeLabel(GameTypeDto t) => t switch
+    {
+        GameTypeDto.Brettspiel => "Brettspiel",
+        GameTypeDto.Konsolenspiel => "Konsolenspiel",
+        GameTypeDto.Kartenspiel => "Kartenspiel",
+        _ => "Sonstiges"
+    };
+
+    private async void OnConnectivityChanged(bool online) => await InvokeAsync(ReloadAsync);
+    private async void OnSynced(SyncResult result)
+        => await InvokeAsync(async () => { await ReloadAsync(); _pending = result.Remaining; StateHasChanged(); });
+
+    public void Dispose()
+    {
+        Connectivity.Changed -= OnConnectivityChanged;
+        Sync.Synced -= OnSynced;
+    }
+}

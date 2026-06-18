@@ -81,6 +81,8 @@ builder.Services.AddSingleton<PrivateLibrary.Modules.Bmi.IBmiPhotoStorage, Priva
 builder.Services.AddScoped<IPersonService, PersonService>();
 builder.Services.AddSingleton<IPersonPhotoStorage, PersonPhotoStorage>();
 builder.Services.AddScoped<TvGuideService>();
+builder.Services.AddScoped<PrivateLibrary.Modules.Games.GameService>();
+builder.Services.AddSingleton<PrivateLibrary.Modules.Games.IGameFileStorage, PrivateLibrary.Modules.Games.GameFileStorage>();
 
 var app = builder.Build();
 

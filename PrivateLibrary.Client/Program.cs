@@ -39,6 +39,7 @@ builder.Services.AddScoped<PrivateLibrary.Client.Features.Wishlists.WishlistClie
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Movies.MovieClientService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Bmi.BmiClientService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Tv.TvClientService>();
+builder.Services.AddScoped<PrivateLibrary.Client.Features.Games.GameClientService>();
 
 var host = builder.Build();
 
@@ -53,6 +54,7 @@ _ = host.Services.GetRequiredService<PrivateLibrary.Client.Features.Wishlists.Wi
 _ = host.Services.GetRequiredService<PrivateLibrary.Client.Features.Movies.MovieClientService>();
 _ = host.Services.GetRequiredService<PrivateLibrary.Client.Features.Bmi.BmiClientService>();
 _ = host.Services.GetRequiredService<PrivateLibrary.Client.Features.Tv.TvClientService>();
+_ = host.Services.GetRequiredService<PrivateLibrary.Client.Features.Games.GameClientService>();
 
 await host.Services.GetRequiredService<SyncEngine>().InitializeAsync();
 
