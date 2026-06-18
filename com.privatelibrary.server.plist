@@ -8,14 +8,14 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/revia-dev/Documents/PrivateLibrary/start-server.sh</string>
+        <string>/Users/revia-dev/Library/Scripts/privatelibrary-server.sh</string>
     </array>
 
     <key>UserName</key>
     <string>revia-dev</string>
 
     <key>WorkingDirectory</key>
-    <string>/Users/revia-dev/Documents/PrivateLibrary/PrivateLibrary</string>
+    <string>/tmp</string>
 
     <key>EnvironmentVariables</key>
     <dict>
