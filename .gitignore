@@ -70,3 +70,6 @@ coverage/
 #  Agent worktrees
 # ============================================================
 .claude/worktrees/
+
+# Local LAN publish output (run-lan.sh / LaunchAgent)
+.lan-publish/
