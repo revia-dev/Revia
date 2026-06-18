@@ -751,6 +751,40 @@ namespace PrivateLibrary.Migrations
                     b.ToTable("Movies");
                 });
 
+            modelBuilder.Entity("PrivateLibrary.Data.RefreshToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens");
+                });
+
             modelBuilder.Entity("PrivateLibrary.Data.TvProgram", b =>
                 {
                     b.Property<int>("Id")
@@ -1245,6 +1279,17 @@ namespace PrivateLibrary.Migrations
                 });
 
             modelBuilder.Entity("PrivateLibrary.Data.ModulePermission", b =>
+                {
+                    b.HasOne("PrivateLibrary.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("PrivateLibrary.Data.RefreshToken", b =>
                 {
                     b.HasOne("PrivateLibrary.Data.ApplicationUser", "User")
                         .WithMany()

@@ -1,0 +1,81 @@
+@page "/login"
+@layout EmptyLayout
+@attribute [AllowAnonymous]
+@inject AuthService Auth
+@inject NavigationManager Navigation
+
+<PageTitle>Anmelden – Revia</PageTitle>
+
+<div class="login-shell">
+    <div class="login-card">
+        <div class="login-brand">
+            <img src="icon-192.png" alt="Revia" class="login-logo" />
+            <div>
+                <div class="login-eyebrow">Revia</div>
+                <div class="login-title">Anmelden</div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="login-error">@_error</div>
+        }
+
+        <EditForm Model="this" OnValidSubmit="SubmitAsync">
+            <div class="login-field">
+                <label for="user">Benutzername</label>
+                <input id="user" class="form-control" @bind="_userName" autocomplete="username" />
+            </div>
+            <div class="login-field">
+                <label for="pw">Passwort</label>
+                <input id="pw" type="password" class="form-control" @bind="_password" autocomplete="current-password" />
+            </div>
+            <button type="submit" class="btn btn-primary login-submit" disabled="@_busy">
+                @(_busy ? "Anmelden…" : "Anmelden")
+            </button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private string _userName = string.Empty;
+    private string _password = string.Empty;
+    private string? _error;
+    private bool _busy;
+
+    private async Task SubmitAsync()
+    {
+        _busy = true;
+        _error = null;
+
+        var (ok, error) = await Auth.LoginAsync(_userName, _password);
+        _busy = false;
+
+        if (!ok)
+        {
+            _error = error;
+            return;
+        }
+
+        Navigation.NavigateTo(ResolveReturnUrl());
+    }
+
+    private string ResolveReturnUrl()
+    {
+        var query = new Uri(Navigation.Uri).Query;          // e.g. "?returnUrl=lending"
+        const string marker = "returnUrl=";
+        var idx = query.IndexOf(marker, StringComparison.Ordinal);
+        if (idx < 0)
+        {
+            return "/";
+        }
+        var value = query[(idx + marker.Length)..];
+        var amp = value.IndexOf('&');
+        if (amp >= 0)
+        {
+            value = value[..amp];
+        }
+        value = Uri.UnescapeDataString(value);
+        return string.IsNullOrWhiteSpace(value) ? "/" : "/" + value.TrimStart('/');
+    }
+}

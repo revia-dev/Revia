@@ -3,9 +3,15 @@
   <ItemGroup>
     <ProjectReference Include="..\PrivateLibrary.Shared\PrivateLibrary.Shared.csproj" />
     <ProjectReference Include="..\PrivateLibrary.Client\PrivateLibrary.Client.csproj" />
+    <!-- Reference the Server project for its compiled code (DbContext, entities,
+         services). Build it with static web assets disabled so its wwwroot
+         (bootstrap, favicon, app.css, …) doesn't clash with the WASM client's. -->
+    <ProjectReference Include="..\PrivateLibrary\PrivateLibrary.csproj"
+                      AdditionalProperties="StaticWebAssetsEnabled=false" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.6" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.6" />
   </ItemGroup>
 

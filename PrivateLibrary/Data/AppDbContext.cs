@@ -34,6 +34,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<LendingPhoto> LendingPhotos => Set<LendingPhoto>();
     public DbSet<ModulePermission> ModulePermissions => Set<ModulePermission>();
     public DbSet<AnalyticsWidget> AnalyticsWidgets => Set<AnalyticsWidget>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -228,6 +229,17 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<AnalyticsWidget>(builder =>
         {
             builder.HasIndex(x => new { x.UserId, x.SortOrder });
+
+            builder.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RefreshToken>(builder =>
+        {
+            builder.HasIndex(x => x.Token).IsUnique();
+            builder.HasIndex(x => x.UserId);
 
             builder.HasOne(x => x.User)
                 .WithMany()
