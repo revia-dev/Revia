@@ -6,11 +6,14 @@
 
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PrivateLibrary.Api.Auth;
 using PrivateLibrary.Data;
+using PrivateLibrary.Modules.Wishlists;
+using PrivateLibrary.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,6 +65,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+
+// Bridge HttpContext.User into the AuthenticationStateProvider abstraction so the
+// reused household-scoped services (via CurrentUserContext) run unchanged here.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AuthenticationStateProvider, HttpContextAuthStateProvider>();
+builder.Services.AddScoped<CurrentUserContext>();
+
+// Reused domain services (Phase 4 pilot: wishlists).
+builder.Services.AddScoped<WishlistService>();
 
 var app = builder.Build();
 

@@ -34,12 +34,20 @@ builder.Services.AddScoped<OfflineStore>();
 builder.Services.AddScoped<ConnectivityService>();
 builder.Services.AddScoped<SyncEngine>();
 
+// Pilot feature: wishlists (offline-capable).
+builder.Services.AddScoped<PrivateLibrary.Client.Features.Wishlists.WishlistClientService>();
+
 var host = builder.Build();
 
 // Bring connectivity + sync online before the first render so cached data and the
 // outbox are ready and any queued mutations flush immediately when online.
 var connectivity = host.Services.GetRequiredService<ConnectivityService>();
 await connectivity.InitializeAsync();
+
+// Eagerly resolve feature services so they register their sync replay handlers
+// before the engine performs its first flush.
+_ = host.Services.GetRequiredService<PrivateLibrary.Client.Features.Wishlists.WishlistClientService>();
+
 await host.Services.GetRequiredService<SyncEngine>().InitializeAsync();
 
 await host.RunAsync();

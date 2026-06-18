@@ -1,0 +1,190 @@
+@page "/wishlists"
+@attribute [Authorize]
+@using PrivateLibrary.Client.Features.Wishlists
+@using PrivateLibrary.Client.Offline
+@using PrivateLibrary.Shared.Offline
+@using PrivateLibrary.Shared.Wishlists
+@inject WishlistClientService WishlistSvc
+@inject ConnectivityService Connectivity
+@inject SyncEngine Sync
+@implements IDisposable
+
+<PageTitle>Wünsche – Revia</PageTitle>
+
+<div class="wl-head">
+    <h1>Wünsche</h1>
+    @if (!Connectivity.IsOnline)
+    {
+        <span class="wl-offline" title="Offline – Änderungen werden synchronisiert, sobald wieder Verbindung besteht.">
+            ⚡ Offline@(_pending > 0 ? $" · {_pending} ausstehend" : "")
+        </span>
+    }
+    else if (_pending > 0)
+    {
+        <span class="wl-syncing">Synchronisiere @_pending…</span>
+    }
+</div>
+
+<div class="wl-create glass">
+    <input class="form-control" placeholder="Neuer Wunschzettel (z. B. Geburtstag)"
+           @bind="_newListName" @bind:event="oninput" />
+    <button class="btn btn-primary" @onclick="CreateListAsync" disabled="@string.IsNullOrWhiteSpace(_newListName)">Anlegen</button>
+</div>
+
+@if (_loading)
+{
+    <p class="wl-muted">Lade…</p>
+}
+else if (_lists.Count == 0)
+{
+    <p class="wl-muted">Noch keine Wunschzettel.</p>
+}
+else
+{
+    @foreach (var list in _lists)
+    {
+        <section class="wl-card glass" @key="list.Id">
+            <header class="wl-card-head">
+                <div>
+                    <div class="wl-card-title">@list.Name</div>
+                    @if (!string.IsNullOrEmpty(list.OwnerDisplayName))
+                    {
+                        <div class="wl-muted">von @list.OwnerDisplayName</div>
+                    }
+                </div>
+                @if (list.CanEdit)
+                {
+                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteListAsync(list.Id)">Liste löschen</button>
+                }
+            </header>
+
+            @if (list.Items.Count == 0)
+            {
+                <div class="wl-muted">Noch keine Wünsche.</div>
+            }
+            else
+            {
+                <ul class="wl-items">
+                    @foreach (var item in list.Items)
+                    {
+                        <li class="wl-item @(item.IsFulfilled ? "is-done" : "")" @key="item.Id">
+                            <span class="wl-item-title">
+                                @if (!string.IsNullOrEmpty(item.Url))
+                                {
+                                    <a href="@item.Url" target="_blank" rel="noopener">@item.Title</a>
+                                }
+                                else { @item.Title }
+                                @if (item.Price is not null) { <span class="wl-price">@item.Price.Value.ToString("0.00") €</span> }
+                            </span>
+                            @if (list.CanEdit)
+                            {
+                                <span class="wl-item-actions">
+                                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => ToggleAsync(list.Id, item)">
+                                        @(item.IsFulfilled ? "Offen" : "Erfüllt")
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteItemAsync(list.Id, item.Id)">Löschen</button>
+                                </span>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+
+            @if (list.CanEdit)
+            {
+                <div class="wl-add">
+                    <input class="form-control" placeholder="Wunsch hinzufügen…" value="@GetDraft(list.Id)"
+                           @oninput="e => SetDraft(list.Id, e.Value?.ToString())" />
+                    <button class="btn btn-primary btn-sm" @onclick="() => AddItemAsync(list.Id)"
+                            disabled="@string.IsNullOrWhiteSpace(GetDraft(list.Id))">Hinzufügen</button>
+                </div>
+            }
+        </section>
+    }
+}
+
+@code {
+    private List<WishlistDto> _lists = new();
+    private readonly Dictionary<int, string> _drafts = new();
+    private string _newListName = string.Empty;
+    private bool _loading = true;
+    private int _pending;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Connectivity.Changed += OnConnectivityChanged;
+        Sync.Synced += OnSynced;
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+        _loading = false;
+    }
+
+    private async Task ReloadAsync()
+    {
+        _lists = await WishlistSvc.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private async Task CreateListAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newListName)) return;
+        await WishlistSvc.CreateListAsync(_newListName.Trim());
+        _newListName = string.Empty;
+        await AfterWriteAsync();
+    }
+
+    private async Task DeleteListAsync(int id)
+    {
+        await WishlistSvc.DeleteListAsync(id);
+        await AfterWriteAsync();
+    }
+
+    private async Task AddItemAsync(int listId)
+    {
+        var draft = GetDraft(listId);
+        if (string.IsNullOrWhiteSpace(draft)) return;
+        await WishlistSvc.AddItemAsync(listId, draft.Trim(), null, null, null);
+        _drafts[listId] = string.Empty;
+        await AfterWriteAsync();
+    }
+
+    private async Task ToggleAsync(int listId, WishlistItemDto item)
+    {
+        await WishlistSvc.SetItemFulfilledAsync(listId, item.Id, !item.IsFulfilled);
+        await AfterWriteAsync();
+    }
+
+    private async Task DeleteItemAsync(int listId, int itemId)
+    {
+        await WishlistSvc.DeleteItemAsync(listId, itemId);
+        await AfterWriteAsync();
+    }
+
+    private async Task AfterWriteAsync()
+    {
+        // Re-read from cache/server so optimistic state (and any sync result) shows.
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+        StateHasChanged();
+    }
+
+    private string GetDraft(int listId) => _drafts.TryGetValue(listId, out var v) ? v : string.Empty;
+    private void SetDraft(int listId, string? v) => _drafts[listId] = v ?? string.Empty;
+
+    private async void OnConnectivityChanged(bool online) => await InvokeAsync(ReloadAsync);
+
+    private async void OnSynced(SyncResult result)
+        => await InvokeAsync(async () =>
+        {
+            // After the outbox flushes, pull authoritative server state (server-wins).
+            await ReloadAsync();
+            _pending = result.Remaining;
+            StateHasChanged();
+        });
+
+    public void Dispose()
+    {
+        Connectivity.Changed -= OnConnectivityChanged;
+        Sync.Synced -= OnSynced;
+    }
+}

@@ -16,6 +16,7 @@ public sealed class AuthTokenStore(IJSRuntime js)
 {
     private const string Key = "revia.auth";
     private readonly IJSRuntime _js = js;
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     public async Task<AuthResponse?> LoadAsync()
     {
@@ -26,7 +27,7 @@ public sealed class AuthTokenStore(IJSRuntime js)
         }
         try
         {
-            return JsonSerializer.Deserialize<AuthResponse>(raw);
+            return JsonSerializer.Deserialize<AuthResponse>(raw, Json);
         }
         catch
         {
@@ -35,7 +36,7 @@ public sealed class AuthTokenStore(IJSRuntime js)
     }
 
     public async Task SaveAsync(AuthResponse auth)
-        => await _js.InvokeVoidAsync("reviaTokenStore.set", Key, JsonSerializer.Serialize(auth));
+        => await _js.InvokeVoidAsync("reviaTokenStore.set", Key, JsonSerializer.Serialize(auth, Json));
 
     public async Task ClearAsync()
         => await _js.InvokeVoidAsync("reviaTokenStore.remove", Key);

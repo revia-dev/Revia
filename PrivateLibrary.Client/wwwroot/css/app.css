@@ -137,3 +137,25 @@ code {
 .login-field .form-control { padding: 0.6rem 0.8rem; border: 1px solid #ccc; border-radius: 10px; width: 100%; }
 .login-submit { width: 100%; margin-top: 0.5rem; padding: 0.6rem; border-radius: 999px; }
 .login-error { background: rgba(200,60,50,0.1); border: 1px solid rgba(200,60,50,0.25); color: #b53a2d; border-radius: 10px; padding: 0.6rem 0.9rem; font-size: 0.9rem; }
+
+/* ---- Wishlists (Phase 4 pilot) ---- */
+.wl-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.wl-offline { background: #fff3cd; color: #8a6d3b; border: 1px solid #ffe69c; border-radius: 999px; padding: 0.2rem 0.7rem; font-size: 0.85rem; font-weight: 600; }
+.wl-syncing { color: #007aff; font-size: 0.85rem; }
+.glass { background: #fff; border: 1px solid rgba(0,0,0,0.1); border-radius: 14px; }
+.wl-create { display: flex; gap: 0.6rem; padding: 0.9rem; margin-bottom: 1rem; }
+.wl-create .form-control { flex: 1 1 auto; padding: 0.5rem 0.8rem; border: 1px solid #ccc; border-radius: 10px; }
+.wl-card { padding: 1rem; margin-bottom: 1rem; }
+.wl-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.6rem; }
+.wl-card-title { font-weight: 700; font-size: 1.1rem; }
+.wl-muted { color: #888; font-size: 0.9rem; }
+.wl-items { list-style: none; margin: 0.5rem 0; padding: 0; display: grid; gap: 0.4rem; }
+.wl-item { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.5rem 0.7rem; border: 1px solid #eee; border-radius: 10px; }
+.wl-item.is-done .wl-item-title { text-decoration: line-through; color: #999; }
+.wl-item-actions { display: flex; gap: 0.35rem; flex: 0 0 auto; }
+.wl-price { margin-left: 0.5rem; color: #007aff; font-weight: 600; }
+.wl-add { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
+.wl-add .form-control { flex: 1 1 auto; padding: 0.45rem 0.7rem; border: 1px solid #ccc; border-radius: 10px; }
+.btn-sm { padding: 0.3rem 0.7rem; font-size: 0.85rem; border-radius: 8px; }
+.btn-outline-danger { color: #b53a2d; background: transparent; border: 1px solid rgba(181,58,45,0.4); }
+.btn-outline-secondary { color: #444; background: transparent; border: 1px solid #ccc; }
