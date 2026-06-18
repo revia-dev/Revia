@@ -75,11 +75,10 @@ else
             {
                 <tr @key="r.Id">
                     <td>
-                        @if (r.HasPhoto && Connectivity.IsOnline && r.PhotoUrl is not null)
+                        @if (r.HasPhoto && r.PhotoUrl is not null)
                         {
-                            <img class="bmi-thumb" src="@r.PhotoUrl" alt="Foto" loading="lazy" />
+                            <AuthImage Src="@r.PhotoUrl" CssClass="bmi-thumb" Alt="BMI-Foto" />
                         }
-                        else if (r.HasPhoto) { <span class="wl-muted" title="Offline – Foto online sichtbar">📷</span> }
                         else { <span class="wl-muted">—</span> }
                     </td>
                     <td>@r.PersonDisplayName</td>

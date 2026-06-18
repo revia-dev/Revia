@@ -1,0 +1,32 @@
+@using PrivateLibrary.Client.Features.Media
+@inject PhotoCacheService PhotoCache
+
+@if (_dataUrl is not null)
+{
+    <img class="@CssClass" src="@_dataUrl" alt="@Alt" loading="lazy" />
+}
+else if (_loading)
+{
+    <span class="@CssClass auth-img-loading" title="Lade Foto…">📷</span>
+}
+else
+{
+    <span class="@CssClass auth-img-missing" title="Foto offline nicht verfügbar">📷</span>
+}
+
+@code {
+    /// <summary>Authenticated photo path, e.g. "api/bmi/3/photo".</summary>
+    [Parameter, EditorRequired] public string? Src { get; set; }
+    [Parameter] public string Alt { get; set; } = "Foto";
+    [Parameter] public string CssClass { get; set; } = "";
+
+    private string? _dataUrl;
+    private bool _loading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _dataUrl = string.IsNullOrWhiteSpace(Src) ? null : await PhotoCache.GetDataUrlAsync(Src!);
+        _loading = false;
+    }
+}

@@ -47,6 +47,7 @@ builder.Services.AddScoped<PrivateLibrary.Client.Features.Analytics.AnalyticsCli
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Access.AccessClientService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Access.LayoutClientService>();
 builder.Services.AddScoped<PrivateLibrary.Client.Features.Access.AdminPermissionsClientService>();
+builder.Services.AddScoped<PrivateLibrary.Client.Features.Media.PhotoCacheService>();
 
 var host = builder.Build();
 
