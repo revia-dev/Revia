@@ -4,6 +4,7 @@
 @using PrivateLibrary.Client.Offline
 @using PrivateLibrary.Shared.Games
 @inject GameClientService GameSvc
+@inject GameFilesClientService FilesSvc
 @inject ConnectivityService Connectivity
 @inject SyncEngine Sync
 @implements IDisposable
@@ -70,6 +71,64 @@
             <button class="btn btn-primary" @onclick="SaveAsync" disabled="@string.IsNullOrWhiteSpace(_edit.Name)">Speichern</button>
             <button class="btn btn-outline-secondary" @onclick="() => _edit = null">Abbrechen</button>
         </div>
+
+        @if (_edit.Id > 0)
+        {
+            <div class="game-files">
+                <h3 class="ui-section-title">Regeln</h3>
+                @if (_detail?.RulesUrl is not null)
+                {
+                    var rulesName = _detail.RulesName ?? "regeln";
+                    <div class="file-row">
+                        <button class="file-dl" @onclick="() => DownloadAsync(_detail.RulesUrl!, rulesName)">
+                            @(_detail.RulesName ?? "Regeln herunterladen")
+                        </button>
+                    </div>
+                }
+                else { <p class="wl-muted">Keine Regeln hinterlegt.</p> }
+                <PhotoUploader Accept=".pdf,image/*" Multiple="false" Label="Regeln hochladen (PDF/Bild)"
+                               OnUpload="UploadRulesAsync" OnUploaded="RefreshDetailAsync" />
+
+                <h3 class="ui-section-title">Erweiterungen</h3>
+                @if (_detail is not null)
+                {
+                    @foreach (var exp in _detail.Expansions)
+                    {
+                        <div class="expansion glass" @key="exp.Id">
+                            <div class="expansion-head">
+                                <span class="expansion-name">@exp.Name</span>
+                                <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteExpansionAsync(exp.Id)">Erweiterung löschen</button>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(exp.Notes)) { <p class="wl-muted">@exp.Notes</p> }
+                            @if (exp.Files.Count > 0)
+                            {
+                                <ul class="file-list">
+                                    @foreach (var f in exp.Files)
+                                    {
+                                        var fileName = f.Name ?? "datei";
+                                        <li>
+                                            <button class="file-dl" @onclick="() => DownloadAsync(f.Url, fileName)">@(f.Name ?? "Datei")</button>
+                                            <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteExpansionFileAsync(f.Id)">×</button>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                            <PhotoUploader Accept=".pdf,image/*" Label="Datei(en) hinzufügen"
+                                           OnUpload="@(file => UploadExpansionFileAsync(exp.Id, file))"
+                                           OnUploaded="RefreshDetailAsync" />
+                        </div>
+                    }
+                }
+                <div class="expansion-add">
+                    <input class="form-control" placeholder="Neue Erweiterung…" @bind="_newExpansionName" @bind:event="oninput" />
+                    <button class="btn btn-outline-secondary btn-sm" disabled="@string.IsNullOrWhiteSpace(_newExpansionName)" @onclick="AddExpansionAsync">+ Erweiterung</button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <p class="wl-muted">Regeln &amp; Erweiterungen kannst du nach dem Speichern des Spiels hinzufügen.</p>
+        }
     </div>
 }
 
@@ -111,6 +170,8 @@ else
 
     private List<GameDto> _games = new();
     private SaveGameRequest? _edit;
+    private GameDetailDto? _detail;
+    private string _newExpansionName = string.Empty;
     private bool _loading = true;
     private int _pending;
 
@@ -129,18 +190,64 @@ else
         StateHasChanged();
     }
 
-    private void StartCreate() => _edit = new SaveGameRequest();
-
-    private void StartEdit(GameDto g) => _edit = new SaveGameRequest
+    private void StartCreate()
     {
-        Id = g.Id, Name = g.Name, Publisher = g.Publisher,
-        ReleaseYear = g.ReleaseYear, MinPlayers = g.MinPlayers, MaxPlayers = g.MaxPlayers,
-        Description = g.Description,
-        Types = g.Types.ToList(),
-        ScoreDefinitions = g.ScoreDefinitions
-            .Select(s => new GameScoreDefinitionDto { Id = s.Id, Name = s.Name, Unit = s.Unit, HigherIsBetter = s.HigherIsBetter })
-            .ToList()
-    };
+        _detail = null;
+        _newExpansionName = string.Empty;
+        _edit = new SaveGameRequest();
+    }
+
+    private async Task StartEdit(GameDto g)
+    {
+        _newExpansionName = string.Empty;
+        _edit = new SaveGameRequest
+        {
+            Id = g.Id, Name = g.Name, Publisher = g.Publisher,
+            ReleaseYear = g.ReleaseYear, MinPlayers = g.MinPlayers, MaxPlayers = g.MaxPlayers,
+            Description = g.Description,
+            Types = g.Types.ToList(),
+            ScoreDefinitions = g.ScoreDefinitions
+                .Select(s => new GameScoreDefinitionDto { Id = s.Id, Name = s.Name, Unit = s.Unit, HigherIsBetter = s.HigherIsBetter })
+                .ToList()
+        };
+        await RefreshDetailAsync();
+    }
+
+    private async Task RefreshDetailAsync()
+    {
+        _detail = _edit is { Id: > 0 } ? await FilesSvc.GetDetailAsync(_edit.Id) : null;
+        StateHasChanged();
+    }
+
+    private async Task<bool> UploadRulesAsync(PhotoUploader.UploadedFile file)
+        => _edit is not null && await FilesSvc.SetRulesAsync(_edit.Id,
+            new UploadFileRequest { Base64 = file.Base64, ContentType = file.ContentType, FileName = file.FileName });
+
+    private async Task AddExpansionAsync()
+    {
+        if (_edit is null || string.IsNullOrWhiteSpace(_newExpansionName)) return;
+        if (await FilesSvc.AddExpansionAsync(_edit.Id, new AddExpansionRequest { Name = _newExpansionName.Trim() }))
+        {
+            _newExpansionName = string.Empty;
+            await RefreshDetailAsync();
+        }
+    }
+
+    private async Task DeleteExpansionAsync(int expansionId)
+    {
+        if (await FilesSvc.DeleteExpansionAsync(expansionId)) await RefreshDetailAsync();
+    }
+
+    private async Task<bool> UploadExpansionFileAsync(int expansionId, PhotoUploader.UploadedFile file)
+        => await FilesSvc.AddExpansionFileAsync(expansionId,
+            new UploadFileRequest { Base64 = file.Base64, ContentType = file.ContentType, FileName = file.FileName });
+
+    private async Task DeleteExpansionFileAsync(int fileId)
+    {
+        if (await FilesSvc.DeleteExpansionFileAsync(fileId)) await RefreshDetailAsync();
+    }
+
+    private Task DownloadAsync(string url, string fileName) => FilesSvc.DownloadAsync(url, fileName);
 
     private void ToggleType(GameTypeDto t, bool on)
     {

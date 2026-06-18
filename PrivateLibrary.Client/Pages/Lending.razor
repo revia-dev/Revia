@@ -210,8 +210,9 @@ else
         _editPhotos = new(e.PhotoUrls);
     }
 
-    private async Task<bool> UploadLendingPhotoAsync(UploadPhotoRequest request)
-        => _edit is not null && await LendSvc.UploadPhotoAsync(_edit.Id, request);
+    private async Task<bool> UploadLendingPhotoAsync(PhotoUploader.UploadedFile file)
+        => _edit is not null && await LendSvc.UploadPhotoAsync(_edit.Id,
+            new UploadPhotoRequest { Base64 = file.Base64, ContentType = file.ContentType, FileName = file.FileName });
 
     private async Task DeletePhotoAsync(string url)
     {

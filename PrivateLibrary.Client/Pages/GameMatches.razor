@@ -193,8 +193,9 @@ else
         };
     }
 
-    private async Task<bool> UploadMatchPhotoAsync(UploadPhotoRequest request)
-        => _edit is not null && await MatchSvc.UploadPhotoAsync(_edit.Id, request);
+    private async Task<bool> UploadMatchPhotoAsync(PhotoUploader.UploadedFile file)
+        => _edit is not null && await MatchSvc.UploadPhotoAsync(_edit.Id,
+            new UploadPhotoRequest { Base64 = file.Base64, ContentType = file.ContentType, FileName = file.FileName });
 
     private async Task DeletePhotoAsync(string url)
     {

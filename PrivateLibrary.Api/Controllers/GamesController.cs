@@ -137,6 +137,132 @@ public sealed class GamesController(GameService games) : ControllerBase
         return NoContent();
     }
 
+    // ---- files: rules + expansions ----
+
+    /// <summary>A game's rules + expansions (each with files), for the editor.</summary>
+    [HttpGet("{id:int}/detail")]
+    public async Task<ActionResult<GameDetailDto>> GetDetail(int id, CancellationToken ct)
+    {
+        var game = await _games.GetGameAsync(id, ct);
+        if (game is null) return NotFound();
+
+        return new GameDetailDto
+        {
+            Id = game.Id,
+            Name = game.Name,
+            HasRules = game.RulesFileName is not null,
+            RulesUrl = game.RulesFileName is not null ? $"api/games/{game.Id}/rules" : null,
+            RulesName = game.RulesOriginalName,
+            Expansions = (game.Expansions ?? new List<GameExpansion>())
+                .OrderBy(e => e.Name)
+                .Select(e => new GameExpansionDto
+                {
+                    Id = e.Id,
+                    Name = e.Name,
+                    Notes = e.Notes,
+                    Files = (e.Files ?? new List<GameExpansionFile>())
+                        .OrderBy(f => f.Id)
+                        .Select(f => new GameExpansionFileDto
+                        {
+                            Id = f.Id,
+                            Name = f.OriginalName,
+                            Url = $"api/games/expansions/file/{f.Id}"
+                        }).ToList()
+                }).ToList()
+        };
+    }
+
+    /// <summary>Streams a game's rules file, scoped to the caller's household.</summary>
+    [HttpGet("{id:int}/rules")]
+    public async Task<IActionResult> Rules(
+        int id,
+        [FromServices] AppDbContext db,
+        [FromServices] CurrentUserContext currentUser,
+        [FromServices] IGameFileStorage storage,
+        CancellationToken ct)
+    {
+        var householdId = await currentUser.RequireHouseholdIdAsync();
+        var game = await db.Games.AsNoTracking()
+            .Where(x => x.Id == id && x.HouseholdId == householdId)
+            .Select(x => new { x.RulesFileName, x.RulesContentType, x.RulesOriginalName })
+            .FirstOrDefaultAsync(ct);
+
+        if (game?.RulesFileName is null) return NotFound();
+        var path = storage.GetPath(game.RulesFileName);
+        if (!System.IO.File.Exists(path)) return NotFound();
+        return PhysicalFile(path, game.RulesContentType ?? "application/octet-stream", game.RulesOriginalName);
+    }
+
+    /// <summary>Sets/replaces a game's rules file (base64).</summary>
+    [HttpPost("{id:int}/rules")]
+    public async Task<IActionResult> SetRules(int id, [FromBody] UploadFileRequest request, CancellationToken ct)
+    {
+        if (!TryDecode(request.Base64, out var bytes)) return BadRequest("Ungültige Datei.");
+        using var stream = new MemoryStream(bytes);
+        await _games.SetRulesAsync(id, stream, request.ContentType, request.FileName, ct);
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/expansions")]
+    public async Task<ActionResult<int>> AddExpansion(int id, [FromBody] AddExpansionRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name)) return BadRequest("Name fehlt.");
+        var expansionId = await _games.AddExpansionAsync(id, request.Name.Trim(), request.Notes, ct);
+        return expansionId;
+    }
+
+    [HttpDelete("expansions/{expansionId:int}")]
+    public async Task<IActionResult> DeleteExpansion(int expansionId, CancellationToken ct)
+    {
+        await _games.DeleteExpansionAsync(expansionId, ct);
+        return NoContent();
+    }
+
+    /// <summary>Streams an expansion file, scoped to the caller's household.</summary>
+    [HttpGet("expansions/file/{fileId:int}")]
+    public async Task<IActionResult> ExpansionFile(
+        int fileId,
+        [FromServices] AppDbContext db,
+        [FromServices] CurrentUserContext currentUser,
+        [FromServices] IGameFileStorage storage,
+        CancellationToken ct)
+    {
+        var householdId = await currentUser.RequireHouseholdIdAsync();
+        var file = await db.GameExpansionFiles.AsNoTracking()
+            .Where(x => x.Id == fileId && x.GameExpansion!.Game!.HouseholdId == householdId)
+            .Select(x => new { x.FileName, x.ContentType, x.OriginalName })
+            .FirstOrDefaultAsync(ct);
+
+        if (file is null) return NotFound();
+        var path = storage.GetPath(file.FileName);
+        if (!System.IO.File.Exists(path)) return NotFound();
+        return PhysicalFile(path, file.ContentType, file.OriginalName);
+    }
+
+    [HttpPost("expansions/{expansionId:int}/files")]
+    public async Task<IActionResult> AddExpansionFile(int expansionId, [FromBody] UploadFileRequest request, CancellationToken ct)
+    {
+        if (!TryDecode(request.Base64, out var bytes)) return BadRequest("Ungültige Datei.");
+        using var stream = new MemoryStream(bytes);
+        await _games.AddExpansionFileAsync(expansionId, stream, request.ContentType, request.FileName, ct);
+        return NoContent();
+    }
+
+    [HttpDelete("expansions/file/{fileId:int}")]
+    public async Task<IActionResult> RemoveExpansionFile(int fileId, CancellationToken ct)
+    {
+        await _games.RemoveExpansionFileAsync(fileId, ct);
+        return NoContent();
+    }
+
+    private static bool TryDecode(string base64, out byte[] bytes)
+    {
+        bytes = Array.Empty<byte>();
+        if (string.IsNullOrWhiteSpace(base64)) return false;
+        try { bytes = Convert.FromBase64String(base64); return true; }
+        catch (FormatException) { return false; }
+    }
+
     // ---- mapping ----
 
     private static Game ToGame(SaveGameRequest r) => new()

@@ -299,3 +299,13 @@ code {
 .photo-edit-item .btn { position: absolute; top: -6px; right: -6px; padding: 0 0.35rem; line-height: 1.2;
     border-radius: 999px; }
 .photo-uploader { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.5rem; }
+
+/* ---- 9b: game files / expansions ---- */
+.game-files { margin-top: 1rem; display: grid; gap: 0.6rem; }
+.file-row, .file-list li { display: flex; align-items: center; gap: 0.5rem; }
+.file-list { list-style: none; margin: 0.3rem 0; padding: 0; display: grid; gap: 0.3rem; }
+.expansion { padding: 0.75rem; display: grid; gap: 0.4rem; }
+.expansion-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.expansion-name { font-weight: 700; }
+.expansion-add { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.4rem; }
+.file-dl { background: none; border: none; color: #007aff; text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }

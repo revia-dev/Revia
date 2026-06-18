@@ -1,29 +1,33 @@
 @using PrivateLibrary.Client.Offline
-@using PrivateLibrary.Shared.Media
 @inject ConnectivityService Connectivity
 
 @if (Connectivity.IsOnline)
 {
     <div class="photo-uploader">
         <label class="wl-muted">@Label</label>
-        <InputFile OnChange="OnSelected" accept="image/*" multiple="@Multiple" />
+        <InputFile OnChange="OnSelected" accept="@Accept" multiple="@Multiple" />
         @if (_busy) { <span class="wl-muted">Lädt…</span> }
         @if (_error is not null) { <span class="login-error">@_error</span> }
     </div>
 }
 else
 {
-    <span class="wl-muted" title="Fotos können nur online hochgeladen werden">📷 offline</span>
+    <span class="wl-muted" title="Dateien können nur online hochgeladen werden">⬆ offline</span>
 }
 
 @code {
-    /// <summary>Called once per chosen file with its upload payload. Return true if
-    /// the upload succeeded (so the uploader can report a per-file failure).</summary>
-    [Parameter, EditorRequired] public Func<UploadPhotoRequest, Task<bool>>? OnUpload { get; set; }
+    /// <summary>One chosen file, ready to send (base64).</summary>
+    public sealed record UploadedFile(string Base64, string ContentType, string FileName);
+
+    /// <summary>Called once per chosen file. Return true if the upload succeeded
+    /// (so the uploader can report a per-file failure).</summary>
+    [Parameter, EditorRequired] public Func<UploadedFile, Task<bool>>? OnUpload { get; set; }
     [Parameter] public EventCallback OnUploaded { get; set; }
-    [Parameter] public string Label { get; set; } = "Foto hinzufügen";
+    [Parameter] public string Label { get; set; } = "Datei hinzufügen";
+    /// <summary>HTML accept filter (e.g. "image/*" or ".pdf,application/pdf").</summary>
+    [Parameter] public string Accept { get; set; } = "image/*";
     [Parameter] public bool Multiple { get; set; } = true;
-    [Parameter] public long MaxBytes { get; set; } = 8 * 1024 * 1024;
+    [Parameter] public long MaxBytes { get; set; } = 16 * 1024 * 1024;
 
     private bool _busy;
     private string? _error;
@@ -41,19 +45,17 @@ else
             {
                 using var ms = new MemoryStream();
                 await file.OpenReadStream(MaxBytes).CopyToAsync(ms);
-                var request = new UploadPhotoRequest
-                {
-                    Base64 = Convert.ToBase64String(ms.ToArray()),
-                    ContentType = string.IsNullOrWhiteSpace(file.ContentType) ? "image/jpeg" : file.ContentType,
-                    FileName = file.Name
-                };
-                if (!await OnUpload(request)) { anyFailed = true; }
+                var uploaded = new UploadedFile(
+                    Convert.ToBase64String(ms.ToArray()),
+                    string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
+                    file.Name);
+                if (!await OnUpload(uploaded)) { anyFailed = true; }
             }
             catch { anyFailed = true; }
         }
 
         _busy = false;
-        if (anyFailed && _error is null) { _error = "Mindestens ein Foto konnte nicht hochgeladen werden."; }
+        if (anyFailed && _error is null) { _error = "Mindestens eine Datei konnte nicht hochgeladen werden."; }
         await OnUploaded.InvokeAsync();
     }
 }
