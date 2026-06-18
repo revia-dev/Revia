@@ -411,3 +411,107 @@ a.mv-card:hover { transform: translateY(-2px); }
 .sb-receive { display: grid; gap: 0.3rem; }
 .sb-receive-form { display: flex; gap: 0.5rem; }
 .sb-receive-form .form-control { flex: 1; }
+
+/* ===========================================================================
+   shared design layer. Refines the existing components on top of the design
+   tokens: translucent "glass" surfaces, a frosted sticky top bar, larger radii,
+   softer shadows, consistent controls, generous tap targets and safe-area insets.
+   Kept additive (overrides earlier rules) so component markup is unchanged.
+   =========================================================================== */
+:root {
+    --radius-lg: 18px;
+    --radius-pill: 999px;
+    --tap: 44px; /* minimum comfortable touch target */
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+html, body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    letter-spacing: -0.01em;
+}
+
+/* Frosted, sticky top bar (iOS large-title navigation feel). */
+.app-topbar {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding-top: calc(0.75rem + env(safe-area-inset-top));
+    padding-left: calc(1.25rem + env(safe-area-inset-left));
+    padding-right: calc(1.25rem + env(safe-area-inset-right));
+}
+.app-content {
+    padding-left: calc(1.25rem + env(safe-area-inset-left));
+    padding-right: calc(1.25rem + env(safe-area-inset-right));
+    padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+}
+
+/* Translucent cards with depth. */
+.glass {
+    background: color-mix(in srgb, var(--surface) 86%, transparent);
+    -webkit-backdrop-filter: saturate(160%) blur(14px);
+    backdrop-filter: saturate(160%) blur(14px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05);
+}
+
+/* Headings: iOS large-title scale. */
+.wl-head h1 { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em; }
+.ui-section-title { font-weight: 700; letter-spacing: -0.01em; }
+
+/* Controls. */
+.form-control {
+    border-radius: 12px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-2);
+    color: var(--text);
+    min-height: var(--tap);
+}
+.form-control:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* Buttons: pill shapes, springy press. */
+.btn {
+    border-radius: var(--radius-pill);
+    font-weight: 600;
+    transition: transform 0.06s ease, filter 0.12s ease, background 0.12s ease;
+    min-height: var(--tap);
+}
+.btn:active { transform: scale(0.97); }
+.btn-sm { min-height: 34px; border-radius: var(--radius-pill); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.btn-primary:hover { filter: brightness(1.05); }
+.btn-outline-secondary { color: var(--text); border: 1px solid var(--border-strong); background: color-mix(in srgb, var(--surface) 60%, transparent); }
+.btn-outline-secondary:hover { background: var(--surface-2); }
+.btn-outline-danger { color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); }
+
+/* Tiles + cards: rounded, lift on hover. */
+.dash-tile, .glass, .mv-card, .person-card, .an-card, .match-card, .lend-card {
+    border-radius: var(--radius-lg);
+}
+.dash-tile { transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.dash-tile:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,0,0,0.08); }
+
+/* Pills / badges. */
+.badge { border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text); padding: 0.15rem 0.6rem; font-size: 0.8rem; }
+.status-pill { border-radius: var(--radius-pill); }
+
+/* Respect reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+    .btn, .dash-tile, a.mv-card { transition: none; }
+    .btn:active { transform: none; }
+}
+
+/* Phone layout tweaks. */
+@media (max-width: 640px) {
+    .app-content { padding-top: 1rem; }
+    .wl-head { flex-wrap: wrap; }
+    .wl-head h1 { font-size: 1.45rem; }
+}
