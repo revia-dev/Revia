@@ -2,6 +2,7 @@
 @using PrivateLibrary.Client.Features.Media
 @using PrivateLibrary.Shared.Games
 @inject IJSRuntime JS
+@implements IDisposable
 
 @*
     Live scoreboard for a running match: each player's score can be counted up/down
@@ -74,11 +75,13 @@
         }
 
         <div class="sb-receive">
-            <label class="wl-muted">Übertragung empfangen (Code einfügen)</label>
+            <label class="wl-muted">Übertragung empfangen</label>
             <div class="sb-receive-form">
                 <input class="form-control" placeholder="Übertragungs-Code…" @bind="_receiveCode" />
                 <button class="btn btn-outline-secondary" @onclick="ReceiveTransfer">Anwenden</button>
+                <button class="btn btn-primary" @onclick="ToggleScanAsync">@(_scanning ? "Scan stoppen" : "QR scannen")</button>
             </div>
+            <div id="@_scannerId" class="sb-scanner @(_scanning ? "" : "is-hidden")"></div>
             @if (_receiveMsg is not null) { <span class="@(_receiveOk ? "wl-syncing" : "login-error")">@_receiveMsg</span> }
         </div>
     </div>
@@ -104,6 +107,11 @@
     private string _receiveCode = "";
     private string? _receiveMsg;
     private bool _receiveOk;
+
+    // Camera QR scanner (jsQR) for receiving a transfer.
+    private readonly string _scannerId = "sb-scanner-" + Guid.NewGuid().ToString("N");
+    private bool _scanning;
+    private DotNetObjectReference<MatchScoreboard>? _selfRef;
 
     // Transfers already applied on this device, so a re-scanned QR is ignored.
     private readonly HashSet<string> _applied = new(StringComparer.Ordinal);
@@ -220,5 +228,50 @@
             ? $"Übertragung angewendet ({applied} Spieler)."
             : "Keiner der Spieler ist in dieser Partie.";
         await OnChanged.InvokeAsync();
+    }
+
+    private async Task ToggleScanAsync()
+    {
+        if (_scanning)
+        {
+            await StopScanAsync();
+            return;
+        }
+
+        _selfRef ??= DotNetObjectReference.Create(this);
+        _scanning = true;
+        _receiveMsg = null;
+        StateHasChanged();
+        // Let the container render before the camera attaches to it.
+        var error = await JS.InvokeAsync<string>("reviaScanner.start", _scannerId, _selfRef);
+        if (!string.IsNullOrEmpty(error))
+        {
+            _scanning = false;
+            _receiveOk = false;
+            _receiveMsg = error;
+            StateHasChanged();
+        }
+    }
+
+    private async Task StopScanAsync()
+    {
+        _scanning = false;
+        await JS.InvokeVoidAsync("reviaScanner.stop");
+        StateHasChanged();
+    }
+
+    /// <summary>Called by the camera scanner when a QR is decoded.</summary>
+    [JSInvokable]
+    public async Task OnScanned(string text)
+    {
+        _scanning = false;
+        await ApplyAsync(text);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        if (_scanning) { _ = JS.InvokeVoidAsync("reviaScanner.stop"); }
+        _selfRef?.Dispose();
     }
 }

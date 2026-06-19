@@ -577,3 +577,7 @@ img, video, svg, canvas { max-width: 100%; height: auto; }
     .sb-transfer-form { display: grid; grid-template-columns: 1fr; }
     .sb-recipient { flex-wrap: wrap; }
 }
+
+/* ---- QR camera scanner ---- */
+.sb-scanner { margin-top: 0.5rem; max-width: 320px; }
+.sb-scanner.is-hidden { display: none; }
