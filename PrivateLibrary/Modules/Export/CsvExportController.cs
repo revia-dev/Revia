@@ -14,7 +14,7 @@ public sealed class CsvExportController : ControllerBase
     private bool TryHousehold(out int householdId)
         => int.TryParse(User.FindFirstValue(HouseholdClaims.HouseholdId), out householdId);
 
-    private static IResult File(byte[] bytes, string name)
+    private static IResult Csv(byte[] bytes, string name)
         => Results.File(bytes, "text/csv", $"{name}-{DateTime.Now:yyyy-MM-dd}.csv");
 
     private static string D(DateTime? d) => d?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty;
@@ -30,7 +30,7 @@ public sealed class CsvExportController : ControllerBase
         var bytes = await CsvExport.BuildAsync(
             new[] { "Vorname", "Nachname", "Spitzname", "E-Mail", "Benutzername", "Telefon", "Straße", "Hausnummer", "PLZ", "Ort", "OhneLogin" },
             people.Select(p => new[] { p.FirstName, p.LastName, p.Nickname, p.Email, p.UserName, p.Phone, p.Street, p.HouseNumber, p.PostalCode, p.City, p.IsLoginless ? "ja" : "nein" }));
-        return File(bytes, "personen");
+        return Csv(bytes, "personen");
     }
 
     [HttpGet("/lending/export.csv")]
@@ -49,7 +49,7 @@ public sealed class CsvExportController : ControllerBase
                 e.Lender?.DisplayName, e.Borrower?.DisplayName,
                 D(e.LoanDate), D(e.DueDate), D(e.ReturnedAt), e.Status.ToString(), e.Notes
             }));
-        return File(bytes, "ausleihen");
+        return Csv(bytes, "ausleihen");
     }
 
     [HttpGet("/games/export.csv")]
@@ -66,7 +66,7 @@ public sealed class CsvExportController : ControllerBase
                 g.Name, string.Join(", ", g.Types.Select(t => GameLabels.Type(t.Type))),
                 g.Publisher, g.ReleaseYear?.ToString(), g.MinPlayers?.ToString(), g.MaxPlayers?.ToString(), g.Description
             }));
-        return File(bytes, "spiele");
+        return Csv(bytes, "spiele");
     }
 
     [HttpGet("/games/matches/export.csv")]
@@ -85,7 +85,7 @@ public sealed class CsvExportController : ControllerBase
                 string.Join(", ", m.Participants.Select(p => p.Score is null ? p.Person?.DisplayName : $"{p.Person?.DisplayName}={N(p.Score)}")),
                 m.Notes
             }));
-        return File(bytes, "partien");
+        return Csv(bytes, "partien");
     }
 
     [HttpGet("/bmi/export.csv")]
@@ -98,7 +98,7 @@ public sealed class CsvExportController : ControllerBase
         var bytes = await CsvExport.BuildAsync(
             new[] { "Person", "Datum", "Gewicht_kg", "Größe_cm", "BMI" },
             records.Select(r => new[] { r.Person?.DisplayName, D(r.MeasuredOn), N(r.WeightKg), N(r.HeightCm), N(r.Bmi) }));
-        return File(bytes, "bmi");
+        return Csv(bytes, "bmi");
     }
 
     [HttpGet("/wishlists/export.csv")]
@@ -116,7 +116,7 @@ public sealed class CsvExportController : ControllerBase
                 i.Wishlist?.OwnerUser?.DisplayName, i.Wishlist?.Name, i.Title, i.Url,
                 i.Price?.ToString(CultureInfo.InvariantCulture), i.IsFulfilled ? "ja" : "nein"
             }));
-        return File(bytes, "wunschzettel");
+        return Csv(bytes, "wunschzettel");
     }
 
     [HttpGet("/tv/export.csv")]
@@ -135,6 +135,6 @@ public sealed class CsvExportController : ControllerBase
                 e.StartsAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
                 e.Channel, e.Note, e.SharedWithHousehold ? "ja" : "nein"
             }));
-        return File(bytes, "fernsehprogramm");
+        return Csv(bytes, "fernsehprogramm");
     }
 }

@@ -2,6 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PrivateLibrary.Modules.Lending.Models;
 
+// Legacy-compat: the obsolete ItemName/Category members map old DB columns and are
+// read here on purpose during the transition to Items/CategoryLinks.
+#pragma warning disable CS0618
+
+
 namespace PrivateLibrary.Data.Configurations;
 
 public sealed class LendingEntryConfiguration : IEntityTypeConfiguration<LendingEntry>

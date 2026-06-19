@@ -3,6 +3,11 @@ using PrivateLibrary.Data;
 using PrivateLibrary.Modules.Lending.Models;
 using PrivateLibrary.Services;
 
+// Legacy-compat: the obsolete ItemName/Category members map old DB columns and are
+// read here on purpose during the transition to Items/CategoryLinks.
+#pragma warning disable CS0618
+
+
 namespace PrivateLibrary.Modules.Lending.Services;
 
 public sealed class LendingService : ILendingService

@@ -1,6 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using PrivateLibrary.Data;
 
+// Legacy-compat: the obsolete ItemName/Category members map old DB columns and are
+// read here on purpose during the transition to Items/CategoryLinks.
+#pragma warning disable CS0618
+
+
 namespace PrivateLibrary.Modules.Lending.Models;
 
 public sealed class LendingEntry : IValidatableObject
