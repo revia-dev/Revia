@@ -100,17 +100,23 @@ public sealed class LendingController(ILendingService lending) : ControllerBase
 
     // ---- photos ----
 
-    /// <summary>Streams a lending photo. Authenticated; lending is shared across the
-    /// linked households, so visibility follows the same model as the entries.</summary>
+    /// <summary>Streams a lending photo, scoped to the households the caller can see
+    /// (their own + linked). Prevents reading another household's photo by guessing
+    /// its id.</summary>
     [HttpGet("photos/{id:int}")]
     public async Task<IActionResult> Photo(
         int id,
         [FromServices] AppDbContext db,
+        [FromServices] CurrentUserContext currentUser,
+        [FromServices] HouseholdLinkService links,
         [FromServices] ILendingPhotoStorage storage,
         CancellationToken ct)
     {
+        var householdId = await currentUser.RequireHouseholdIdAsync();
+        var visible = await links.GetVisibleHouseholdIdsAsync(householdId, ct);
+
         var photo = await db.LendingPhotos.AsNoTracking()
-            .Where(x => x.Id == id)
+            .Where(x => x.Id == id && x.LendingEntry != null && visible.Contains(x.LendingEntry.HouseholdId))
             .Select(x => new { x.FileName, x.ContentType })
             .FirstOrDefaultAsync(ct);
 

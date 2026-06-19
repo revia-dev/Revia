@@ -16,6 +16,8 @@ public sealed class AuthController(
     private readonly UserManager<ApplicationUser> _userManager = userManager;
     private readonly JwtTokenService _tokens = tokens;
 
+    private const string InvalidCredentials = "Benutzername oder Passwort ist falsch.";
+
     [AllowAnonymous]
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken ct)
@@ -23,12 +25,26 @@ public sealed class AuthController(
         var user = await _userManager.FindByNameAsync(request.UserName);
         if (user is null || user.IsLoginless)
         {
-            return Unauthorized(new { message = "Benutzername oder Passwort ist falsch." });
+            return Unauthorized(new { message = InvalidCredentials });
+        }
+
+        // Honour Identity lockout so repeated wrong passwords throttle brute force.
+        if (await _userManager.IsLockedOutAsync(user))
+        {
+            return Unauthorized(new { message = "Konto vorübergehend gesperrt. Bitte später erneut versuchen." });
         }
 
         if (!await _userManager.CheckPasswordAsync(user, request.Password))
         {
-            return Unauthorized(new { message = "Benutzername oder Passwort ist falsch." });
+            // Count the failure (locks the account after the configured threshold).
+            await _userManager.AccessFailedAsync(user);
+            return Unauthorized(new { message = InvalidCredentials });
+        }
+
+        // Successful login clears the failure counter.
+        if (await _userManager.GetAccessFailedCountAsync(user) > 0)
+        {
+            await _userManager.ResetAccessFailedCountAsync(user);
         }
 
         return await _tokens.IssueAsync(user, ct);
