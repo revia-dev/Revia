@@ -6,13 +6,14 @@
 @inject TvClientService TvSvc
 @inject ConnectivityService Connectivity
 @inject SyncEngine Sync
+@inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
 @implements IDisposable
 
 <PageTitle>TV – Revia</PageTitle>
 
 <ModuleGuard ModuleKey="tv">
 
-<PageHeader Title="Fernsehprogramm" Pending="_pending" />
+<PageHeader Title="@Loc["Page_Tv"]" Pending="_pending" />
 
 <div class="tv-tabs">
     <button class="tv-tab @(_tab == Tab.Private ? "is-active" : "")" @onclick="() => SwitchTab(Tab.Private)">Mein Programm</button>

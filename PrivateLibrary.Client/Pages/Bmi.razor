@@ -7,13 +7,14 @@
 @inject BmiClientService BmiSvc
 @inject ConnectivityService Connectivity
 @inject SyncEngine Sync
+@inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
 @implements IDisposable
 
 <PageTitle>BMI – Revia</PageTitle>
 
 <ModuleGuard ModuleKey="bmi">
 
-<PageHeader Title="Gewicht &amp; BMI" Pending="_pending" />
+<PageHeader Title="@Loc["Page_Bmi"]" Pending="_pending" />
 
 <div class="glass bmi-form">
     <div class="bmi-row">

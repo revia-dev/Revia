@@ -7,13 +7,14 @@
 @inject WishlistClientService WishlistSvc
 @inject ConnectivityService Connectivity
 @inject SyncEngine Sync
+@inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
 @implements IDisposable
 
 <PageTitle>Wünsche – Revia</PageTitle>
 
 <ModuleGuard ModuleKey="wishlists">
 
-<PageHeader Title="Wünsche" Pending="_pending" />
+<PageHeader Title="@Loc["Page_Wishlists"]" Pending="_pending" />
 
 <div class="wl-create glass">
     <input class="form-control" placeholder="Neuer Wunschzettel (z. B. Geburtstag)"

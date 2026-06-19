@@ -5,6 +5,7 @@
 @using PrivateLibrary.Shared.Movies
 @inject MovieClientService MovieSvc
 @inject NavigationManager Navigation
+@inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
 
 <PageTitle>@(_film?.Titel ?? "Film") – Revia</PageTitle>
 
@@ -12,7 +13,7 @@
 
 <div class="wl-head">
     <h1>@(_film?.Titel ?? "Film")</h1>
-    <a class="btn btn-outline-secondary btn-sm" href="/movies">Zurück</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/movies">@Loc["App_Back"]</a>
 </div>
 
 @if (_loading)

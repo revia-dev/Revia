@@ -59,6 +59,20 @@
   <data name="App_Delete" xml:space="preserve"><value>Löschen</value></data>
   <data name="App_Edit" xml:space="preserve"><value>Bearbeiten</value></data>
   <data name="App_Back" xml:space="preserve"><value>Zurück</value></data>
+  <data name="App_Add" xml:space="preserve"><value>Hinzufügen</value></data>
+  <data name="App_Create" xml:space="preserve"><value>Neu anlegen</value></data>
+  <data name="App_Search" xml:space="preserve"><value>Suchen…</value></data>
+  <data name="App_Empty" xml:space="preserve"><value>Keine Einträge.</value></data>
+
+  <data name="Page_Movies" xml:space="preserve"><value>Filme</value></data>
+  <data name="Page_Tv" xml:space="preserve"><value>Fernsehprogramm</value></data>
+  <data name="Page_Lending" xml:space="preserve"><value>Ausleihen</value></data>
+  <data name="Page_Games" xml:space="preserve"><value>Spiele</value></data>
+  <data name="Page_Matches" xml:space="preserve"><value>Partien</value></data>
+  <data name="Page_Bmi" xml:space="preserve"><value>Gewicht &amp; BMI</value></data>
+  <data name="Page_Wishlists" xml:space="preserve"><value>Wünsche</value></data>
+  <data name="Page_Persons" xml:space="preserve"><value>Personen</value></data>
+  <data name="Page_Permissions" xml:space="preserve"><value>Berechtigungen</value></data>
 
   <data name="Login_Title" xml:space="preserve"><value>Anmelden</value></data>
   <data name="Login_Username" xml:space="preserve"><value>Benutzername</value></data>

@@ -59,6 +59,20 @@
   <data name="App_Delete" xml:space="preserve"><value>Delete</value></data>
   <data name="App_Edit" xml:space="preserve"><value>Edit</value></data>
   <data name="App_Back" xml:space="preserve"><value>Back</value></data>
+  <data name="App_Add" xml:space="preserve"><value>Add</value></data>
+  <data name="App_Create" xml:space="preserve"><value>New</value></data>
+  <data name="App_Search" xml:space="preserve"><value>Search…</value></data>
+  <data name="App_Empty" xml:space="preserve"><value>No entries.</value></data>
+
+  <data name="Page_Movies" xml:space="preserve"><value>Movies</value></data>
+  <data name="Page_Tv" xml:space="preserve"><value>TV guide</value></data>
+  <data name="Page_Lending" xml:space="preserve"><value>Loans</value></data>
+  <data name="Page_Games" xml:space="preserve"><value>Games</value></data>
+  <data name="Page_Matches" xml:space="preserve"><value>Matches</value></data>
+  <data name="Page_Bmi" xml:space="preserve"><value>Weight &amp; BMI</value></data>
+  <data name="Page_Wishlists" xml:space="preserve"><value>Wishes</value></data>
+  <data name="Page_Persons" xml:space="preserve"><value>People</value></data>
+  <data name="Page_Permissions" xml:space="preserve"><value>Permissions</value></data>
 
   <data name="Login_Title" xml:space="preserve"><value>Sign in</value></data>
   <data name="Login_Username" xml:space="preserve"><value>Username</value></data>

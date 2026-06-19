@@ -7,6 +7,7 @@
 @inject GameFilesClientService FilesSvc
 @inject ConnectivityService Connectivity
 @inject SyncEngine Sync
+@inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
 @implements IDisposable
 
 <PageTitle>Spiele – Revia</PageTitle>
@@ -14,7 +15,7 @@
 <ModuleGuard ModuleKey="games">
 
 <div class="wl-head">
-    <h1>Spiele</h1>
+    <h1>@Loc["Page_Games"]</h1>
     @if (!Connectivity.IsOnline)
     {
         <span class="wl-offline">⚡ Offline@(_pending > 0 ? $" · {_pending} ausstehend" : "")</span>
@@ -68,8 +69,8 @@
             </div>
         </div>
         <div class="game-actions">
-            <button class="btn btn-primary" @onclick="SaveAsync" disabled="@string.IsNullOrWhiteSpace(_edit.Name)">Speichern</button>
-            <button class="btn btn-outline-secondary" @onclick="() => _edit = null">Abbrechen</button>
+            <button class="btn btn-primary" @onclick="SaveAsync" disabled="@string.IsNullOrWhiteSpace(_edit.Name)">@Loc["App_Save"]</button>
+            <button class="btn btn-outline-secondary" @onclick="() => _edit = null">@Loc["App_Cancel"]</button>
         </div>
 
         @if (_edit.Id > 0)
@@ -154,8 +155,8 @@ else
                 </div>
                 <div class="game-card-actions">
                     <a class="btn btn-outline-secondary btn-sm" href="@($"/games/{g.Id}/matches")">Partien</a>
-                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => StartEdit(g)">Bearbeiten</button>
-                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(g.Id)">Löschen</button>
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => StartEdit(g)">@Loc["App_Edit"]</button>
+                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(g.Id)">@Loc["App_Delete"]</button>
                 </div>
             </div>
         }

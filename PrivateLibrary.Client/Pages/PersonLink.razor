@@ -6,6 +6,7 @@
 @inject PersonsClientService PersonsSvc
 @inject ConnectivityService Connectivity
 @inject NavigationManager Navigation
+@inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
 
 <PageTitle>Person übernehmen – Revia</PageTitle>
 
@@ -13,7 +14,7 @@
 
 <div class="wl-head">
     <h1>Person übernehmen</h1>
-    <a class="btn btn-outline-secondary btn-sm" href="/persons">Zurück</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/persons">@Loc["App_Back"]</a>
 </div>
 
 <div class="glass game-editor">

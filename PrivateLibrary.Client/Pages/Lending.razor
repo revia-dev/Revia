@@ -8,6 +8,7 @@
 @inject LendingClientService LendSvc
 @inject ConnectivityService Connectivity
 @inject SyncEngine Sync
+@inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
 @implements IDisposable
 
 <PageTitle>Ausleihen – Revia</PageTitle>
@@ -15,7 +16,7 @@
 <ModuleGuard ModuleKey="lending">
 
 <div class="wl-head">
-    <h1>Ausleihen</h1>
+    <h1>@Loc["Page_Lending"]</h1>
     @if (!Connectivity.IsOnline)
     {
         <span class="wl-offline">⚡ Offline@(_pending > 0 ? $" · {_pending} ausstehend" : "")</span>
@@ -24,7 +25,7 @@
     {
         <span class="wl-syncing">Synchronisiere @_pending…</span>
     }
-    <button class="btn btn-primary" @onclick="StartCreate">Neu anlegen</button>
+    <button class="btn btn-primary" @onclick="StartCreate">@Loc["App_Create"]</button>
 </div>
 
 @if (_edit is not null)
@@ -57,8 +58,8 @@
                 </select></div>
         </div>
         <div class="game-actions">
-            <button class="btn btn-primary" @onclick="SaveAsync" disabled="@(!CanSave)">Speichern</button>
-            <button class="btn btn-outline-secondary" @onclick="() => _edit = null">Abbrechen</button>
+            <button class="btn btn-primary" @onclick="SaveAsync" disabled="@(!CanSave)">@Loc["App_Save"]</button>
+            <button class="btn btn-outline-secondary" @onclick="() => _edit = null">@Loc["App_Cancel"]</button>
         </div>
 
         @if (_edit.Id > 0)
@@ -120,8 +121,8 @@ else
                     {
                         <button class="btn btn-outline-secondary btn-sm" @onclick="() => MarkReturnedAsync(e.Id)">Zurückgegeben</button>
                     }
-                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => StartEdit(e)">Bearbeiten</button>
-                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(e.Id)">Löschen</button>
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => StartEdit(e)">@Loc["App_Edit"]</button>
+                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(e.Id)">@Loc["App_Delete"]</button>
                 </div>
             </div>
             <div class="lend-meta">

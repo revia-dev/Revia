@@ -7,13 +7,14 @@
 @inject ConnectivityService Connectivity
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
 
 <PageTitle>Personen – Revia</PageTitle>
 
 <ModuleGuard ModuleKey="persons">
 
 <div class="wl-head">
-    <h1>Personen</h1>
+    <h1>@Loc["Page_Persons"]</h1>
     @if (!Connectivity.IsOnline) { <span class="wl-offline">⚡ Offline</span> }
 </div>
 

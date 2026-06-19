@@ -9,6 +9,7 @@
 @inject GameClientService GameSvc
 @inject ConnectivityService Connectivity
 @inject SyncEngine Sync
+@inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
 @implements IDisposable
 
 <PageTitle>Partien – Revia</PageTitle>
@@ -25,7 +26,7 @@
     {
         <span class="wl-syncing">Synchronisiere @_pending…</span>
     }
-    <a class="btn btn-outline-secondary btn-sm" href="/games">Zurück</a>
+    <a class="btn btn-outline-secondary btn-sm" href="/games">@Loc["App_Back"]</a>
     <button class="btn btn-primary" @onclick="StartCreate">Neue Partie</button>
 </div>
 
@@ -57,8 +58,8 @@
             </div>
         </div>
         <div class="game-actions">
-            <button class="btn btn-primary" @onclick="SaveAsync">Speichern</button>
-            <button class="btn btn-outline-secondary" @onclick="() => _edit = null">Abbrechen</button>
+            <button class="btn btn-primary" @onclick="SaveAsync">@Loc["App_Save"]</button>
+            <button class="btn btn-outline-secondary" @onclick="() => _edit = null">@Loc["App_Cancel"]</button>
         </div>
 
         @if (_edit.Id > 0)
@@ -120,14 +121,14 @@ else
                 <div class="match-actions">
                     @if (!m.IsCompleted)
                     {
-                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => StartEdit(m)">Bearbeiten</button>
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => StartEdit(m)">@Loc["App_Edit"]</button>
                         <button class="btn btn-outline-secondary btn-sm" @onclick="() => SetCompletedAsync(m, true)">Abschließen</button>
                     }
                     else
                     {
                         <button class="btn btn-outline-secondary btn-sm" @onclick="() => SetCompletedAsync(m, false)">Wieder öffnen</button>
                     }
-                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(m.Id)">Löschen</button>
+                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(m.Id)">@Loc["App_Delete"]</button>
                 </div>
             </div>
             <ul class="match-participants">
