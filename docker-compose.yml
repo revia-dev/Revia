@@ -1,0 +1,29 @@
+# Runs Revia (the PWA + API) in a container with a persistent data volume.
+#
+#   docker compose up -d --build
+#
+# Then open http://localhost:8080 (or map it behind a reverse proxy for HTTPS —
+# see README "Lokale Domain & HTTPS").
+
+services:
+  revia:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: revia:latest
+    container_name: revia
+    ports:
+      - "8080:8080"
+    environment:
+      # Stable signing key so issued tokens survive restarts. CHANGE THIS.
+      Jwt__SigningKey: "change-me-to-a-long-random-32+char-secret-please"
+      # Initial admin password used when seeding a fresh database.
+      Seed__AdminPassword: "Admin123!"
+      # Set to "true" to enable the credential-free demo (use a throwaway volume).
+      Demo__Enabled: "false"
+    volumes:
+      - revia-data:/data
+    restart: unless-stopped
+
+volumes:
+  revia-data:

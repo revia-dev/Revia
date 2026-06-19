@@ -73,3 +73,6 @@ coverage/
 
 # Local LAN publish output (run-lan.sh / LaunchAgent)
 .lan-publish/
+
+# Local TLS certs (mkcert) — device/network specific
+certs/

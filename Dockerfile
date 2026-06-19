@@ -1,26 +1,38 @@
+# Multi-stage build for Revia: builds the Blazor WebAssembly client + the API host
+# (which serves the PWA + the REST API + the service worker) and ships a small
+# runtime image on port 8080. Build context is the repository root.
+
+# ---- build ----
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY PrivateLibrary/PrivateLibrary.csproj PrivateLibrary/
-RUN dotnet restore PrivateLibrary/PrivateLibrary.csproj
+# Restore first for better layer caching (copy only the project files).
+COPY PrivateLibrary/PrivateLibrary.csproj                 PrivateLibrary/
+COPY PrivateLibrary.Shared/PrivateLibrary.Shared.csproj   PrivateLibrary.Shared/
+COPY PrivateLibrary.Client/PrivateLibrary.Client.csproj   PrivateLibrary.Client/
+COPY PrivateLibrary.Api/PrivateLibrary.Api.csproj         PrivateLibrary.Api/
+RUN dotnet restore PrivateLibrary.Api/PrivateLibrary.Api.csproj
 
-COPY PrivateLibrary/ PrivateLibrary/
-RUN dotnet publish PrivateLibrary/PrivateLibrary.csproj \
-    -c Release \
-    -o /app/publish \
-    --no-restore
+# Copy everything and publish the API (pulls in the client + service worker).
+COPY . .
+RUN dotnet publish PrivateLibrary.Api/PrivateLibrary.Api.csproj -c Release -o /app/publish
 
+# ---- runtime ----
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
+COPY --from=build /app/publish .
+
+# Data (SQLite DB + uploaded photos/files) lives on the mounted /data volume.
+ENV ASPNETCORE_URLS=http://+:8080 \
+    ASPNETCORE_ENVIRONMENT=Production \
+    ConnectionStrings__DefaultConnection="Data Source=/data/revia.db" \
+    BmiPhotos__StoragePath=/data/bmi-photos \
+    LendingPhotos__StoragePath=/data/lending-photos \
+    PersonPhotos__StoragePath=/data/person-photos \
+    GameFiles__StoragePath=/data/game-files
+# Provide a stable Jwt__SigningKey (and optionally Seed__AdminPassword, Demo__Enabled)
+# via the environment / compose file.
 
 EXPOSE 8080
-ENV ASPNETCORE_URLS=http://+:8080
-
-# Persistent data volume (DB + mutable CSV) should be mounted at /home/data
-ENV ConnectionStrings__DefaultConnection="Data Source=/home/data/private-library.db"
-ENV Movies__CsvPath="/home/data/movies.csv"
-
-# Seed:AdminPassword and Tmdb:ApiKey must be provided via environment variables or Azure App Settings
-
-COPY --from=build /app/publish .
-ENTRYPOINT ["dotnet", "PrivateLibrary.dll"]
+VOLUME /data
+ENTRYPOINT ["dotnet", "PrivateLibrary.Api.dll"]

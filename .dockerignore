@@ -1,0 +1,17 @@
+# Keep the build context small and avoid copying host build output / data into the
+# image (which would break the in-container restore/publish or leak local data).
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+.git/
+.lan-publish/
+.claude/
+docs/screenshots/
+**/*.db
+**/*.db-shm
+**/*.db-wal
+PrivateLibrary/Data/*.db
+PrivateLibrary/Data/*-photos/
+PrivateLibrary/Data/game-files/
+PrivateLibrary.Api/data/
