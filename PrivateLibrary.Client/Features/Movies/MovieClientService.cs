@@ -26,6 +26,10 @@ public sealed class MovieClientService
 
     public Task<List<MovieDto>> GetAllAsync() => _repo.GetAllAsync();
 
+    /// <summary>Reads movies from the local cache only (no network round-trip), for
+    /// fast secondary views like the detail page.</summary>
+    public Task<List<MovieDto>> GetCachedAsync() => _repo.GetCachedAsync();
+
     public Task CreateAsync(SaveMovieRequest request, MovieDto optimistic)
         => _repo.CreateAsync(request, optimistic);
 

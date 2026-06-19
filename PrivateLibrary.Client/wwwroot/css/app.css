@@ -581,3 +581,16 @@ img, video, svg, canvas { max-width: 100%; height: auto; }
 /* ---- QR camera scanner ---- */
 .sb-scanner { margin-top: 0.5rem; max-width: 320px; }
 .sb-scanner.is-hidden { display: none; }
+
+/* ---- movie detail: related films / series ---- */
+.movie-detail-related { padding: 1rem; margin-top: 1rem; }
+.series-tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
+.series-tab { border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text);
+    border-radius: var(--radius-pill); padding: 0.3rem 0.8rem; cursor: pointer; font-size: 0.85rem; }
+.series-tab.is-active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.movie-detail-related-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.75rem; }
+.movie-detail-related-card { text-decoration: none; color: inherit; display: grid; gap: 0.3rem; }
+.movie-detail-related-card.is-active { outline: 2px solid var(--accent); border-radius: 12px; }
+.related-poster { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 10px; background: var(--surface-2); }
+.related-title { font-size: 0.85rem; font-weight: 600; line-height: 1.2; }
+.related-year { font-size: 0.78rem; color: var(--text-muted); }
