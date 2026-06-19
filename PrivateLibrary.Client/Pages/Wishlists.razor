@@ -13,19 +13,7 @@
 
 <ModuleGuard ModuleKey="wishlists">
 
-<div class="wl-head">
-    <h1>Wünsche</h1>
-    @if (!Connectivity.IsOnline)
-    {
-        <span class="wl-offline" title="Offline – Änderungen werden synchronisiert, sobald wieder Verbindung besteht.">
-            ⚡ Offline@(_pending > 0 ? $" · {_pending} ausstehend" : "")
-        </span>
-    }
-    else if (_pending > 0)
-    {
-        <span class="wl-syncing">Synchronisiere @_pending…</span>
-    }
-</div>
+<PageHeader Title="Wünsche" Pending="_pending" />
 
 <div class="wl-create glass">
     <input class="form-control" placeholder="Neuer Wunschzettel (z. B. Geburtstag)"

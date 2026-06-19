@@ -13,17 +13,7 @@
 
 <ModuleGuard ModuleKey="bmi">
 
-<div class="wl-head">
-    <h1>Gewicht &amp; BMI</h1>
-    @if (!Connectivity.IsOnline)
-    {
-        <span class="wl-offline">⚡ Offline@(_pending > 0 ? $" · {_pending} ausstehend" : "")</span>
-    }
-    else if (_pending > 0)
-    {
-        <span class="wl-syncing">Synchronisiere @_pending…</span>
-    }
-</div>
+<PageHeader Title="Gewicht &amp; BMI" Pending="_pending" />
 
 <div class="glass bmi-form">
     <div class="bmi-row">

@@ -1,0 +1,30 @@
+@using PrivateLibrary.Client.Offline
+@inject ConnectivityService Connectivity
+
+@*
+    Standard page header used across the module pages: the title plus the shared
+    offline / syncing status badge, and an optional action slot on the right. Keeps
+    that repeated markup (and its offline behaviour) in one place.
+*@
+<div class="wl-head">
+    <h1>@Title</h1>
+    @if (!Connectivity.IsOnline)
+    {
+        <span class="wl-offline" title="Offline – Änderungen werden synchronisiert, sobald wieder Verbindung besteht.">
+            ⚡ Offline@(Pending > 0 ? $" · {Pending} ausstehend" : "")
+        </span>
+    }
+    else if (Pending > 0)
+    {
+        <span class="wl-syncing">Synchronisiere @Pending…</span>
+    }
+    @Actions
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    /// <summary>Number of queued offline mutations; shown in the badge.</summary>
+    [Parameter] public int Pending { get; set; }
+    /// <summary>Optional right-aligned actions (buttons/links).</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+}
