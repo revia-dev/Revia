@@ -611,3 +611,14 @@ img, video, svg, canvas { max-width: 100%; height: auto; }
 .mv-card-wrap { position: relative; }
 .mv-delete { position: absolute; top: 0.5rem; right: 0.5rem; z-index: 2;
     background: var(--surface); }
+
+/* ---- TV: live progress + status + episode ---- */
+.tv-end { color: var(--text-muted); font-weight: 400; font-size: 0.8rem; margin-left: 0.2rem; }
+.tv-episode { background: rgba(0,122,255,0.12); color: var(--accent); margin-left: 0.4rem; }
+.tv-progress { height: 0.4rem; border-radius: 999px; background: var(--border); overflow: hidden; margin-top: 0.4rem; }
+.tv-progress-fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width 1s linear; }
+.tv-status { font-size: 0.8rem; font-weight: 600; }
+.tv-st-live { color: var(--danger); }
+.tv-st-upcoming { color: var(--text-muted); }
+.tv-st-ended { color: var(--text-muted); font-weight: 400; }
+.tv-entry.is-live { border-left: 3px solid var(--danger); padding-left: 0.5rem; }

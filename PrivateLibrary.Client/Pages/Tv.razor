@@ -53,10 +53,17 @@ else
             <div class="tv-day-head">@day.Key.ToString("dddd, dd.MM.yyyy")</div>
             @foreach (var e in day.OrderBy(x => x.StartsAt))
             {
-                <div class="tv-entry" @key="e.Id">
-                    <div class="tv-time">@e.StartsAt.ToString("HH:mm")</div>
+                var prog = Progress(e);
+                <div class="tv-entry @(prog.Status == AirStatus.Live ? "is-live" : "")" @key="e.Id">
+                    <div class="tv-time">
+                        @e.StartsAt.ToString("HH:mm")
+                        @if (EndOf(e) is DateTime end) { <span class="tv-end">–@end.ToString("HH:mm")</span> }
+                    </div>
                     <div class="tv-body">
-                        <div class="tv-title">@e.MovieTitle</div>
+                        <div class="tv-title">
+                            @e.MovieTitle
+                            @if (e.IsSeries && e.Episode is int ep) { <span class="badge tv-episode">Folge @ep</span> }
+                        </div>
                         <div class="tv-meta">
                             @if (!string.IsNullOrWhiteSpace(e.Channel)) { <span>@e.Channel</span> }
                             @if (_tab == Tab.Family && e.HasPrivateOwner && !string.IsNullOrEmpty(e.OwnerDisplayName))
@@ -64,7 +71,14 @@ else
                                 <span class="badge">von @e.OwnerDisplayName</span>
                             }
                             @if (_tab == Tab.Private && e.SharedWithHousehold) { <span class="badge badge-ok">freigegeben</span> }
+                            <span class="tv-status @StatusClass(prog.Status)">@prog.Label</span>
                         </div>
+                        @if (prog.Status != AirStatus.Unknown)
+                        {
+                            <div class="tv-progress" title="@prog.Label">
+                                <span class="tv-progress-fill" style="width:@prog.Percent%"></span>
+                            </div>
+                        }
                     </div>
                     @if (_tab == Tab.Private)
                     {
@@ -96,6 +110,9 @@ else
     private bool _loading = true;
     private int _pending;
 
+    // Ticks the live progress bars without re-fetching data.
+    private System.Threading.Timer? _tick;
+
     protected override async Task OnInitializedAsync()
     {
         Connectivity.Changed += OnConnectivityChanged;
@@ -104,7 +121,63 @@ else
         await ReloadAsync();
         _pending = await Sync.PendingCountAsync();
         _loading = false;
+
+        // Re-render every 30s so "läuft seit / noch …" and the progress bar stay live.
+        _tick = new System.Threading.Timer(_ => InvokeAsync(StateHasChanged), null,
+            TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
     }
+
+    // ---- live air status + progress ----
+
+    private enum AirStatus { Unknown, Upcoming, Live, Ended }
+
+    private readonly record struct AirProgress(AirStatus Status, int Percent, string Label);
+
+    private static DateTime? EndOf(TvEntryDto e)
+        => e.RuntimeMinutes is int r and > 0 ? e.StartsAt.AddMinutes(r) : null;
+
+    private static AirProgress Progress(TvEntryDto e)
+    {
+        var now = DateTime.Now;
+        var end = EndOf(e);
+        if (end is null)
+        {
+            // No runtime → can't draw a bar; just say upcoming/over by start time.
+            return now < e.StartsAt
+                ? new AirProgress(AirStatus.Unknown, 0, UntilLabel(e.StartsAt - now))
+                : new AirProgress(AirStatus.Unknown, 0, "");
+        }
+
+        if (now < e.StartsAt)
+        {
+            return new AirProgress(AirStatus.Upcoming, 0, "in " + UntilLabel(e.StartsAt - now));
+        }
+        if (now >= end.Value)
+        {
+            return new AirProgress(AirStatus.Ended, 100, "vorbei");
+        }
+
+        var total = (end.Value - e.StartsAt).TotalMinutes;
+        var elapsed = (now - e.StartsAt).TotalMinutes;
+        var pct = total > 0 ? (int)Math.Clamp(Math.Round(elapsed / total * 100), 0, 100) : 0;
+        var remaining = (int)Math.Ceiling((end.Value - now).TotalMinutes);
+        return new AirProgress(AirStatus.Live, pct, $"läuft · noch {remaining} min");
+    }
+
+    private static string UntilLabel(TimeSpan span)
+    {
+        if (span.TotalMinutes < 60) { return $"{Math.Max(1, (int)Math.Ceiling(span.TotalMinutes))} min"; }
+        if (span.TotalHours < 24) { return $"{(int)span.TotalHours} h {span.Minutes} min"; }
+        return $"{(int)span.TotalDays} Tg";
+    }
+
+    private static string StatusClass(AirStatus s) => s switch
+    {
+        AirStatus.Live => "tv-st-live",
+        AirStatus.Upcoming => "tv-st-upcoming",
+        AirStatus.Ended => "tv-st-ended",
+        _ => ""
+    };
 
     private async Task SwitchTab(Tab tab)
     {
@@ -154,5 +227,6 @@ else
     {
         Connectivity.Changed -= OnConnectivityChanged;
         Sync.Synced -= OnSynced;
+        _tick?.Dispose();
     }
 }
