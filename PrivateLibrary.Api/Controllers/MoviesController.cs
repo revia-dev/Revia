@@ -26,10 +26,14 @@ public sealed class MoviesController(MovieService movies) : ControllerBase
         return film is null ? NotFound() : ToDto(film);
     }
 
+    // Movies are curated centrally: only admins may add/edit/delete. Reads stay open
+    // to anyone with movie read access (the class-level [Authorize]/[ModuleAccess]).
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<MovieDto>> Save([FromBody] SaveMovieRequest request, CancellationToken ct)
         => ToDto(await _movies.UpsertAsync(ToFilm(request), ct));
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<MovieDto>> Update(Guid id, [FromBody] SaveMovieRequest request, CancellationToken ct)
     {
@@ -37,6 +41,7 @@ public sealed class MoviesController(MovieService movies) : ControllerBase
         return ToDto(await _movies.UpsertAsync(ToFilm(request), ct));
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         => await _movies.DeleteAsync(id, ct) ? NoContent() : NotFound();

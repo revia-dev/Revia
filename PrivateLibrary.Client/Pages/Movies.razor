@@ -1,11 +1,14 @@
 @page "/movies"
 @attribute [Authorize]
 @using PrivateLibrary.Client.Features.Movies
+@using PrivateLibrary.Client.Features.Access
 @using PrivateLibrary.Client.Offline
 @using PrivateLibrary.Shared.Movies
 @using PrivateLibrary.Shared.Offline
 @inject MovieClientService MovieSvc
+@inject AccessClientService Access
 @inject ConnectivityService Connectivity
+@inject NavigationManager Navigation
 @inject SyncEngine Sync
 @inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
 @implements IDisposable
@@ -25,7 +28,39 @@
         <span class="wl-syncing">Synchronisiere @_pending…</span>
     }
     <span class="mv-count">@_filtered.Count / @_all.Count</span>
+    @* Adding movies is admin-only. *@
+    @if (Access.IsAdmin)
+    {
+        <button class="btn btn-primary btn-sm" @onclick="StartCreate">Neuer Datensatz</button>
+    }
 </div>
+
+@if (_edit is not null)
+{
+    <div class="glass game-editor">
+        <h2 class="ui-section-title">@(_edit.Id == Guid.Empty ? "Neuer Film" : "Film bearbeiten")</h2>
+        <div class="game-form">
+            <div class="game-field game-wide"><label>Titel</label>
+                <input class="form-control" @bind="_edit.Titel" @bind:event="oninput" /></div>
+            <div class="game-field"><label>Jahr</label>
+                <input class="form-control" @bind="_edit.Jahr" /></div>
+            <div class="game-field"><label>FSK</label>
+                <input class="form-control" @bind="_edit.Fsk" /></div>
+            <div class="game-field"><label>Kategorie</label>
+                <input class="form-control" @bind="_edit.Kategorie" /></div>
+            <div class="game-field"><label>Laufzeit (min)</label>
+                <input class="form-control" type="number" @bind="_edit.Runtime" /></div>
+            <div class="game-field game-wide"><label>Tags (Komma-getrennt)</label>
+                <input class="form-control" @bind="_tagsText" /></div>
+            <div class="game-field game-wide"><label>Handlung</label>
+                <textarea class="form-control" rows="3" @bind="_edit.Handlung"></textarea></div>
+        </div>
+        <div class="game-actions">
+            <button class="btn btn-primary" @onclick="SaveAsync" disabled="@string.IsNullOrWhiteSpace(_edit.Titel)">@Loc["App_Save"]</button>
+            <button class="btn btn-outline-secondary" @onclick="() => _edit = null">@Loc["App_Cancel"]</button>
+        </div>
+    </div>
+}
 
 <div class="wl-create glass">
     <input class="form-control" placeholder="Nach Titel oder Tag suchen…"
@@ -45,16 +80,24 @@ else
     <div class="mv-grid">
         @foreach (var film in _filtered)
         {
-            <a class="mv-card" @key="film.Id" href="@($"/movies/{film.Id}")">
-                <img class="mv-poster" src="@PosterUrl(film)" alt="@film.Titel" loading="lazy" />
-                <div class="mv-meta">
-                    <div class="mv-title">@(film.Titel ?? "Unbekannt")</div>
-                    <div class="mv-sub">
-                        @if (!string.IsNullOrWhiteSpace(film.Jahr)) { <span>@film.Jahr</span> }
-                        @if (!string.IsNullOrWhiteSpace(film.Fsk)) { <span>FSK @film.Fsk</span> }
+            <div class="mv-card-wrap" @key="film.Id">
+                <a class="mv-card" href="@($"/movies/{film.Id}")">
+                    <img class="mv-poster" src="@PosterUrl(film)" alt="@film.Titel" loading="lazy" />
+                    <div class="mv-meta">
+                        <div class="mv-title">@(film.Titel ?? "Unbekannt")</div>
+                        <div class="mv-sub">
+                            @if (!string.IsNullOrWhiteSpace(film.Jahr)) { <span>@film.Jahr</span> }
+                            @if (!string.IsNullOrWhiteSpace(film.Fsk)) { <span>FSK @film.Fsk</span> }
+                        </div>
                     </div>
-                </div>
-            </a>
+                </a>
+                @* Delete is admin-only. *@
+                @if (Access.IsAdmin)
+                {
+                    <button class="btn btn-outline-danger btn-sm mv-delete" title="Film löschen"
+                            @onclick="() => DeleteAsync(film)">@Loc["App_Delete"]</button>
+                }
+            </div>
         }
     </div>
 }
@@ -68,13 +111,92 @@ else
     private bool _loading = true;
     private int _pending;
 
+    // Admin-only editor state.
+    private SaveMovieRequest? _edit;
+    private string _tagsText = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
         Connectivity.Changed += OnConnectivityChanged;
         Sync.Synced += OnSynced;
+        await Access.GetMyAccessAsync();
         await ReloadAsync();
         _pending = await Sync.PendingCountAsync();
         _loading = false;
+
+        // Opened from a movie's detail page with ?edit={id} (admin only).
+        if (Access.IsAdmin && TryGetEditId(out var editId))
+        {
+            var film = _all.FirstOrDefault(f => f.Id == editId);
+            if (film is not null) { StartEdit(film); }
+        }
+    }
+
+    private bool TryGetEditId(out Guid id)
+    {
+        id = Guid.Empty;
+        var query = new Uri(Navigation.Uri).Query;
+        const string marker = "edit=";
+        var idx = query.IndexOf(marker, StringComparison.Ordinal);
+        if (idx < 0) return false;
+        var value = query[(idx + marker.Length)..];
+        var amp = value.IndexOf('&');
+        if (amp >= 0) { value = value[..amp]; }
+        return Guid.TryParse(value, out id);
+    }
+
+    private void StartCreate()
+    {
+        _edit = new SaveMovieRequest();
+        _tagsText = string.Empty;
+    }
+
+    private void StartEdit(MovieDto m)
+    {
+        _edit = new SaveMovieRequest
+        {
+            Id = m.Id, Titel = m.Titel, Jahr = m.Jahr, Fsk = m.Fsk, Kategorie = m.Kategorie,
+            Runtime = m.Runtime, Handlung = m.Handlung, PosterPath = m.PosterPath,
+            TmdbId = m.TmdbId, Anbieter = m.Anbieter
+        };
+        _tagsText = m.Tags is null ? "" : string.Join(", ", m.Tags);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_edit is null || string.IsNullOrWhiteSpace(_edit.Titel)) return;
+        _edit.Tags = _tagsText
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        var optimistic = new MovieDto
+        {
+            Id = _edit.Id == Guid.Empty ? Guid.NewGuid() : _edit.Id,
+            Titel = _edit.Titel, Jahr = _edit.Jahr, Fsk = _edit.Fsk, Kategorie = _edit.Kategorie,
+            Runtime = _edit.Runtime, Handlung = _edit.Handlung, PosterPath = _edit.PosterPath,
+            TmdbId = _edit.TmdbId, Anbieter = _edit.Anbieter, Tags = _edit.Tags
+        };
+
+        if (_edit.Id == Guid.Empty)
+        {
+            _edit.Id = optimistic.Id;
+            await MovieSvc.CreateAsync(_edit, optimistic);
+        }
+        else
+        {
+            await MovieSvc.UpdateAsync(_edit, optimistic);
+        }
+
+        _edit = null;
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+    }
+
+    private async Task DeleteAsync(MovieDto film)
+    {
+        await MovieSvc.DeleteAsync(film.Id);
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
     }
 
     private async Task ReloadAsync()

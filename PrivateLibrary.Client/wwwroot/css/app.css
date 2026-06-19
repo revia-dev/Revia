@@ -601,3 +601,8 @@ img, video, svg, canvas { max-width: 100%; height: auto; }
     .dash-head-actions { margin-left: 0; width: 100%; }
     .dash-head-actions .btn { flex: 1 1 auto; }
 }
+
+/* ---- movies: admin delete overlay on cards ---- */
+.mv-card-wrap { position: relative; }
+.mv-delete { position: absolute; top: 0.5rem; right: 0.5rem; z-index: 2;
+    background: var(--surface); }

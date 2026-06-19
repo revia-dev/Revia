@@ -1,9 +1,11 @@
 @page "/movies/{Id:guid}"
 @attribute [Authorize]
 @using PrivateLibrary.Client.Features.Movies
+@using PrivateLibrary.Client.Features.Access
 @using PrivateLibrary.Client.Offline
 @using PrivateLibrary.Shared.Movies
 @inject MovieClientService MovieSvc
+@inject AccessClientService Access
 @inject NavigationManager Navigation
 @inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
 
@@ -13,6 +15,12 @@
 
 <div class="wl-head">
     <h1>@(_film?.Titel ?? "Film")</h1>
+    @* Editing/deleting movies is admin-only. *@
+    @if (_film is not null && Access.IsAdmin)
+    {
+        <a class="btn btn-outline-secondary btn-sm" href="@($"/movies?edit={_film.Id}")">@Loc["App_Edit"]</a>
+        <button class="btn btn-outline-danger btn-sm" @onclick="DeleteAsync">@Loc["App_Delete"]</button>
+    }
     <a class="btn btn-outline-secondary btn-sm" href="/movies">@Loc["App_Back"]</a>
 </div>
 
@@ -108,11 +116,19 @@ else
     protected override async Task OnParametersSetAsync()
     {
         _loading = true;
+        await Access.GetMyAccessAsync();
         // Cache-only read: fast and offline-capable (no re-fetch of the whole list).
         _all = await MovieSvc.GetCachedAsync();
         _film = _all.FirstOrDefault(f => f.Id == Id);
         BuildSeries();
         _loading = false;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_film is null) return;
+        await MovieSvc.DeleteAsync(_film.Id);
+        Navigation.NavigateTo("/movies");
     }
 
     /// <summary>Groups movies into series via '#'-prefixed tags. A tag like
