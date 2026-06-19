@@ -34,16 +34,31 @@
         <h3 class="ui-section-title">Punkte übertragen</h3>
         <div class="sb-transfer-form">
             <select class="form-control" @bind="_fromId">
-                <option value="">Von…</option>
+                <option value="">Zahler…</option>
                 @foreach (var p in Participants) { <option value="@p.PersonId">@DisplayName(p)</option> }
             </select>
-            <select class="form-control" @bind="_toId">
-                <option value="">An…</option>
-                @foreach (var p in Participants) { <option value="@p.PersonId">@DisplayName(p)</option> }
-            </select>
-            <input class="form-control" type="number" min="1" placeholder="Betrag" @bind="_amount" />
-            <button class="btn btn-primary" disabled="@(!CanCreateTransfer)" @onclick="CreateTransferAsync">QR erzeugen</button>
         </div>
+
+        @if (!string.IsNullOrEmpty(_fromId))
+        {
+            <div class="sb-recipients">
+                <span class="wl-muted">Empfänger &amp; Beträge (ein Zahler → 1..n Empfänger):</span>
+                @foreach (var p in Participants.Where(x => x.PersonId != _fromId))
+                {
+                    var pid = p.PersonId;
+                    <label class="sb-recipient">
+                        <input type="checkbox" checked="@_recipients.ContainsKey(pid)"
+                               @onchange="e => ToggleRecipient(pid, (bool)e.Value!)" />
+                        <span class="sb-recipient-name">@DisplayName(p)</span>
+                        <input class="form-control sb-recipient-amount" type="number" min="1" placeholder="Betrag"
+                               disabled="@(!_recipients.ContainsKey(pid))"
+                               value="@(_recipients.TryGetValue(pid, out var v) ? v : null)"
+                               @onchange="e => SetRecipientAmount(pid, e.Value?.ToString())" />
+                    </label>
+                }
+            </div>
+            <button class="btn btn-primary" disabled="@(!CanCreateTransfer)" @onclick="CreateTransferAsync">QR erzeugen</button>
+        }
 
         @if (_transferPayload is not null)
         {
@@ -81,8 +96,8 @@
 
     private double _step = 100;
     private string _fromId = "";
-    private string _toId = "";
-    private double? _amount;
+    // Selected recipients -> amount each receives from the payer.
+    private readonly Dictionary<string, double> _recipients = new(StringComparer.Ordinal);
     private string? _transferPayload;
     private string? _transferSummary;
     private bool _copied;
@@ -94,11 +109,13 @@
     private readonly HashSet<string> _applied = new(StringComparer.Ordinal);
 
     private bool CanCreateTransfer =>
-        !string.IsNullOrEmpty(_fromId) && !string.IsNullOrEmpty(_toId)
-        && _fromId != _toId && _amount is > 0;
+        !string.IsNullOrEmpty(_fromId) && _recipients.Count > 0 && _recipients.Values.All(a => a > 0);
 
     private string DisplayName(MatchParticipantInputDto p)
         => NameOf?.Invoke(p.PersonId) is { Length: > 0 } n ? n : p.PersonId;
+
+    private string NameOfId(string id)
+        => NameOf?.Invoke(id) is { Length: > 0 } n ? n : id;
 
     private static string FormatScore(double? s)
         => s is null ? "0" : (s == Math.Floor(s.Value) ? s.Value.ToString("0") : s.Value.ToString("0.##"));
@@ -109,20 +126,41 @@
         await OnChanged.InvokeAsync();
     }
 
+    private void ToggleRecipient(string personId, bool on)
+    {
+        if (on) { _recipients[personId] = _step; }
+        else { _recipients.Remove(personId); }
+        _transferPayload = null;
+    }
+
+    private void SetRecipientAmount(string personId, string? raw)
+    {
+        if (double.TryParse(raw, out var v) && v > 0) { _recipients[personId] = v; }
+        _transferPayload = null;
+    }
+
     private async Task CreateTransferAsync()
     {
         if (!CanCreateTransfer) return;
-        var transfer = new PointTransfer
+
+        // One payer, 1..n receivers. The payer's delta is the negative sum, so the
+        // whole transfer nets to zero.
+        var total = _recipients.Values.Sum();
+        var entries = new List<PointTransferEntry>
         {
-            MatchId = MatchId,
-            FromPersonId = _fromId,
-            ToPersonId = _toId,
-            Amount = _amount!.Value,
-            FromName = NameOf?.Invoke(_fromId),
-            ToName = NameOf?.Invoke(_toId)
+            new() { PersonId = _fromId, Name = NameOfId(_fromId), Delta = -total }
         };
+        entries.AddRange(_recipients.Select(kv => new PointTransferEntry
+        {
+            PersonId = kv.Key,
+            Name = NameOfId(kv.Key),
+            Delta = kv.Value
+        }));
+
+        var transfer = new PointTransfer { MatchId = MatchId, Entries = entries };
         _transferPayload = JsonSerializer.Serialize(transfer, Json);
-        _transferSummary = $"{transfer.FromName ?? _fromId} → {transfer.ToName ?? _toId}: {FormatScore(transfer.Amount)}";
+        _transferSummary = $"{NameOfId(_fromId)} → "
+            + string.Join(", ", _recipients.Select(kv => $"{NameOfId(kv.Key)} {FormatScore(kv.Value)}"));
         _copied = false;
         await OnChanged.InvokeAsync();
     }
@@ -160,7 +198,7 @@
         try { t = JsonSerializer.Deserialize<PointTransfer>(payload, Json); }
         catch { t = null; }
 
-        if (t is null || t.Amount <= 0)
+        if (t is null || t.Entries.Count == 0)
         {
             _receiveOk = false; _receiveMsg = "Ungültiger Code."; return;
         }
@@ -169,14 +207,18 @@
             _receiveOk = false; _receiveMsg = "Diese Übertragung wurde bereits angewendet."; return;
         }
 
-        var from = Participants.FirstOrDefault(p => p.PersonId == t.FromPersonId);
-        var to = Participants.FirstOrDefault(p => p.PersonId == t.ToPersonId);
-        // Apply to whichever players are present on this device's match.
-        if (from is not null) { from.Score = (from.Score ?? 0) - t.Amount; }
-        if (to is not null) { to.Score = (to.Score ?? 0) + t.Amount; }
+        // Apply every entry whose player is present in this device's match.
+        var applied = 0;
+        foreach (var entry in t.Entries)
+        {
+            var player = Participants.FirstOrDefault(p => p.PersonId == entry.PersonId);
+            if (player is not null) { player.Score = (player.Score ?? 0) + entry.Delta; applied++; }
+        }
 
         _receiveOk = true;
-        _receiveMsg = $"Übertragen: {t.FromName ?? t.FromPersonId} → {t.ToName ?? t.ToPersonId} ({FormatScore(t.Amount)}).";
+        _receiveMsg = applied > 0
+            ? $"Übertragung angewendet ({applied} Spieler)."
+            : "Keiner der Spieler ist in dieser Partie.";
         await OnChanged.InvokeAsync();
     }
 }

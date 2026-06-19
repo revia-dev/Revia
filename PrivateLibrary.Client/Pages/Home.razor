@@ -41,16 +41,22 @@ else if (_customizing)
 {
     <div class="dash-customize glass">
         <h2 class="ui-section-title">Modul-Kacheln</h2>
+        <p class="wl-muted">Zum Umsortieren ziehen oder die Pfeile nutzen.</p>
         <ul class="cust-list">
             @for (var i = 0; i < _tiles.Count; i++)
             {
                 var idx = i; var t = _tiles[idx];
-                <li class="cust-row">
+                <li class="cust-row @(_dragTile == idx ? "is-dragging" : "")" draggable="true"
+                    @ondragstart="() => _dragTile = idx"
+                    @ondragover:preventDefault="true"
+                    @ondrop="() => DropTile(idx)"
+                    @ondragend="() => _dragTile = null">
+                    <span class="cust-handle" title="Ziehen">⠿</span>
                     <span class="cust-label">@TileLabel(t.Key)</span>
                     <span class="cust-actions">
                         <button class="btn btn-outline-secondary btn-sm" disabled="@(idx == 0)" @onclick="() => MoveTile(idx, -1)">↑</button>
                         <button class="btn btn-outline-secondary btn-sm" disabled="@(idx == _tiles.Count - 1)" @onclick="() => MoveTile(idx, 1)">↓</button>
-                        <label class="cust-toggle"><input type="checkbox" checked="@t.Visible" @onchange="e => ToggleTile(idx, (bool)e.Value!)" /> sichtbar</label>
+                        <button class="btn btn-outline-secondary btn-sm cust-eye" @onclick="() => ToggleTile(idx, !t.Visible)" title="@(t.Visible ? "Ausblenden" : "Einblenden")">@(t.Visible ? "👁" : "🚫")</button>
                     </span>
                 </li>
             }
@@ -61,12 +67,17 @@ else if (_customizing)
             @for (var i = 0; i < _sections.Count; i++)
             {
                 var idx = i; var s = _sections[idx];
-                <li class="cust-row">
+                <li class="cust-row @(_dragSection == idx ? "is-dragging" : "")" draggable="true"
+                    @ondragstart="() => _dragSection = idx"
+                    @ondragover:preventDefault="true"
+                    @ondrop="() => DropSection(idx)"
+                    @ondragend="() => _dragSection = null">
+                    <span class="cust-handle" title="Ziehen">⠿</span>
                     <span class="cust-label">@s.Label</span>
                     <span class="cust-actions">
                         <button class="btn btn-outline-secondary btn-sm" disabled="@(idx == 0)" @onclick="() => MoveSection(idx, -1)">↑</button>
                         <button class="btn btn-outline-secondary btn-sm" disabled="@(idx == _sections.Count - 1)" @onclick="() => MoveSection(idx, 1)">↓</button>
-                        <label class="cust-toggle"><input type="checkbox" checked="@s.Visible" @onchange="e => ToggleSection(idx, (bool)e.Value!)" /> sichtbar</label>
+                        <button class="btn btn-outline-secondary btn-sm cust-eye" @onclick="() => ToggleSection(idx, !s.Visible)" title="@(s.Visible ? "Ausblenden" : "Einblenden")">@(s.Visible ? "👁" : "🚫")</button>
                     </span>
                 </li>
             }
@@ -150,6 +161,8 @@ else
     private List<TileLayoutItemDto> _tiles = new();
     private List<SectionLayoutItemDto> _sections = new();
     private string? _layoutError;
+    private int? _dragTile;
+    private int? _dragSection;
 
     // Tiles the user is allowed to read AND has visible.
     private IEnumerable<TileLayoutItemDto> VisibleTiles =>
@@ -220,6 +233,17 @@ else
         var j = i + delta;
         if (j < 0 || j >= list.Count) return;
         (list[i], list[j]) = (list[j], list[i]);
+    }
+
+    // Drag-and-drop reorder: move the dragged item to the drop target's index.
+    private void DropTile(int target) { Reorder(_tiles, _dragTile, target); _dragTile = null; }
+    private void DropSection(int target) { Reorder(_sections, _dragSection, target); _dragSection = null; }
+    private static void Reorder<T>(List<T> list, int? from, int to)
+    {
+        if (from is not int f || f == to || f < 0 || f >= list.Count || to < 0 || to >= list.Count) return;
+        var item = list[f];
+        list.RemoveAt(f);
+        list.Insert(to, item);
     }
 
     private void ToggleTile(int i, bool visible) => _tiles[i].Visible = visible;

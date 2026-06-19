@@ -515,3 +515,15 @@ html, body {
     .wl-head { flex-wrap: wrap; }
     .wl-head h1 { font-size: 1.45rem; }
 }
+
+/* ---- customize panel: drag handle + show/hide ---- */
+.cust-row { cursor: grab; }
+.cust-row.is-dragging { opacity: 0.5; }
+.cust-handle { cursor: grab; color: var(--text-muted); font-size: 1.1rem; user-select: none; margin-right: 0.4rem; }
+.cust-eye { min-width: 2.2rem; }
+
+/* ---- scoreboard: n-recipient transfer ---- */
+.sb-recipients { display: grid; gap: 0.4rem; margin: 0.5rem 0; }
+.sb-recipient { display: flex; align-items: center; gap: 0.6rem; }
+.sb-recipient-name { flex: 1; }
+.sb-recipient-amount { max-width: 8rem; }
