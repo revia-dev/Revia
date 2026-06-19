@@ -35,6 +35,10 @@
                 @(_busy ? Loc["Login_Submit"].Value + "…" : Loc["Login_Submit"].Value)
             </button>
         </EditForm>
+
+        <button class="btn btn-outline-secondary login-demo" disabled="@_busy" @onclick="DemoAsync">
+            Demo ansehen
+        </button>
     </div>
 </div>
 
@@ -61,6 +65,16 @@
         // Full reload so the app re-boots cleanly for the new user: the eager access
         // resolve runs and no previous user's cached state (access, layout) lingers.
         Navigation.NavigateTo(ResolveReturnUrl(), forceLoad: true);
+    }
+
+    private async Task DemoAsync()
+    {
+        _busy = true;
+        _error = null;
+        var ok = await Auth.LoginDemoAsync();
+        _busy = false;
+        if (!ok) { _error = "Demo-Modus ist nicht verfügbar."; return; }
+        Navigation.NavigateTo("/", forceLoad: true);
     }
 
     private string ResolveReturnUrl()

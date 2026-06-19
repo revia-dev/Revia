@@ -527,3 +527,6 @@ html, body {
 .sb-recipient { display: flex; align-items: center; gap: 0.6rem; }
 .sb-recipient-name { flex: 1; }
 .sb-recipient-amount { max-width: 8rem; }
+
+/* ---- demo button on login ---- */
+.login-demo { width: 100%; }

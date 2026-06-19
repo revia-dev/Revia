@@ -67,4 +67,26 @@ public sealed class AuthController(
         await _tokens.RevokeAsync(request.RefreshToken, ct);
         return NoContent();
     }
+
+    /// <summary>Logs in as the demo user without credentials, so the app can be
+    /// explored read-mostly. Only available when demo mode is enabled.</summary>
+    [AllowAnonymous]
+    [HttpPost("demo")]
+    public async Task<ActionResult<AuthResponse>> Demo(
+        [FromServices] IConfiguration configuration,
+        CancellationToken ct)
+    {
+        if (!configuration.GetValue<bool>("Demo:Enabled"))
+        {
+            return NotFound();
+        }
+
+        var demo = await _userManager.FindByNameAsync(DemoSeeder.DemoUserName);
+        if (demo is null)
+        {
+            return NotFound(new { message = "Demo nicht verfügbar." });
+        }
+
+        return await _tokens.IssueAsync(demo, ct);
+    }
 }

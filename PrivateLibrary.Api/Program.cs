@@ -99,6 +99,21 @@ builder.Services.AddScoped<DashboardLayoutService>();
 
 var app = builder.Build();
 
+// Demo mode: ensure the schema exists and seed a demo household with sample data, so
+// /api/auth/demo can log in without credentials. Intended for a throwaway demo
+// database (configure a separate ConnectionStrings:DefaultConnection), never prod.
+if (app.Configuration.GetValue<bool>("Demo:Enabled"))
+{
+    using var scope = app.Services.CreateScope();
+    var sp = scope.ServiceProvider;
+    var db = sp.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+    await DemoSeeder.SeedAsync(
+        sp.GetRequiredService<UserManager<ApplicationUser>>(),
+        sp.GetRequiredService<RoleManager<IdentityRole>>(),
+        db);
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseWebAssemblyDebugging();

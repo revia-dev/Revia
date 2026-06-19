@@ -63,6 +63,24 @@ public sealed class AuthService(
         }
     }
 
+    /// <summary>Logs in as the demo user without credentials (demo mode only).
+    /// Returns false when demo mode is disabled or unreachable.</summary>
+    public async Task<bool> LoginDemoAsync()
+    {
+        try
+        {
+            var response = await _http.PostAsync("api/auth/demo", content: null);
+            if (!response.IsSuccessStatusCode) { return false; }
+
+            var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
+            if (auth is null) { return false; }
+
+            await SetSessionAsync(auth);
+            return true;
+        }
+        catch { return false; }
+    }
+
     public async Task LogoutAsync()
     {
         if (_session is not null)
