@@ -56,4 +56,33 @@
             return false;
         }
     };
+
+    // Makes a list element drag-sortable (touch + mouse) via the vendored SortableJS,
+    // and reports the new order back to .NET. The .NET ref must expose
+    // [JSInvokable] OnReorder(oldIndex, newIndex). Returns a disposer handle id.
+    const _sortables = {};
+    window.reviaSortable = {
+        attach: function (element, dotNetRef, callbackName, handleClass) {
+            if (!element || !window.Sortable) { return; }
+            const s = window.Sortable.create(element, {
+                animation: 150,
+                handle: handleClass ? ("." + handleClass) : undefined,
+                // Long-press to start on touch so normal scrolling still works.
+                delay: 150,
+                delayOnTouchOnly: true,
+                onEnd: function (evt) {
+                    if (evt.oldIndex !== evt.newIndex) {
+                        dotNetRef.invokeMethodAsync(callbackName || "OnReorder", evt.oldIndex, evt.newIndex);
+                    }
+                }
+            });
+            const id = "sortable-" + Math.random().toString(36).slice(2);
+            _sortables[id] = s;
+            element.dataset.sortableId = id;
+            return id;
+        },
+        detach: function (id) {
+            if (id && _sortables[id]) { _sortables[id].destroy(); delete _sortables[id]; }
+        }
+    };
 })();

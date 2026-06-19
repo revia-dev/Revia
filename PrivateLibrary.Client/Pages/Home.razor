@@ -11,6 +11,7 @@
 @inject LayoutClientService LayoutSvc
 @inject ConnectivityService Connectivity
 @inject Microsoft.Extensions.Localization.IStringLocalizer<PrivateLibrary.Client.Resources.AppStrings> Loc
+@inject IJSRuntime JS
 @implements IDisposable
 
 <PageTitle>Revia</PageTitle>
@@ -41,16 +42,12 @@ else if (_customizing)
 {
     <div class="dash-customize glass">
         <h2 class="ui-section-title">Modul-Kacheln</h2>
-        <p class="wl-muted">Zum Umsortieren ziehen oder die Pfeile nutzen.</p>
-        <ul class="cust-list">
+        <p class="wl-muted">Zum Umsortieren am Griff ziehen (auf dem Handy gedrückt halten) oder die Pfeile nutzen.</p>
+        <ul class="cust-list" @ref="_tilesList">
             @for (var i = 0; i < _tiles.Count; i++)
             {
                 var idx = i; var t = _tiles[idx];
-                <li class="cust-row @(_dragTile == idx ? "is-dragging" : "")" draggable="true"
-                    @ondragstart="() => _dragTile = idx"
-                    @ondragover:preventDefault="true"
-                    @ondrop="() => DropTile(idx)"
-                    @ondragend="() => _dragTile = null">
+                <li class="cust-row" @key="t.Key">
                     <span class="cust-handle" title="Ziehen">⠿</span>
                     <span class="cust-label">@TileLabel(t.Key)</span>
                     <span class="cust-actions">
@@ -63,15 +60,11 @@ else if (_customizing)
         </ul>
 
         <h2 class="ui-section-title">Dashboard-Bereiche</h2>
-        <ul class="cust-list">
+        <ul class="cust-list" @ref="_sectionsList">
             @for (var i = 0; i < _sections.Count; i++)
             {
                 var idx = i; var s = _sections[idx];
-                <li class="cust-row @(_dragSection == idx ? "is-dragging" : "")" draggable="true"
-                    @ondragstart="() => _dragSection = idx"
-                    @ondragover:preventDefault="true"
-                    @ondrop="() => DropSection(idx)"
-                    @ondragend="() => _dragSection = null">
+                <li class="cust-row" @key="s.Key">
                     <span class="cust-handle" title="Ziehen">⠿</span>
                     <span class="cust-label">@s.Label</span>
                     <span class="cust-actions">
@@ -161,8 +154,12 @@ else
     private List<TileLayoutItemDto> _tiles = new();
     private List<SectionLayoutItemDto> _sections = new();
     private string? _layoutError;
-    private int? _dragTile;
-    private int? _dragSection;
+
+    // Drag-sort (SortableJS, touch + mouse) wiring for the customise lists.
+    private ElementReference _tilesList;
+    private ElementReference _sectionsList;
+    private DotNetObjectReference<Home>? _selfRef;
+    private bool _sortablesAttached;
 
     // Tiles the user is allowed to read AND has visible.
     private IEnumerable<TileLayoutItemDto> VisibleTiles =>
@@ -206,11 +203,27 @@ else
     protected override async Task OnInitializedAsync()
     {
         Connectivity.Changed += OnConnectivityChanged;
+        _selfRef = DotNetObjectReference.Create(this);
         // Force a refresh so the dashboard always reflects the signed-in user's access
         // (the in-memory copy is invalidated on login, but be explicit here too).
         await Access.GetMyAccessAsync(forceRefresh: true);
         await LoadAsync();
         _loading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Attach drag-sort once the customise lists are in the DOM; detach when closed.
+        if (_customizing && !_sortablesAttached && _selfRef is not null)
+        {
+            await JS.InvokeVoidAsync("reviaSortable.attach", _tilesList, _selfRef, "OnReorderTiles", "cust-handle");
+            await JS.InvokeVoidAsync("reviaSortable.attach", _sectionsList, _selfRef, "OnReorderSections", "cust-handle");
+            _sortablesAttached = true;
+        }
+        else if (!_customizing && _sortablesAttached)
+        {
+            _sortablesAttached = false; // lists are gone from the DOM; nothing to detach
+        }
     }
 
     private async Task LoadAsync()
@@ -235,14 +248,27 @@ else
         (list[i], list[j]) = (list[j], list[i]);
     }
 
-    // Drag-and-drop reorder: move the dragged item to the drop target's index.
-    private void DropTile(int target) { Reorder(_tiles, _dragTile, target); _dragTile = null; }
-    private void DropSection(int target) { Reorder(_sections, _dragSection, target); _dragSection = null; }
-    private static void Reorder<T>(List<T> list, int? from, int to)
+    /// <summary>Called by SortableJS after a tile drag (touch or mouse). It reorders
+    /// the DOM; we mirror that into the model, then re-render from the model.</summary>
+    [JSInvokable]
+    public void OnReorderTiles(int oldIndex, int newIndex)
     {
-        if (from is not int f || f == to || f < 0 || f >= list.Count || to < 0 || to >= list.Count) return;
-        var item = list[f];
-        list.RemoveAt(f);
+        Reorder(_tiles, oldIndex, newIndex);
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnReorderSections(int oldIndex, int newIndex)
+    {
+        Reorder(_sections, oldIndex, newIndex);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private static void Reorder<T>(List<T> list, int from, int to)
+    {
+        if (from == to || from < 0 || from >= list.Count || to < 0 || to >= list.Count) return;
+        var item = list[from];
+        list.RemoveAt(from);
         list.Insert(to, item);
     }
 
@@ -266,5 +292,9 @@ else
 
     private async void OnConnectivityChanged(bool online) => await InvokeAsync(LoadAsync);
 
-    public void Dispose() => Connectivity.Changed -= OnConnectivityChanged;
+    public void Dispose()
+    {
+        Connectivity.Changed -= OnConnectivityChanged;
+        _selfRef?.Dispose();
+    }
 }

@@ -530,3 +530,50 @@ html, body {
 
 /* ---- demo button on login ---- */
 .login-demo { width: 100%; }
+
+/* ===========================================================================
+   Responsive & control fixes (iPhone). Prevents horizontal overflow (which
+   forced a pinch-zoom-out on load), centres button labels, and lets toolbars
+   wrap instead of overlapping.
+   =========================================================================== */
+
+/* No element may force the page wider than the viewport. */
+html, body { max-width: 100%; overflow-x: hidden; }
+* { min-width: 0; }
+img, video, svg, canvas { max-width: 100%; height: auto; }
+
+/* Centre button content (was top-aligned on some buttons). */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    line-height: 1.2;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Header rows and action groups wrap instead of overflowing. */
+.wl-head, .dash-head-actions, .match-actions, .game-actions,
+.person-actions, .sb-transfer-form, .sb-transfer-actions, .header-actions {
+    flex-wrap: wrap;
+}
+
+/* Inputs/selects never exceed their container. */
+.form-control, select.form-control, input.form-control, textarea.form-control {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* Grids collapse cleanly on phones. */
+@media (max-width: 640px) {
+    .app-content { padding: 0.9rem; }
+    .game-form { grid-template-columns: 1fr !important; }
+    .sb-transfer-form .form-control,
+    .sb-recipient-amount,
+    .sb-step { max-width: 100%; width: 100%; }
+    .dash-tiles, .dash-kpis { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    /* Scoreboard transfer controls stack on phones. */
+    .sb-transfer-form { display: grid; grid-template-columns: 1fr; }
+    .sb-recipient { flex-wrap: wrap; }
+}
