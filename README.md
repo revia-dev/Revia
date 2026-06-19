@@ -17,6 +17,10 @@ Verbindung besteht.
 |---|---|
 | ![Filme](docs/screenshots/movies-light.png) | ![Login](docs/screenshots/login-light.png) |
 
+| Mobil (Dashboard) | Mobil (Film-Detail) |
+|---|---|
+| ![Mobil Dashboard](docs/screenshots/mobile-dashboard.png) | ![Mobil Film](docs/screenshots/mobile-moviedetail.png) |
+
 ---
 
 ## Highlights
