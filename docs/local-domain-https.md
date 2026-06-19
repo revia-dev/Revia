@@ -1,25 +1,46 @@
 # Lokale Domain & kostenloses HTTPS
 
-Revia läuft im LAN standardmäßig unter `http://<ip>:5047`. Mit einer lokalen
-Domain und einem lokal vertrauenswürdigen Zertifikat wird daraus
-`https://revia.local` – ohne Browser-Warnung und kostenlos.
+Revia läuft im LAN standardmäßig unter `http://<server-ip>:5047`. Diese URL
+funktioniert sofort auf **jedem Gerät im selben WLAN** (Mac, iPhone, …) – die
+Server-IP findest du auf dem Mac mit `ipconfig getifaddr en0`.
+
+Mit einer lokalen Domain und einem lokal vertrauenswürdigen Zertifikat wird
+daraus `https://revia.local` – ohne Browser-Warnung und kostenlos.
 
 ## 1. Lokale Domain `revia.local`
 
+### macOS / Linux / Windows (hosts-Datei)
+
 Trage die IP des Server-Macs in die `hosts`-Datei **jedes Geräts** ein, das die
-App per Namen erreichen soll.
+App per Namen erreichen soll. Auf dem Server-Mac selbst (einmalig, mit sudo):
 
-**macOS / Linux** (`/etc/hosts`):
+```bash
+# Server-IP ermitteln und als revia.local eintragen:
+echo "$(ipconfig getifaddr en0)   revia.local" | sudo tee -a /etc/hosts
+# danach testen:
+curl -I http://revia.local:5047
+```
+
+`/etc/hosts` (macOS/Linux) bzw. `C:\Windows\System32\drivers\etc\hosts` (Windows):
 
 ```
-192.168.1.50   revia.local
+192.168.2.81   revia.local
 ```
 
-**Windows** (`C:\Windows\System32\drivers\etc\hosts`): gleiche Zeile.
+### iPhone / iPad (iOS hat keinen hosts-Zugriff)
 
-> Für mobile Geräte ohne `hosts`-Zugriff entweder die IP direkt nutzen oder im
-> Router einen lokalen DNS-Eintrag (z. B. Pi-hole / FritzBox) für `revia.local`
-> setzen.
+iOS lässt keine `hosts`-Bearbeitung zu. Zwei Wege:
+
+1. **Einfachster Weg – IP direkt nutzen:** `http://192.168.2.81:5047` im Safari
+   öffnen. Funktioniert sofort, ohne weitere Einrichtung. Über *Teilen → Zum
+   Home-Bildschirm* lässt sich Revia als PWA installieren.
+2. **`revia.local` per Router-DNS:** Trage im Router einen lokalen DNS-Eintrag /
+   statischen Host an, der `revia.local` auf die Server-IP zeigt. Beispiele:
+   - **FritzBox:** Heimnetz → Netzwerk → dem Server-Mac einen Namen geben; bzw.
+     einen lokalen DNS-Rewrite in „Netzwerkeinstellungen" setzen.
+   - **Pi-hole / AdGuard Home:** unter *Local DNS Records* `revia.local` → IP.
+   Sobald der Router das auflöst, erreichen **alle** WLAN-Geräte (inkl. iPhone)
+   `http://revia.local:5047` ohne hosts-Datei.
 
 ## 2. Vertrauenswürdiges HTTPS mit mkcert (empfohlen, kostenlos)
 
@@ -47,11 +68,30 @@ Kestrel__Certificates__Default__KeyPath="certs/revia.local-key.pem" \
 ```
 
 Damit ist die App unter `https://revia.local:5047` (bzw. ohne Portangabe hinter
-einem Reverse-Proxy) ohne Warnung erreichbar. Für mobile Geräte muss die mkcert-
-Root-CA (`mkcert -CAROOT`) einmalig auf dem Gerät installiert/vertraut werden.
+einem Reverse-Proxy) ohne Warnung erreichbar.
 
 > Die `certs/`-Dateien sind **nicht** im Repo (siehe `.gitignore`) – sie sind
 > geräte-/netzspezifisch.
+
+### mkcert-Root-CA auf dem iPhone vertrauen
+
+Damit das iPhone dem mkcert-Zertifikat vertraut (sonst „Nicht sicher"), muss die
+**mkcert-Root-CA** einmalig auf dem Gerät installiert und vertraut werden:
+
+1. Root-CA-Datei auf dem Mac finden und aufs iPhone bringen:
+   ```bash
+   open "$(mkcert -CAROOT)"     # zeigt rootCA.pem im Finder
+   ```
+   Schicke `rootCA.pem` per AirDrop ans iPhone (oder per Mail an dich selbst).
+2. Auf dem iPhone die Datei öffnen → „Profil wurde geladen" →
+   **Einstellungen → Allgemein → VPN & Geräteverwaltung → Profil installieren**.
+3. Anschließend **Einstellungen → Allgemein → Info → Zertifikatsvertrauen** öffnen
+   und für die **mkcert**-Root-CA das volle Vertrauen aktivieren (Schalter an).
+4. Jetzt öffnet Safari `https://revia.local:5047` (Router-DNS vorausgesetzt, s. o.)
+   ohne Zertifikatswarnung.
+
+> Hinweis: Das Zertifikat muss die lokale Domain als SAN enthalten – oben ist
+> `revia.local` bereits im `mkcert …`-Aufruf angegeben.
 
 ## 3. Echte öffentliche Domain + Let's Encrypt (optional)
 
