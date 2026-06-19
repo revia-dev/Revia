@@ -594,3 +594,10 @@ img, video, svg, canvas { max-width: 100%; height: auto; }
 .related-poster { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 10px; background: var(--surface-2); }
 .related-title { font-size: 0.85rem; font-weight: 600; line-height: 1.2; }
 .related-year { font-size: 0.78rem; color: var(--text-muted); }
+
+/* ---- mobile header: let dashboard actions wrap below the title ---- */
+@media (max-width: 640px) {
+    .wl-head { align-items: flex-start; }
+    .dash-head-actions { margin-left: 0; width: 100%; }
+    .dash-head-actions .btn { flex: 1 1 auto; }
+}
