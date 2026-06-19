@@ -99,19 +99,26 @@ builder.Services.AddScoped<DashboardLayoutService>();
 
 var app = builder.Build();
 
-// Demo mode: ensure the schema exists and seed a demo household with sample data, so
-// /api/auth/demo can log in without credentials. Intended for a throwaway demo
-// database (configure a separate ConnectionStrings:DefaultConnection), never prod.
-if (app.Configuration.GetValue<bool>("Demo:Enabled"))
+// Startup: apply migrations and seed roles + the default admin so a fresh database
+// (e.g. a new Docker volume) works out of the box without manual steps. Then, if
+// demo mode is on, seed/reset the demo household for the credential-free demo.
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
     var sp = scope.ServiceProvider;
     var db = sp.GetRequiredService<AppDbContext>();
+    var userManager = sp.GetRequiredService<UserManager<ApplicationUser>>();
+    var roleManager = sp.GetRequiredService<RoleManager<IdentityRole>>();
+
     await db.Database.MigrateAsync();
-    await DemoSeeder.SeedAsync(
-        sp.GetRequiredService<UserManager<ApplicationUser>>(),
-        sp.GetRequiredService<RoleManager<IdentityRole>>(),
-        db);
+    await IdentitySeeder.SeedAsync(userManager, roleManager, db, app.Configuration);
+
+    if (app.Configuration.GetValue<bool>("Demo:Enabled"))
+    {
+        // Reset the demo data on each start by default, so anything a visitor changed
+        // is discarded; set Demo:ResetOnStartup=false to keep it between restarts.
+        var resetDemo = app.Configuration.GetValue("Demo:ResetOnStartup", true);
+        await DemoSeeder.SeedAsync(userManager, roleManager, db, reset: resetDemo);
+    }
 }
 
 if (app.Environment.IsDevelopment())

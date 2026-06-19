@@ -1,9 +1,12 @@
 # Runs Revia (the PWA + API) in a container with a persistent data volume.
 #
+#   cp .env.example .env   # then edit .env (at least REVIA_JWT_KEY)
 #   docker compose up -d --build
 #
-# Then open http://localhost:8080 (or map it behind a reverse proxy for HTTPS —
-# see README "Lokale Domain & HTTPS").
+# Open http://localhost:${REVIA_PORT}  (default 8080). For a LAN/Domain/HTTPS setup
+# see README and docs/local-domain-https.md.
+#
+# All settings come from .env; the defaults after ":-" make it run out of the box.
 
 services:
   revia:
@@ -13,14 +16,13 @@ services:
     image: revia:latest
     container_name: revia
     ports:
-      - "8080:8080"
+      - "${REVIA_PORT:-8080}:8080"
     environment:
-      # Stable signing key so issued tokens survive restarts. CHANGE THIS.
-      Jwt__SigningKey: "change-me-to-a-long-random-32+char-secret-please"
-      # Initial admin password used when seeding a fresh database.
-      Seed__AdminPassword: "Admin123!"
-      # Set to "true" to enable the credential-free demo (use a throwaway volume).
-      Demo__Enabled: "false"
+      Jwt__SigningKey: "${REVIA_JWT_KEY:-change-me-to-a-long-random-32+char-secret-please}"
+      Seed__AdminPassword: "${REVIA_ADMIN_PASSWORD:-Admin123!}"
+      Demo__Enabled: "${REVIA_DEMO_ENABLED:-false}"
+      Demo__ResetOnStartup: "${REVIA_DEMO_RESET:-true}"
+      Tmdb__ApiKey: "${REVIA_TMDB_KEY:-}"
     volumes:
       - revia-data:/data
     restart: unless-stopped

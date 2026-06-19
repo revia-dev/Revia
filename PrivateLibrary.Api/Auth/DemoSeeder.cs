@@ -16,10 +16,14 @@ public static class DemoSeeder
     public const string DemoUserName = "demo";
     public const string DemoHouseholdName = "Demo-Haushalt";
 
+    /// <summary>Ensures the demo user + sample data exist. When <paramref name="reset"/>
+    /// is true, any previous demo household is wiped first, so every restart starts
+    /// from a pristine demo (anything a visitor changed is discarded).</summary>
     public static async Task<ApplicationUser> SeedAsync(
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
         AppDbContext db,
+        bool reset = true,
         CancellationToken ct = default)
     {
         // Roles (reuse the same names as the real identity seeder).
@@ -31,10 +35,17 @@ public static class DemoSeeder
             }
         }
 
-        var existing = await userManager.FindByNameAsync(DemoUserName);
-        if (existing is not null)
+        if (reset)
         {
-            return existing; // already seeded
+            await ResetAsync(db, ct);
+        }
+        else
+        {
+            var existing = await userManager.FindByNameAsync(DemoUserName);
+            if (existing is not null)
+            {
+                return existing; // already seeded, keep as-is
+            }
         }
 
         var household = await db.Households.FirstOrDefaultAsync(h => h.Name == DemoHouseholdName, ct);
@@ -61,6 +72,36 @@ public static class DemoSeeder
 
         await SeedSampleDataAsync(db, household.Id, demo.Id, ct);
         return demo;
+    }
+
+    /// <summary>Removes the demo household and everything scoped to it (data rows are
+    /// household-scoped; users cascade their owned rows), so a re-seed is pristine.</summary>
+    private static async Task ResetAsync(AppDbContext db, CancellationToken ct)
+    {
+        var household = await db.Households.FirstOrDefaultAsync(h => h.Name == DemoHouseholdName, ct);
+        if (household is null)
+        {
+            return;
+        }
+
+        var hid = household.Id;
+
+        // Delete household-scoped data. Children (items/photos/participants/links)
+        // cascade via the configured FKs.
+        db.LendingEntries.RemoveRange(db.LendingEntries.Where(x => x.HouseholdId == hid));
+        db.Movies.RemoveRange(db.Movies.Where(x => x.HouseholdId == hid));
+        db.GameMatches.RemoveRange(db.GameMatches.Where(x => x.HouseholdId == hid));
+        db.Games.RemoveRange(db.Games.Where(x => x.HouseholdId == hid));
+        db.Wishlists.RemoveRange(db.Wishlists.Where(x => x.HouseholdId == hid));
+        db.BmiRecords.RemoveRange(db.BmiRecords.Where(x => x.HouseholdId == hid));
+        await db.SaveChangesAsync(ct);
+
+        // Users in the demo household (the demo account + the loginless people).
+        db.Users.RemoveRange(db.Users.Where(x => x.HouseholdId == hid));
+        await db.SaveChangesAsync(ct);
+
+        db.Households.Remove(household);
+        await db.SaveChangesAsync(ct);
     }
 
     private static async Task SeedSampleDataAsync(AppDbContext db, int householdId, string demoUserId, CancellationToken ct)

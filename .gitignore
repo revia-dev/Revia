@@ -76,3 +76,6 @@ coverage/
 
 # Local TLS certs (mkcert) — device/network specific
 certs/
+
+# Local environment config (secrets) — keep .env.example tracked
+.env
