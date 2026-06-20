@@ -135,6 +135,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Lightweight reachability probe used by the PWA client to distinguish
+// "device has WiFi" from "our server is actually up". Returns 200 immediately.
+app.MapMethods("/api/ping", ["HEAD", "GET"], () => Results.Ok());
+
 app.MapFallbackToFile("index.html");
 
 app.Run();

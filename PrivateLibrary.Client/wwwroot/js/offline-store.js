@@ -86,14 +86,32 @@
         },
 
         // ---- connectivity ----
-        isOnline: function () {
-            return navigator.onLine;
+        // Probes the server with a short timeout. navigator.onLine only tells us
+        // whether the device has *any* network — it returns true when on WiFi even if
+        // the home server is unreachable. A real HTTP probe avoids the multi-second
+        // TCP timeout that would otherwise stall every API call on startup.
+        isOnline: async function () {
+            if (!navigator.onLine) return false;
+            try {
+                const ctrl = new AbortController();
+                const id = setTimeout(() => ctrl.abort(), 2500);
+                const r = await fetch('/api/ping', { method: 'HEAD', cache: 'no-store', signal: ctrl.signal });
+                clearTimeout(id);
+                return r.ok;
+            } catch {
+                return false;
+            }
         },
         // Registers a .NET callback fired on online/offline transitions.
+        // We also re-probe the server whenever the browser's online event fires,
+        // because that event only means the NIC is up, not that our server is back.
         registerConnectivity: function (dotNetRef) {
-            const fire = () => dotNetRef.invokeMethodAsync("OnConnectivityChanged", navigator.onLine);
-            window.addEventListener("online", fire);
-            window.addEventListener("offline", fire);
+            const probe = async () => {
+                const online = await window.reviaOffline.isOnline();
+                dotNetRef.invokeMethodAsync("OnConnectivityChanged", online);
+            };
+            window.addEventListener("online", probe);
+            window.addEventListener("offline", () => dotNetRef.invokeMethodAsync("OnConnectivityChanged", false));
         }
     };
 })();

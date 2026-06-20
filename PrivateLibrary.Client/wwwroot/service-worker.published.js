@@ -61,23 +61,21 @@ async function onFetch(event) {
         return fetch(request);
     }
 
-    // For navigations, serve the cached app shell (index.html) so the app boots
-    // offline; for other GETs, serve the cached asset when present.
-    const shouldServeIndexHtml = request.mode === 'navigate';
     const cache = await caches.open(cacheName);
 
-    if (shouldServeIndexHtml) {
+    // For navigations (opening the app, following links): serve the cached shell
+    // immediately so the WASM app boots even when the server is unreachable.
+    // Only fall back to the network when we have no cached shell yet.
+    if (request.mode === 'navigate') {
         const cachedIndex = await cache.match('index.html');
         if (cachedIndex) {
-            // Try the network first (fresh shell) but fall back to cache offline.
-            try {
-                return await fetch(request);
-            } catch {
-                return cachedIndex;
-            }
+            return cachedIndex;
         }
+        // First ever load — no cache yet, must go to network.
+        return fetch(request);
     }
 
+    // For all other GETs: cache-first, network fallback.
     const cached = await cache.match(request);
     if (cached) {
         return cached;
@@ -86,7 +84,6 @@ async function onFetch(event) {
     try {
         return await fetch(request);
     } catch {
-        // Last resort for asset requests when fully offline.
         const fallback = await cache.match('index.html');
         return fallback ?? Response.error();
     }
