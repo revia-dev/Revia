@@ -16,6 +16,8 @@
 
 <PageHeader Title="@Loc["Page_Wishlists"]" Pending="_pending" />
 
+<CsvBackup Module="wishlists" Label="Wunschzettel" OnImported="ReloadAsync" />
+
 <div class="wl-create glass">
     <input class="form-control" placeholder="Neuer Wunschzettel (z. B. Geburtstag)"
            @bind="_newListName" @bind:event="oninput" />

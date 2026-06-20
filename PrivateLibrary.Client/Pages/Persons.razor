@@ -18,6 +18,8 @@
     @if (!Connectivity.IsOnline) { <span class="wl-offline">⚡ Offline</span> }
 </div>
 
+<CsvBackup Module="persons" Label="Personen" OnImported="ReloadAsync" />
+
 @if (_loading)
 {
     <p class="wl-muted">Lade…</p>
@@ -79,9 +81,15 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        await ReloadAsync();
+        _loading = false;
+    }
+
+    private async Task ReloadAsync()
+    {
         _people = await PersonsSvc.GetAllAsync();
         _linked = await PersonsSvc.GetLinkedHouseholdsAsync();
-        _loading = false;
+        StateHasChanged();
     }
 
     private string ShareUrl(PersonCardDto p) => $"{Navigation.BaseUri.TrimEnd('/')}/persons/link/{p.LinkToken}";

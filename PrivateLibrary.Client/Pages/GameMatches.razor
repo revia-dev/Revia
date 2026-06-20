@@ -30,6 +30,8 @@
     <button class="btn btn-primary" @onclick="StartCreate">Neue Partie</button>
 </div>
 
+<CsvBackup Module="matches" Label="Partien" OnImported="ReloadAsync" />
+
 @if (_edit is not null)
 {
     <div class="glass game-editor">

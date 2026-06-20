@@ -35,6 +35,8 @@
     }
 </div>
 
+<CsvBackup Module="movies" Label="Filme" AllowImport="Access.IsAdmin" OnImported="ReloadAsync" />
+
 @if (_edit is not null)
 {
     <div class="glass game-editor">

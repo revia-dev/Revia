@@ -622,3 +622,11 @@ img, video, svg, canvas { max-width: 100%; height: auto; }
 .tv-st-upcoming { color: var(--text-muted); }
 .tv-st-ended { color: var(--text-muted); font-weight: 400; }
 .tv-entry.is-live { border-left: 3px solid var(--danger); padding-left: 0.5rem; }
+
+/* ---- CSV backup (export/import) ---- */
+.csv-backup { margin: 0.5rem 0 1rem; }
+.csv-backup summary { cursor: pointer; color: var(--text-muted); font-size: 0.9rem; }
+.csv-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.5rem; }
+.csv-import-btn { position: relative; overflow: hidden; cursor: pointer; }
+.csv-import-btn input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.csv-result { margin-top: 0.4rem; font-size: 0.85rem; }

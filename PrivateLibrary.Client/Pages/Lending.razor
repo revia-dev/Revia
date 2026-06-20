@@ -28,6 +28,8 @@
     <button class="btn btn-primary" @onclick="StartCreate">@Loc["App_Create"]</button>
 </div>
 
+<CsvBackup Module="lending" Label="Ausleihen" OnImported="ReloadAsync" />
+
 @if (_edit is not null)
 {
     <div class="glass game-editor">
