@@ -73,4 +73,38 @@ public sealed class PersonsClientService(
         }
         catch (Exception ex) { return new PersonLinkResultDto { Success = false, Error = ex.Message }; }
     }
+
+    public async Task<PersonResultDto> SaveAsync(SavePersonRequest request)
+    {
+        if (!_connectivity.IsOnline) { return new PersonResultDto { Success = false, Error = "Nur online möglich." }; }
+        try
+        {
+            var response = string.IsNullOrEmpty(request.Id)
+                ? await _http.PostAsJsonAsync("api/persons", request)
+                : await _http.PutAsJsonAsync($"api/persons/{request.Id}", request);
+            return await response.Content.ReadFromJsonAsync<PersonResultDto>()
+                ?? new PersonResultDto { Success = response.IsSuccessStatusCode };
+        }
+        catch (Exception ex) { return new PersonResultDto { Success = false, Error = ex.Message }; }
+    }
+
+    public async Task<bool> DeleteAsync(string id)
+    {
+        if (!_connectivity.IsOnline) return false;
+        try { return (await _http.DeleteAsync($"api/persons/{id}")).IsSuccessStatusCode; }
+        catch { return false; }
+    }
+
+    /// <summary>Admin-only: grants a loginless person a login.</summary>
+    public async Task<PersonResultDto> AddLoginAsync(string id, AddLoginRequest request)
+    {
+        if (!_connectivity.IsOnline) { return new PersonResultDto { Success = false, Error = "Nur online möglich." }; }
+        try
+        {
+            var response = await _http.PostAsJsonAsync($"api/persons/{id}/login", request);
+            return await response.Content.ReadFromJsonAsync<PersonResultDto>()
+                ?? new PersonResultDto { Success = response.IsSuccessStatusCode };
+        }
+        catch (Exception ex) { return new PersonResultDto { Success = false, Error = ex.Message }; }
+    }
 }

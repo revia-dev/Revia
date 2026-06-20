@@ -6,6 +6,9 @@ public sealed class PersonCardDto
 {
     public string Id { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string? Nickname { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
     public bool IsLoginless { get; set; }
@@ -38,4 +41,39 @@ public sealed class PersonLinkResultDto
 {
     public bool Success { get; set; }
     public string? Error { get; set; }
+}
+
+/// <summary>Create/update a person. Any user may manage loginless people in their
+/// household; only admins may grant a login (username/password) via the separate
+/// upgrade request.</summary>
+public sealed class SavePersonRequest
+{
+    /// <summary>Empty/null for create; the existing id for update.</summary>
+    public string? Id { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string? Nickname { get; set; }
+    public string? Email { get; set; }
+    public string? Phone { get; set; }
+    public string? Street { get; set; }
+    public string? HouseNumber { get; set; }
+    public string? PostalCode { get; set; }
+    public string? City { get; set; }
+}
+
+/// <summary>Admin-only: gives an existing loginless person a login (username +
+/// password + role), so they can sign in.</summary>
+public sealed class AddLoginRequest
+{
+    public string UserName { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    public string Role { get; set; } = "User";
+}
+
+/// <summary>Generic person operation result.</summary>
+public sealed class PersonResultDto
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+    public string? Id { get; set; }
 }

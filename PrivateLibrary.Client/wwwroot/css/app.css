@@ -630,3 +630,7 @@ img, video, svg, canvas { max-width: 100%; height: auto; }
 .csv-import-btn { position: relative; overflow: hidden; cursor: pointer; }
 .csv-import-btn input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .csv-result { margin-top: 0.4rem; font-size: 0.85rem; }
+
+/* ---- persons: edit form, login upgrade, link field ---- */
+.person-login { padding: 0.6rem; margin-top: 0.5rem; display: grid; gap: 0.4rem; }
+.person-link { font-size: 0.8rem; }

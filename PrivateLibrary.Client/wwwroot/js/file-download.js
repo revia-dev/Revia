@@ -19,14 +19,40 @@
         URL.revokeObjectURL(url);
     };
 
-    // Copies text to the clipboard; returns true on success.
+    // Copies text to the clipboard; returns true on success. The async Clipboard API
+    // only works in a secure context (HTTPS/localhost), so over plain http:// on the
+    // LAN it fails — fall back to a hidden textarea + execCommand('copy'), which works
+    // without HTTPS.
     window.reviaCopy = async function (text) {
         try {
-            await navigator.clipboard.writeText(text);
-            return true;
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch { /* fall through to legacy */ }
+
+        try {
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            ta.setAttribute("readonly", "");
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
+            document.body.appendChild(ta);
+            ta.select();
+            ta.setSelectionRange(0, ta.value.length);
+            const ok = document.execCommand("copy");
+            document.body.removeChild(ta);
+            return ok;
         } catch {
             return false;
         }
+    };
+
+    // Selects the text of the currently focused input (so a read-only link field can
+    // be copied manually even when the Clipboard API is unavailable on http://).
+    window.reviaSelectAll = function () {
+        const el = document.activeElement;
+        if (el && typeof el.select === "function") { el.select(); }
     };
 
     // Renders text as a QR code and returns an SVG data: URL (crisp at any size).

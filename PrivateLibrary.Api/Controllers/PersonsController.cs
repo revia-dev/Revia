@@ -29,16 +29,100 @@ public sealed class PersonsController(IPersonService persons) : ControllerBase
     public async Task<ActionResult<List<PersonCardDto>>> GetAll(CancellationToken ct)
         => (await _persons.GetAllAsync(ct))
             .Where(p => !p.IsSystemUser)
-            .Select(p => new PersonCardDto
-            {
-                Id = p.Id,
-                DisplayName = p.DisplayName,
-                Email = p.Email,
-                Phone = p.Phone,
-                IsLoginless = p.IsLoginless,
-                LinkToken = p.PersonLinkToken.ToString()
-            })
+            .Select(ToCard)
             .ToList();
+
+    private static PersonCardDto ToCard(ApplicationUser p) => new()
+    {
+        Id = p.Id,
+        DisplayName = p.DisplayName,
+        FirstName = p.FirstName,
+        LastName = p.LastName,
+        Nickname = p.Nickname,
+        Email = p.Email,
+        Phone = p.Phone,
+        IsLoginless = p.IsLoginless,
+        LinkToken = p.PersonLinkToken.ToString()
+    };
+
+    /// <summary>Creates a person without a login (data only). Any user with persons
+    /// write access may add these; an admin can later grant a login.</summary>
+    [HttpPost]
+    public async Task<ActionResult<PersonResultDto>> Create([FromBody] SavePersonRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.FirstName) && string.IsNullOrWhiteSpace(request.LastName))
+        {
+            return new PersonResultDto { Success = false, Error = "Name fehlt." };
+        }
+        try
+        {
+            var created = await _persons.CreateLoginlessAsync(Apply(new ApplicationUser(), request), ct);
+            return new PersonResultDto { Success = true, Id = created.Id };
+        }
+        catch (Exception ex)
+        {
+            return new PersonResultDto { Success = false, Error = ex.Message };
+        }
+    }
+
+    /// <summary>Updates a person's data fields (household-scoped).</summary>
+    [HttpPut("{id}")]
+    public async Task<ActionResult<PersonResultDto>> Update(string id, [FromBody] SavePersonRequest request, CancellationToken ct)
+    {
+        var person = await _persons.GetByIdAsync(id, ct);
+        if (person is null) { return new PersonResultDto { Success = false, Error = "Person nicht gefunden." }; }
+
+        var updated = await _persons.UpdateAsync(Apply(person, request), roleName: null, ct);
+        return updated is null
+            ? new PersonResultDto { Success = false, Error = "Aktualisierung fehlgeschlagen." }
+            : new PersonResultDto { Success = true, Id = id };
+    }
+
+    /// <summary>Deletes a person (household-scoped).</summary>
+    [HttpDelete("{id}")]
+    public async Task<ActionResult<PersonResultDto>> Delete(string id, CancellationToken ct)
+    {
+        var r = await _persons.DeleteAsync(id, ct);
+        return new PersonResultDto { Success = r.Succeeded, Error = r.ErrorMessage, Id = id };
+    }
+
+    /// <summary>Admin-only: grants an existing loginless person a login (username +
+    /// password + role) so they can sign in.</summary>
+    [HttpPost("{id}/login")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<PersonResultDto>> AddLogin(string id, [FromBody] AddLoginRequest request, CancellationToken ct)
+    {
+        var person = await _persons.GetByIdAsync(id, ct);
+        if (person is null) { return new PersonResultDto { Success = false, Error = "Person nicht gefunden." }; }
+        if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return new PersonResultDto { Success = false, Error = "Benutzername und Passwort erforderlich." };
+        }
+
+        person.UserName = request.UserName.Trim();
+        person.IsLoginless = false;
+        var updated = await _persons.UpdateAsync(person, string.IsNullOrWhiteSpace(request.Role) ? "User" : request.Role, ct);
+        if (updated is null) { return new PersonResultDto { Success = false, Error = "Anmeldung konnte nicht angelegt werden." }; }
+
+        var pw = await _persons.SetPasswordAsync(id, request.Password, ct);
+        return new PersonResultDto { Success = pw.Succeeded, Error = pw.ErrorMessage, Id = id };
+    }
+
+    private static ApplicationUser Apply(ApplicationUser u, SavePersonRequest r)
+    {
+        u.FirstName = r.FirstName?.Trim() ?? string.Empty;
+        u.LastName = r.LastName?.Trim() ?? string.Empty;
+        u.Nickname = Blank(r.Nickname);
+        u.Email = Blank(r.Email);
+        u.Phone = Blank(r.Phone);
+        u.Street = Blank(r.Street);
+        u.HouseNumber = Blank(r.HouseNumber);
+        u.PostalCode = Blank(r.PostalCode);
+        u.City = Blank(r.City);
+        return u;
+    }
+
+    private static string? Blank(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
     /// <summary>Households currently linked to the caller's (shared lendings).</summary>
     [HttpGet("linked-households")]
