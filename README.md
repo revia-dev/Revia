@@ -41,8 +41,10 @@ Verbindung besteht.
   - **Ausleihen** – Gegenstände, Personen, Status, Fotos, Haushalts-Sharing.
   - **BMI**, **Wunschlisten**, **Personen**.
 - **Personenverwaltung:** jeder Benutzer kann Personen **ohne Login** anlegen
-  (reine Daten); ein Admin kann ihnen später **Anmeldedaten geben**. Personen per
-  QR/Link mit anderen Haushalten teilen (Haushalts-Verknüpfung).
+  (reine Daten) sowie bearbeiten/löschen; ein Admin kann eine Person **direkt mit
+  Anmeldedaten** (Benutzername/Passwort/Rolle) anlegen oder einer bestehenden
+  loginlosen Person später **Login geben**. Personen per QR/Link mit anderen
+  Haushalten teilen (Haushalts-Verknüpfung).
 - **Live-Wertung & geräteübergreifender Punkte-Tausch:** card game/board game-Style
   Scoreboard; ein Zahler kann an **1..n** Empfänger via **QR-Code (mit Kamera-Scan),
   Code oder Web Share** (AirDrop, wo verfügbar) Punkte/Geld übertragen.
