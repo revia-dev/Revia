@@ -26,7 +26,7 @@
 @if (_edit is not null)
 {
     <div class="glass game-editor">
-        <h2 class="ui-section-title">@(string.IsNullOrEmpty(_edit.Id) ? "Neue Person (ohne Login)" : "Person bearbeiten")</h2>
+        <h2 class="ui-section-title">@EditorTitle</h2>
         <div class="game-form">
             <div class="game-field"><label>Vorname</label>
                 <input class="form-control" @bind="_edit.FirstName" @bind:event="oninput" /></div>
@@ -41,9 +41,31 @@
             <div class="game-field"><label>Ort</label>
                 <input class="form-control" @bind="_edit.City" /></div>
         </div>
+
+        @* Admins may give a new person login credentials right away. *@
+        @if (Access.IsAdmin && string.IsNullOrEmpty(_edit.Id))
+        {
+            <label class="person-withlogin">
+                <input type="checkbox" @bind="_withLogin" /> Mit Anmeldedaten anlegen
+            </label>
+            @if (_withLogin)
+            {
+                <div class="game-form">
+                    <div class="game-field"><label>Benutzername</label>
+                        <input class="form-control" @bind="_edit.UserName" @bind:event="oninput" /></div>
+                    <div class="game-field"><label>Passwort (min. 8 Zeichen)</label>
+                        <input class="form-control" type="password" @bind="_edit.Password" @bind:event="oninput" /></div>
+                    <div class="game-field"><label>Rolle</label>
+                        <select class="form-control" @bind="_edit.Role">
+                            <option value="User">Benutzer</option>
+                            <option value="Admin">Admin</option>
+                        </select></div>
+                </div>
+            }
+        }
+
         <div class="game-actions">
-            <button class="btn btn-primary" @onclick="SaveAsync"
-                    disabled="@(string.IsNullOrWhiteSpace(_edit.FirstName) && string.IsNullOrWhiteSpace(_edit.LastName))">@Loc["App_Save"]</button>
+            <button class="btn btn-primary" @onclick="SaveAsync" disabled="@(!CanSavePerson)">@Loc["App_Save"]</button>
             <button class="btn btn-outline-secondary" @onclick="() => _edit = null">@Loc["App_Cancel"]</button>
         </div>
         @if (_error is not null) { <div class="login-error">@_error</div> }
@@ -139,7 +161,27 @@ else
 
     // Add/edit form.
     private SavePersonRequest? _edit;
+    private bool _withLogin;
     private string? _error;
+
+    private string EditorTitle => _edit is null ? ""
+        : !string.IsNullOrEmpty(_edit.Id) ? "Person bearbeiten"
+        : _withLogin ? "Neue Person mit Login" : "Neue Person (ohne Login)";
+
+    private bool CanSavePerson
+    {
+        get
+        {
+            if (_edit is null) return false;
+            var hasName = !string.IsNullOrWhiteSpace(_edit.FirstName) || !string.IsNullOrWhiteSpace(_edit.LastName);
+            if (!hasName) return false;
+            if (_withLogin)
+            {
+                return !string.IsNullOrWhiteSpace(_edit.UserName) && (_edit.Password?.Length ?? 0) >= 8;
+            }
+            return true;
+        }
+    }
 
     // Admin login-upgrade form.
     private string? _loginId;
@@ -166,7 +208,8 @@ else
 
     private void StartCreate()
     {
-        _edit = new SavePersonRequest();
+        _edit = new SavePersonRequest { Role = "User" };
+        _withLogin = false;
         _error = null;
     }
 
@@ -183,6 +226,11 @@ else
     private async Task SaveAsync()
     {
         if (_edit is null) return;
+        // Only send login fields when the admin opted in; otherwise create loginless.
+        if (!_withLogin)
+        {
+            _edit.UserName = null; _edit.Password = null;
+        }
         var result = await PersonsSvc.SaveAsync(_edit);
         if (result.Success) { _edit = null; await ReloadAsync(); }
         else { _error = result.Error ?? "Speichern fehlgeschlagen."; }

@@ -59,6 +59,12 @@ public sealed class SavePersonRequest
     public string? HouseNumber { get; set; }
     public string? PostalCode { get; set; }
     public string? City { get; set; }
+
+    /// <summary>Optional login (admins only, on create): when a username + password
+    /// are given, the person is created with a login instead of loginless.</summary>
+    public string? UserName { get; set; }
+    public string? Password { get; set; }
+    public string? Role { get; set; }
 }
 
 /// <summary>Admin-only: gives an existing loginless person a login (username +

@@ -54,8 +54,30 @@ public sealed class PersonsController(IPersonService persons) : ControllerBase
         {
             return new PersonResultDto { Success = false, Error = "Name fehlt." };
         }
+
+        // A login may be set on create — but only by an admin. Non-admins (or empty
+        // login fields) get a loginless data-only person.
+        var wantsLogin = !string.IsNullOrWhiteSpace(request.UserName) || !string.IsNullOrWhiteSpace(request.Password);
+        if (wantsLogin && !User.IsInRole("Admin"))
+        {
+            return new PersonResultDto { Success = false, Error = "Nur Admins dürfen Anmeldedaten vergeben." };
+        }
+
         try
         {
+            if (wantsLogin)
+            {
+                if (string.IsNullOrWhiteSpace(request.UserName) || string.IsNullOrWhiteSpace(request.Password))
+                {
+                    return new PersonResultDto { Success = false, Error = "Benutzername und Passwort erforderlich." };
+                }
+                var user = Apply(new ApplicationUser(), request);
+                user.UserName = request.UserName!.Trim();
+                var withLogin = await _persons.CreateAsync(user, request.Password!,
+                    string.IsNullOrWhiteSpace(request.Role) ? "User" : request.Role!, ct);
+                return new PersonResultDto { Success = true, Id = withLogin.Id };
+            }
+
             var created = await _persons.CreateLoginlessAsync(Apply(new ApplicationUser(), request), ct);
             return new PersonResultDto { Success = true, Id = created.Id };
         }

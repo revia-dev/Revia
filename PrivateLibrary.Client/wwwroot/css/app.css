@@ -634,3 +634,6 @@ img, video, svg, canvas { max-width: 100%; height: auto; }
 /* ---- persons: edit form, login upgrade, link field ---- */
 .person-login { padding: 0.6rem; margin-top: 0.5rem; display: grid; gap: 0.4rem; }
 .person-link { font-size: 0.8rem; }
+
+/* ---- persons: optional login on create ---- */
+.person-withlogin { display: inline-flex; align-items: center; gap: 0.4rem; margin: 0.5rem 0; font-size: 0.9rem; }
