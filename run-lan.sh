@@ -3,9 +3,15 @@
 # run-lan.sh — runs Revia on the LAN as a real PWA.
 #
 # Publishes the Api project (which also builds + bundles the WebAssembly client and
-# its service worker) and serves it on http://0.0.0.0:5047 in Production. Because it
+# its service worker) and serves it on https://0.0.0.0:5047 in Production. Because it
 # is a published build, the service worker ships and true offline (close + reload)
 # works for everyone on the LAN — unlike `dotnet run` (Development), which omits it.
+#
+# HTTPS is REQUIRED for offline: browsers only register a service worker (the
+# offline app-shell cache) in a "secure context" — https or http://localhost. Over
+# a plain-http LAN IP the service worker never registers, so the app always needs
+# the server. We serve https with a locally-trusted mkcert certificate (generate it
+# with ./setup-https.sh) and install the mkcert root CA on each phone once.
 #
 # This replaces the old Blazor Server app that used to own port 5047.
 #
@@ -19,6 +25,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 API_PROJ="$ROOT/PrivateLibrary.Api/PrivateLibrary.Api.csproj"
 OUT="$ROOT/.lan-publish"
 PORT="${REVIA_LAN_PORT:-5047}"
+CERT="$ROOT/certs/revia-cert.pem"
+KEY="$ROOT/certs/revia-key.pem"
 
 # Shared SQLite DB + photo storage (the same files the app already uses). Absolute so
 # they don't depend on the process working directory.
@@ -35,8 +43,20 @@ if [[ "${1:-}" == "--publish" || ! -f "$OUT/PrivateLibrary.Api.dll" ]]; then
     dotnet publish "$API_PROJ" -c Release -o "$OUT"
 fi
 
-echo "==> Serving Revia on http://0.0.0.0:${PORT}  (DB: ${DB_PATH})"
-echo "    LAN devices can reach it at  http://<this-machine-ip>:${PORT}"
+# Prefer HTTPS (required for the offline PWA service worker). Fall back to plain
+# HTTP only if the cert is missing, with a clear warning.
+if [[ -f "$CERT" && -f "$KEY" ]]; then
+    SCHEME=https
+    CERT_ENV=("Kestrel__Certificates__Default__Path=$CERT" "Kestrel__Certificates__Default__KeyPath=$KEY")
+else
+    echo "WARN: certificate missing ($CERT) — serving HTTP; the offline PWA will NOT work." >&2
+    echo "      Run ./setup-https.sh once to generate it." >&2
+    SCHEME=http
+    CERT_ENV=()
+fi
+
+echo "==> Serving Revia on ${SCHEME}://0.0.0.0:${PORT}  (DB: ${DB_PATH})"
+echo "    LAN devices can reach it at  ${SCHEME}://<this-machine-ip>:${PORT}"
 
 exec env \
     ASPNETCORE_ENVIRONMENT=Production \
@@ -46,6 +66,7 @@ exec env \
     LendingPhotos__StoragePath="${DATA_DIR}/lending-photos" \
     PersonPhotos__StoragePath="${DATA_DIR}/person-photos" \
     GameFiles__StoragePath="${DATA_DIR}/game-files" \
+    "${CERT_ENV[@]}" \
     dotnet "$OUT/PrivateLibrary.Api.dll" \
         --contentRoot "$OUT" \
-        --urls "http://0.0.0.0:${PORT}"
+        --urls "${SCHEME}://0.0.0.0:${PORT}"

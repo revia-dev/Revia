@@ -100,22 +100,30 @@ dotnet test PrivateLibrary.Tests
 ## Im LAN betreiben (Published-PWA)
 
 `run-lan.sh` published die Api (inkl. WASM-Client + Service Worker) und serviert
-sie auf `0.0.0.0:5047` in Production – damit funktioniert echtes Offline im
-Heimnetz:
+sie **per HTTPS** auf `0.0.0.0:5047` in Production – damit funktioniert echtes
+Offline im Heimnetz:
 
 ```bash
-./run-lan.sh            # published (falls nötig) + startet auf :5047
+./setup-https.sh        # EINMALIG: lokale CA + Zertifikat erzeugen (mkcert)
+./run-lan.sh            # published (falls nötig) + startet auf :5047 (https)
 ./run-lan.sh --publish  # erzwingt frisches Publish
 ```
 
-Erreichbar im WLAN unter `http://<server-ip>:5047` (IP auf dem Server-Mac mit
-`ipconfig getifaddr en0`), z. B. auch vom iPhone. Über *Teilen → Zum
-Home-Bildschirm* lässt sich Revia als PWA installieren.
+Erreichbar im WLAN unter `https://<server-name>.local:5047` bzw.
+`https://<server-ip>:5047` (IP auf dem Server-Mac mit `ipconfig getifaddr en0`),
+z. B. auch vom iPhone. Über *Teilen → Zum Home-Bildschirm* lässt sich Revia als
+PWA installieren.
 
-> Hinweis: Clipboard- und Kamera-/Web-Share-Funktionen brauchen einen **secure
-> context** (HTTPS oder `localhost`). Über reines `http://` im LAN gibt es
-> Fallbacks (Link-Kopieren via `execCommand`, sichtbares Link-Feld); für QR-Scan
-> und vollen Funktionsumfang HTTPS einrichten (siehe unten).
+> **HTTPS ist Pflicht fürs Offline-Funktionieren.** Browser registrieren den
+> Service Worker (den Offline-App-Cache) nur in einem **secure context** – also
+> HTTPS oder `http://localhost`. Über eine reine `http://`-LAN-IP wird der Service
+> Worker stillschweigend **nie** registriert, nichts wird gecacht und die App
+> braucht immer den Server. `setup-https.sh` erzeugt mit **mkcert** eine lokale
+> CA + Zertifikat; die Datei `certs/rootCA.pem` muss **einmalig auf jedem Handy**
+> installiert und als vertrauenswürdig markiert werden, sonst bleibt der Service
+> Worker auch unter HTTPS blockiert. Danach: HTTPS-URL öffnen, **einmal online
+> anmelden**, „Zum Home-Bildschirm" – ab dann läuft die App auch bei
+> ausgeschaltetem Server.
 
 ## Docker (config-getrieben über `.env`)
 
