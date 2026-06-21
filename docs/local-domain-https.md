@@ -1,11 +1,22 @@
 # Lokale Domain & kostenloses HTTPS
 
-Revia läuft im LAN standardmäßig unter `http://<server-ip>:5047`. Diese URL
-funktioniert sofort auf **jedem Gerät im selben WLAN** (Mac, iPhone, …) – die
-Server-IP findest du auf dem Mac mit `ipconfig getifaddr en0`.
+Revia läuft im LAN **standardmäßig über HTTPS** unter `https://<server-ip>:5047`
+bzw. `https://<server-name>.local:5047` – die Server-IP findest du auf dem Mac
+mit `ipconfig getifaddr en0`.
 
-Mit einer lokalen Domain und einem lokal vertrauenswürdigen Zertifikat wird
-daraus `https://revia.local` – ohne Browser-Warnung und kostenlos.
+> **HTTPS ist Pflicht, nicht optional.** Browser registrieren den Service Worker
+> (den Offline-App-Cache) nur in einem **secure context** – also HTTPS oder
+> `http://localhost`. Über eine reine `http://`-LAN-IP gibt es **gar keinen**
+> Service Worker, nichts wird gecacht und die App braucht immer den laufenden
+> Server. Deshalb serviert `run-lan.sh` / der LaunchAgent jetzt HTTPS; reines
+> `http://…:5047` wird abgewiesen.
+>
+> **Schnellstart:** einmalig `./setup-https.sh` ausführen (erzeugt mit **mkcert**
+> eine lokale CA + Zertifikat und kopiert `certs/rootCA.pem` zum Verteilen).
+> Dann auf jedem Handy `certs/rootCA.pem` installieren und als vertrauenswürdig
+> markieren (siehe Abschnitt 2). Eine lokale Domain (`revia.local`, Abschnitt 1)
+> ist optional, aber praktisch, weil der Name stabil bleibt, wenn sich die IP
+> per DHCP ändert.
 
 ## 1. Lokale Domain `revia.local`
 
@@ -42,33 +53,35 @@ iOS lässt keine `hosts`-Bearbeitung zu. Zwei Wege:
    Sobald der Router das auflöst, erreichen **alle** WLAN-Geräte (inkl. iPhone)
    `http://revia.local:5047` ohne hosts-Datei.
 
-## 2. Vertrauenswürdiges HTTPS mit mkcert (empfohlen, kostenlos)
+## 2. Vertrauenswürdiges HTTPS mit mkcert (Standard, kostenlos)
 
 [mkcert](https://github.com/FiloSottile/mkcert) erzeugt ein **lokal
-vertrauenswürdiges** Zertifikat – kein „Nicht sicher" im Browser.
+vertrauenswürdiges** Zertifikat – kein „Nicht sicher" im Browser. Das übernimmt
+das Helfer-Skript `setup-https.sh`:
 
 ```bash
-# einmalig: lokale CA installieren
-brew install mkcert nss   # macOS (nss für Firefox)
-mkcert -install
-
-# Zertifikat für die lokale Domain erzeugen
+brew install mkcert nss          # einmalig (nss nur für Firefox)
 cd /Users/revia-dev/Documents/PrivateLibrary
-mkdir -p certs
-mkcert -cert-file certs/revia.local.pem -key-file certs/revia.local-key.pem revia.local localhost 127.0.0.1
+./setup-https.sh                 # installiert die lokale CA (fragt dein Passwort)
+                                 # und erzeugt certs/revia-cert.pem + revia-key.pem
 ```
 
-Revia (Kestrel) auf HTTPS starten – die Zertifikatsdateien via Umgebung angeben:
+`setup-https.sh` deckt automatisch die LAN-IP, `<server-name>.local`, `localhost`
+und `127.0.0.1` als SANs ab und kopiert `certs/rootCA.pem` zum Verteilen auf die
+Geräte. Danach startet die App über `run-lan.sh` bzw. den LaunchAgent **von
+selbst per HTTPS** – das Zertifikat wird aus `certs/` gelesen, keine weiteren
+Umgebungsvariablen nötig.
 
-```bash
-ASPNETCORE_URLS="https://0.0.0.0:5047" \
-Kestrel__Certificates__Default__Path="certs/revia.local.pem" \
-Kestrel__Certificates__Default__KeyPath="certs/revia.local-key.pem" \
-./run-lan.sh
-```
+Erreichbar unter `https://<server-name>.local:5047` bzw. `https://<server-ip>:5047`
+(bzw. ohne Portangabe hinter einem Reverse-Proxy) ohne Warnung.
 
-Damit ist die App unter `https://revia.local:5047` (bzw. ohne Portangabe hinter
-einem Reverse-Proxy) ohne Warnung erreichbar.
+> Brauchst du zusätzlich die Domain `revia.local` im Zertifikat (Abschnitt 1), gib
+> sie beim Erzeugen mit an, z. B.:
+> ```bash
+> mkcert -cert-file certs/revia-cert.pem -key-file certs/revia-key.pem \
+>     revia.local "$(scutil --get LocalHostName).local" \
+>     "$(ipconfig getifaddr en0)" localhost 127.0.0.1
+> ```
 
 > Die `certs/`-Dateien sind **nicht** im Repo (siehe `.gitignore`) – sie sind
 > geräte-/netzspezifisch.

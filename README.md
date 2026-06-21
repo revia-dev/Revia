@@ -140,6 +140,13 @@ docker compose up -d --build
 Demo an/aus + Reset, TMDb-Key). `docker-compose.yml` liest sie mit sicheren
 Defaults; ein persistentes Volume `revia-data` hält DB + Uploads.
 
+> Offline im Docker-Betrieb: Über **`http://localhost:8080`** funktioniert die
+> PWA inkl. Offline out of the box (`localhost` ist ein secure context). Für
+> Zugriff über das **Netzwerk** (LAN-IP/Domain) braucht der Offline-Service-Worker
+> HTTPS – das terminiert man vor dem Container per **Reverse-Proxy** (Caddy/
+> Traefik/nginx), der Container bleibt HTTP. Siehe
+> [docs/local-domain-https.md](docs/local-domain-https.md) Abschnitt 3.
+
 ## Demo-Modus
 
 Mit `Demo__Enabled=true` erscheint auf der Login-Seite ein **„Demo ansehen"**-
@@ -156,10 +163,12 @@ dotnet PrivateLibrary.Api.dll
 
 ## Lokale Domain & HTTPS
 
-Siehe **[docs/local-domain-https.md](docs/local-domain-https.md)** für eine
-kostenlose lokale Domain (`revia.local`) und ein lokal vertrauenswürdiges
-HTTPS-Zertifikat mit **mkcert** (sowie Hinweise zu Let's Encrypt für eine echte
-öffentliche Domain).
+HTTPS ist im LAN **Pflicht fürs Offline-Funktionieren** (Service Worker nur im
+secure context). `./setup-https.sh` richtet einmalig eine lokal vertrauenswürdige
+CA + Zertifikat mit **mkcert** ein; `certs/rootCA.pem` muss auf jedem Handy
+installiert werden. Details, eine optionale lokale Domain (`revia.local`) und
+Hinweise zu Let's Encrypt für eine echte öffentliche Domain stehen in
+**[docs/local-domain-https.md](docs/local-domain-https.md)**.
 
 ## Lizenz
 
