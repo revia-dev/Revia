@@ -22,7 +22,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-API_PROJ="$ROOT/PrivateLibrary.Api/PrivateLibrary.Api.csproj"
+API_PROJ="$ROOT/Revia.Api/Revia.Api.csproj"
 OUT="$ROOT/.lan-publish"
 PORT="${REVIA_LAN_PORT:-5047}"
 CERT="$ROOT/certs/revia-cert.pem"
@@ -30,14 +30,14 @@ KEY="$ROOT/certs/revia-key.pem"
 
 # Shared SQLite DB + photo storage (the same files the app already uses). Absolute so
 # they don't depend on the process working directory.
-DB_PATH="$ROOT/PrivateLibrary/Data/private-library.db"
-DATA_DIR="$ROOT/PrivateLibrary/Data"
+DB_PATH="$ROOT/Revia/Data/revia-library.db"
+DATA_DIR="$ROOT/Revia/Data"
 
 # A stable JWT signing key so issued tokens survive a restart. Override in the
 # environment for anything beyond a home LAN.
 SIGNING_KEY="${REVIA_JWT_KEY:-revia-lan-stable-signing-key-please-override-32+chars!!}"
 
-if [[ "${1:-}" == "--publish" || ! -f "$OUT/PrivateLibrary.Api.dll" ]]; then
+if [[ "${1:-}" == "--publish" || ! -f "$OUT/Revia.Api.dll" ]]; then
     echo "==> Publishing Revia (Api + WASM client + service worker)…"
     rm -rf "$OUT"
     dotnet publish "$API_PROJ" -c Release -o "$OUT"
@@ -67,6 +67,6 @@ exec env \
     PersonPhotos__StoragePath="${DATA_DIR}/person-photos" \
     GameFiles__StoragePath="${DATA_DIR}/game-files" \
     "${CERT_ENV[@]}" \
-    dotnet "$OUT/PrivateLibrary.Api.dll" \
+    dotnet "$OUT/Revia.Api.dll" \
         --contentRoot "$OUT" \
         --urls "${SCHEME}://0.0.0.0:${PORT}"

@@ -1,0 +1,28 @@
+@using Revia.Modules.Lending.Models
+
+<span class="status-badge @CssClass">@Text</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public LendingEntryStatus Status { get; set; }
+
+    private string CssClass => Status switch
+    {
+        LendingEntryStatus.Active => "status-active",
+        LendingEntryStatus.Overdue => "status-overdue",
+        LendingEntryStatus.Returned => "status-returned",
+        LendingEntryStatus.Lost => "status-lost",
+        LendingEntryStatus.GivenAway => "status-given-away",
+        _ => "status-active"
+    };
+
+    private string Text => Status switch
+    {
+        LendingEntryStatus.Active => "Aktiv",
+        LendingEntryStatus.Overdue => "Überfällig",
+        LendingEntryStatus.Returned => "Zurückgegeben",
+        LendingEntryStatus.Lost => "Verloren",
+        LendingEntryStatus.GivenAway => "Verschenkt",
+        _ => "Unbekannt"
+    };
+}

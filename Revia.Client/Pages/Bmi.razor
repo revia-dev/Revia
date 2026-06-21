@@ -1,0 +1,183 @@
+@page "/bmi"
+@attribute [Authorize]
+@using Revia.Client.Features.Bmi
+@using Revia.Client.Offline
+@using Revia.Shared.Bmi
+@using Revia.Shared.Persons
+@inject BmiClientService BmiSvc
+@inject ConnectivityService Connectivity
+@inject SyncEngine Sync
+@inject Microsoft.Extensions.Localization.IStringLocalizer<Revia.Client.Resources.AppStrings> Loc
+@implements IDisposable
+
+<PageTitle>BMI – Revia</PageTitle>
+
+<ModuleGuard ModuleKey="bmi">
+
+<PageHeader Title="@Loc["Page_Bmi"]" Pending="_pending" />
+
+<CsvBackup Module="bmi" Label="BMI" OnImported="ReloadAsync" />
+
+<div class="glass bmi-form">
+    <div class="bmi-row">
+        <label>Person</label>
+        <select class="form-control" @bind="_personId">
+            <option value="">Bitte wählen</option>
+            @foreach (var p in _persons.Where(p => !string.IsNullOrEmpty(p.Id)))
+            {
+                <option value="@p.Id">@p.DisplayName</option>
+            }
+        </select>
+    </div>
+    <div class="bmi-row">
+        <label>Gewicht (kg)</label>
+        <input class="form-control" type="number" step="0.1" @bind="_weight" @bind:event="oninput" />
+    </div>
+    <div class="bmi-row">
+        <label>Größe (cm)</label>
+        <input class="form-control" type="number" step="0.1" @bind="_height" @bind:event="oninput" />
+    </div>
+    <div class="bmi-row">
+        <label>Foto (optional)</label>
+        <InputFile OnChange="OnPhotoSelected" accept="image/*" />
+        @if (_photoBase64 is not null) { <span class="wl-muted">Foto gewählt ✓</span> }
+    </div>
+    <div class="bmi-row">
+        <span class="bmi-preview">BMI: @PreviewBmi</span>
+        <button class="btn btn-primary" @onclick="AddAsync" disabled="@(!CanAdd)">Messung speichern</button>
+    </div>
+    @if (_error is not null) { <div class="login-error">@_error</div> }
+</div>
+
+@if (_loading)
+{
+    <p class="wl-muted">Lade…</p>
+}
+else if (_records.Count == 0)
+{
+    <p class="wl-muted">Noch keine Messungen.</p>
+}
+else
+{
+    <table class="bmi-table">
+        <thead>
+            <tr><th>Foto</th><th>Person</th><th>Datum</th><th>kg</th><th>cm</th><th>BMI</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var r in _records.OrderByDescending(x => x.MeasuredOn).ThenByDescending(x => x.Id))
+            {
+                <tr @key="r.Id">
+                    <td>
+                        @if (r.HasPhoto && r.PhotoUrl is not null)
+                        {
+                            <AuthImage Src="@r.PhotoUrl" CssClass="bmi-thumb" Alt="BMI-Foto" />
+                        }
+                        else { <span class="wl-muted">—</span> }
+                    </td>
+                    <td>@r.PersonDisplayName</td>
+                    <td>@r.MeasuredOn.ToString("dd.MM.yyyy")</td>
+                    <td>@r.WeightKg.ToString("0.#")</td>
+                    <td>@r.HeightCm.ToString("0.#")</td>
+                    <td>@r.Bmi.ToString("0.#")</td>
+                    <td><button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(r.Id)">Löschen</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+</ModuleGuard>
+
+@code {
+    private List<BmiRecordDto> _records = new();
+    private List<PersonLookupDto> _persons = new();
+    private string _personId = string.Empty;
+    private double? _weight;
+    private double? _height;
+    private string? _photoBase64;
+    private string? _photoContentType;
+    private string? _photoName;
+    private string? _error;
+    private bool _loading = true;
+    private int _pending;
+
+    private bool CanAdd => !string.IsNullOrEmpty(_personId) && _weight is > 0 && _height is > 0;
+
+    private string PreviewBmi => (_weight is > 0 && _height is > 0)
+        ? Math.Round(_weight.Value / Math.Pow(_height.Value / 100.0, 2), 1).ToString("0.#")
+        : "—";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Connectivity.Changed += OnConnectivityChanged;
+        Sync.Synced += OnSynced;
+        _persons = await BmiSvc.GetPersonsAsync();
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+        _loading = false;
+    }
+
+    private async Task ReloadAsync()
+    {
+        _records = await BmiSvc.GetAllAsync();
+        StateHasChanged();
+    }
+
+    private async Task OnPhotoSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null) { return; }
+        // Resize cap: read up to ~3 MB.
+        using var stream = file.OpenReadStream(3 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        _photoBase64 = Convert.ToBase64String(ms.ToArray());
+        _photoContentType = file.ContentType;
+        _photoName = file.Name;
+    }
+
+    private async Task AddAsync()
+    {
+        _error = null;
+        if (!CanAdd) { return; }
+
+        var personName = _persons.FirstOrDefault(p => p.Id == _personId)?.DisplayName ?? "";
+        await BmiSvc.AddAsync(new AddBmiRecordRequest
+        {
+            PersonId = _personId,
+            MeasuredOn = DateTime.Today,
+            WeightKg = _weight!.Value,
+            HeightCm = _height!.Value,
+            PhotoBase64 = _photoBase64,
+            PhotoContentType = _photoContentType,
+            PhotoName = _photoName
+        }, personName);
+
+        _weight = null; _height = null; _photoBase64 = null; _photoContentType = null; _photoName = null;
+        await AfterWriteAsync();
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        await BmiSvc.DeleteAsync(id);
+        await AfterWriteAsync();
+    }
+
+    private async Task AfterWriteAsync()
+    {
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+        StateHasChanged();
+    }
+
+    private async void OnConnectivityChanged(bool online) => await InvokeAsync(ReloadAsync);
+
+    private async void OnSynced(SyncResult result)
+        => await InvokeAsync(async () => { await ReloadAsync(); _pending = result.Remaining; StateHasChanged(); });
+
+    public void Dispose()
+    {
+        Connectivity.Changed -= OnConnectivityChanged;
+        Sync.Synced -= OnSynced;
+    }
+}

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#eaf2fa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0e1c28" media="(prefers-color-scheme: dark)" />
+    <base href="/" />
+    <ResourcePreloader />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["Revia.styles.css"]" />
+    <ImportMap />
+    <link rel="icon" type="image/png" sizes="64x64" href="/images/app-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/images/app-icon.png" />
+    <link rel="shortcut icon" href="/images/app-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/images/app-icon.png" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <ReconnectModal />
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    <script src="@Assets["js/mediaCapture.js"]"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .catch(() => {});
+        }
+    </script>
+</body>
+
+</html>

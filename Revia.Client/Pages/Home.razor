@@ -1,0 +1,300 @@
+@page "/"
+@attribute [Authorize]
+@using Revia.Client.Features.Dashboard
+@using Revia.Client.Features.Analytics
+@using Revia.Client.Features.Access
+@using Revia.Client.Offline
+@using Revia.Shared.Dashboard
+@using Revia.Shared.Access
+@inject DashboardClientService DashSvc
+@inject AccessClientService Access
+@inject LayoutClientService LayoutSvc
+@inject ConnectivityService Connectivity
+@inject Microsoft.Extensions.Localization.IStringLocalizer<Revia.Client.Resources.AppStrings> Loc
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>Revia Library</PageTitle>
+
+<div class="wl-head">
+    <h1>@Loc["Dashboard_Title"]</h1>
+    @if (!Connectivity.IsOnline)
+    {
+        <span class="wl-offline">⚡ @Loc["App_Offline"]</span>
+    }
+    <div class="dash-head-actions">
+        @if (Access.IsAdmin)
+        {
+            <a class="btn btn-outline-secondary btn-sm" href="/admin/permissions">@Loc["Dashboard_Permissions"]</a>
+        }
+        @if (LayoutSvc.IsOnline)
+        {
+            <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleCustomize">@(_customizing ? Loc["Dashboard_Done"] : Loc["Dashboard_Customize"])</button>
+        }
+    </div>
+</div>
+
+@if (_loading)
+{
+    <p class="wl-muted">Lade…</p>
+}
+else if (_customizing)
+{
+    <div class="dash-customize glass">
+        <h2 class="ui-section-title">Modul-Kacheln</h2>
+        <p class="wl-muted">Zum Umsortieren am Griff ziehen (auf dem Handy gedrückt halten) oder die Pfeile nutzen.</p>
+        <ul class="cust-list" @ref="_tilesList">
+            @for (var i = 0; i < _tiles.Count; i++)
+            {
+                var idx = i; var t = _tiles[idx];
+                <li class="cust-row" @key="t.Key">
+                    <span class="cust-handle" title="Ziehen">⠿</span>
+                    <span class="cust-label">@TileLabel(t.Key)</span>
+                    <span class="cust-actions">
+                        <button class="btn btn-outline-secondary btn-sm" disabled="@(idx == 0)" @onclick="() => MoveTile(idx, -1)">↑</button>
+                        <button class="btn btn-outline-secondary btn-sm" disabled="@(idx == _tiles.Count - 1)" @onclick="() => MoveTile(idx, 1)">↓</button>
+                        <button class="btn btn-outline-secondary btn-sm cust-eye" @onclick="() => ToggleTile(idx, !t.Visible)" title="@(t.Visible ? "Ausblenden" : "Einblenden")">@(t.Visible ? "👁" : "🚫")</button>
+                    </span>
+                </li>
+            }
+        </ul>
+
+        <h2 class="ui-section-title">Dashboard-Bereiche</h2>
+        <ul class="cust-list" @ref="_sectionsList">
+            @for (var i = 0; i < _sections.Count; i++)
+            {
+                var idx = i; var s = _sections[idx];
+                <li class="cust-row" @key="s.Key">
+                    <span class="cust-handle" title="Ziehen">⠿</span>
+                    <span class="cust-label">@s.Label</span>
+                    <span class="cust-actions">
+                        <button class="btn btn-outline-secondary btn-sm" disabled="@(idx == 0)" @onclick="() => MoveSection(idx, -1)">↑</button>
+                        <button class="btn btn-outline-secondary btn-sm" disabled="@(idx == _sections.Count - 1)" @onclick="() => MoveSection(idx, 1)">↓</button>
+                        <button class="btn btn-outline-secondary btn-sm cust-eye" @onclick="() => ToggleSection(idx, !s.Visible)" title="@(s.Visible ? "Ausblenden" : "Einblenden")">@(s.Visible ? "👁" : "🚫")</button>
+                    </span>
+                </li>
+            }
+        </ul>
+
+        <div class="game-actions">
+            <button class="btn btn-primary" @onclick="SaveLayoutAsync">Speichern</button>
+            <button class="btn btn-outline-secondary" @onclick="ResetLayoutAsync">Zurücksetzen</button>
+        </div>
+        @if (_layoutError is not null) { <div class="login-error">@_layoutError</div> }
+    </div>
+}
+else
+{
+    @foreach (var section in VisibleSections)
+    {
+        @switch (section)
+        {
+            case "modules":
+                <section class="dash-tiles">
+                    @foreach (var tile in VisibleTiles)
+                    {
+                        <a class="dash-tile glass" href="@TileRoute(tile.Key)">
+                            <div class="dash-tile-value">@TileValue(tile.Key)</div>
+                            <div class="dash-tile-label">@TileLabel(tile.Key)</div>
+                        </a>
+                    }
+                </section>
+                break;
+            case "kpis":
+                <section class="dash-kpis">
+                    <div class="dash-kpi glass"><div class="dash-kpi-value">@_d.ActiveLendings</div><div class="dash-kpi-label">Aktive Ausleihen</div></div>
+                    <div class="dash-kpi glass"><div class="dash-kpi-value">@_d.OverdueLendings</div><div class="dash-kpi-label">Überfällig</div></div>
+                    <div class="dash-kpi glass"><div class="dash-kpi-value">@_d.ReturnedLendings</div><div class="dash-kpi-label">Zurückgegeben</div></div>
+                    <div class="dash-kpi glass"><div class="dash-kpi-value">@_d.Persons</div><div class="dash-kpi-label">Personen</div></div>
+                </section>
+                break;
+            case "chart":
+                <section class="dash-chart glass">
+                    <h2 class="ui-section-title">Ausleihen nach Status</h2>
+                    @{
+                        var total = _d.ActiveLendings + _d.OverdueLendings + _d.ReturnedLendings;
+                    }
+                    @if (total == 0)
+                    {
+                        <p class="wl-muted">Noch keine Ausleihen.</p>
+                    }
+                    else
+                    {
+                        <div class="chart-bars">
+                            <div class="chart-row">
+                                <span class="chart-label">Aktiv</span>
+                                <span class="chart-track"><span class="chart-fill chart-active" style="width:@Pct(_d.ActiveLendings, total)%"></span></span>
+                                <span class="chart-value">@_d.ActiveLendings</span>
+                            </div>
+                            <div class="chart-row">
+                                <span class="chart-label">Überfällig</span>
+                                <span class="chart-track"><span class="chart-fill chart-overdue" style="width:@Pct(_d.OverdueLendings, total)%"></span></span>
+                                <span class="chart-value">@_d.OverdueLendings</span>
+                            </div>
+                            <div class="chart-row">
+                                <span class="chart-label">Zurück</span>
+                                <span class="chart-track"><span class="chart-fill chart-returned" style="width:@Pct(_d.ReturnedLendings, total)%"></span></span>
+                                <span class="chart-value">@_d.ReturnedLendings</span>
+                            </div>
+                        </div>
+                    }
+                </section>
+                break;
+            case "analytics":
+                <AnalyticsBoard />
+                break;
+        }
+    }
+}
+
+@code {
+    private DashboardDto _d = new();
+    private bool _loading = true;
+    private bool _customizing;
+    private List<TileLayoutItemDto> _tiles = new();
+    private List<SectionLayoutItemDto> _sections = new();
+    private string? _layoutError;
+
+    // Drag-sort (SortableJS, touch + mouse) wiring for the customise lists.
+    private ElementReference _tilesList;
+    private ElementReference _sectionsList;
+    private DotNetObjectReference<Home>? _selfRef;
+    private bool _sortablesAttached;
+
+    // Tiles the user is allowed to read AND has visible.
+    private IEnumerable<TileLayoutItemDto> VisibleTiles =>
+        _tiles.Where(t => t.Visible && Access.CanRead(t.Key));
+
+    private IEnumerable<string> VisibleSections =>
+        _sections.Where(s => s.Visible).Select(s => s.Key);
+
+    /// <summary>Dashboard sections this client knows how to render. Others coming from
+    /// the saved layout (e.g. legacy "overdue"/"recent") are filtered out.</summary>
+    private static readonly HashSet<string> Renderable =
+        new(StringComparer.Ordinal) { "modules", "kpis", "chart", "analytics" };
+
+    private static int Pct(int value, int total) => total <= 0 ? 0 : (int)Math.Round(value * 100.0 / total);
+
+    private static readonly Dictionary<string, (string Label, string Route)> TileMeta = new()
+    {
+        ["movies"] = ("Filme", "/movies"),
+        ["tv"] = ("TV-Einträge", "/tv"),
+        ["lending"] = ("Ausleihen (aktiv)", "/lending"),
+        ["games"] = ("Spiele", "/games"),
+        ["bmi"] = ("BMI-Messungen", "/bmi"),
+        ["wishlists"] = ("offene Wünsche", "/wishlists"),
+        ["persons"] = ("Personen", "/persons"),
+    };
+
+    private string TileLabel(string key) => TileMeta.TryGetValue(key, out var m) ? m.Label : key;
+    private string TileRoute(string key) => TileMeta.TryGetValue(key, out var m) ? m.Route : "/";
+    private int TileValue(string key) => key switch
+    {
+        "movies" => _d.Movies,
+        "tv" => _d.TvEntries,
+        "lending" => _d.ActiveLendings,
+        "games" => _d.Games,
+        "bmi" => _d.BmiRecords,
+        "wishlists" => _d.OpenWishes,
+        "persons" => _d.Persons,
+        _ => 0
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Connectivity.Changed += OnConnectivityChanged;
+        _selfRef = DotNetObjectReference.Create(this);
+        // Force a refresh so the dashboard always reflects the signed-in user's access
+        // (the in-memory copy is invalidated on login, but be explicit here too).
+        await Access.GetMyAccessAsync(forceRefresh: true);
+        await LoadAsync();
+        _loading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Attach drag-sort once the customise lists are in the DOM; detach when closed.
+        if (_customizing && !_sortablesAttached && _selfRef is not null)
+        {
+            await JS.InvokeVoidAsync("reviaSortable.attach", _tilesList, _selfRef, "OnReorderTiles", "cust-handle");
+            await JS.InvokeVoidAsync("reviaSortable.attach", _sectionsList, _selfRef, "OnReorderSections", "cust-handle");
+            _sortablesAttached = true;
+        }
+        else if (!_customizing && _sortablesAttached)
+        {
+            _sortablesAttached = false; // lists are gone from the DOM; nothing to detach
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _d = await DashSvc.GetAsync();
+        var layout = await LayoutSvc.GetAsync();
+        _tiles = layout.Tiles;
+        // Only keep sections the dashboard can actually render, so the customise
+        // panel never offers a section that would show nothing.
+        _sections = layout.Sections.Where(s => Renderable.Contains(s.Key)).ToList();
+        StateHasChanged();
+    }
+
+    private void ToggleCustomize() => _customizing = !_customizing;
+
+    private void MoveTile(int i, int delta) => Move(_tiles, i, delta);
+    private void MoveSection(int i, int delta) => Move(_sections, i, delta);
+    private static void Move<T>(List<T> list, int i, int delta)
+    {
+        var j = i + delta;
+        if (j < 0 || j >= list.Count) return;
+        (list[i], list[j]) = (list[j], list[i]);
+    }
+
+    /// <summary>Called by SortableJS after a tile drag (touch or mouse). It reorders
+    /// the DOM; we mirror that into the model, then re-render from the model.</summary>
+    [JSInvokable]
+    public void OnReorderTiles(int oldIndex, int newIndex)
+    {
+        Reorder(_tiles, oldIndex, newIndex);
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnReorderSections(int oldIndex, int newIndex)
+    {
+        Reorder(_sections, oldIndex, newIndex);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private static void Reorder<T>(List<T> list, int from, int to)
+    {
+        if (from == to || from < 0 || from >= list.Count || to < 0 || to >= list.Count) return;
+        var item = list[from];
+        list.RemoveAt(from);
+        list.Insert(to, item);
+    }
+
+    private void ToggleTile(int i, bool visible) => _tiles[i].Visible = visible;
+    private void ToggleSection(int i, bool visible) => _sections[i].Visible = visible;
+
+    private async Task SaveLayoutAsync()
+    {
+        _layoutError = null;
+        var ok = await LayoutSvc.SaveAsync(new LayoutDto { Tiles = _tiles, Sections = _sections });
+        if (ok) { _customizing = false; await LoadAsync(); }
+        else { _layoutError = "Speichern fehlgeschlagen (offline?)."; }
+    }
+
+    private async Task ResetLayoutAsync()
+    {
+        _layoutError = null;
+        if (await LayoutSvc.ResetAsync()) { _customizing = false; await LoadAsync(); }
+        else { _layoutError = "Zurücksetzen fehlgeschlagen (offline?)."; }
+    }
+
+    private async void OnConnectivityChanged(bool online) => await InvokeAsync(LoadAsync);
+
+    public void Dispose()
+    {
+        Connectivity.Changed -= OnConnectivityChanged;
+        _selfRef?.Dispose();
+    }
+}

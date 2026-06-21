@@ -1,0 +1,292 @@
+@page "/games/{GameId:int}/matches"
+@attribute [Authorize]
+@using Revia.Client.Features.Games
+@using Revia.Client.Offline
+@using Revia.Shared.Games
+@using Revia.Shared.Media
+@using Revia.Shared.Persons
+@inject GameMatchClientService MatchSvc
+@inject GameClientService GameSvc
+@inject ConnectivityService Connectivity
+@inject SyncEngine Sync
+@inject Microsoft.Extensions.Localization.IStringLocalizer<Revia.Client.Resources.AppStrings> Loc
+@implements IDisposable
+
+<PageTitle>Partien – Revia</PageTitle>
+
+<ModuleGuard ModuleKey="games">
+
+<div class="wl-head">
+    <h1>Partien@(_gameName is null ? "" : $": {_gameName}")</h1>
+    @if (!Connectivity.IsOnline)
+    {
+        <span class="wl-offline">⚡ Offline@(_pending > 0 ? $" · {_pending} ausstehend" : "")</span>
+    }
+    else if (_pending > 0)
+    {
+        <span class="wl-syncing">Synchronisiere @_pending…</span>
+    }
+    <a class="btn btn-outline-secondary btn-sm" href="/games">@Loc["App_Back"]</a>
+    <button class="btn btn-primary" @onclick="StartCreate">Neue Partie</button>
+</div>
+
+<CsvBackup Module="matches" Label="Partien" OnImported="ReloadAsync" />
+
+@if (_edit is not null)
+{
+    <div class="glass game-editor">
+        <h2 class="ui-section-title">@(_edit.Id > 0 ? "Partie bearbeiten" : "Neue Partie")</h2>
+        <div class="game-form">
+            <div class="game-field"><label>Titel</label>
+                <input class="form-control" @bind="_edit.Title" /></div>
+            <div class="game-field"><label>Datum</label>
+                <input class="form-control" type="date" @bind="_edit.PlayedOn" /></div>
+            <div class="game-field game-wide"><label>Teilnehmer &amp; Punkte</label>
+                @foreach (var p in _edit.Participants)
+                {
+                    <div class="game-score-row" @key="p">
+                        <select class="form-control" @bind="p.PersonId">
+                            <option value="">Person…</option>
+                            @foreach (var person in _persons.Where(x => !string.IsNullOrEmpty(x.Id)))
+                            {
+                                <option value="@person.Id">@person.DisplayName</option>
+                            }
+                        </select>
+                        <input class="form-control" type="number" step="0.1" placeholder="Punkte" @bind="p.Score" />
+                        <button class="btn btn-outline-danger btn-sm" @onclick="() => _edit.Participants.Remove(p)">×</button>
+                    </div>
+                }
+                <button class="btn btn-outline-secondary btn-sm" @onclick="() => _edit.Participants.Add(new MatchParticipantInputDto())">+ Teilnehmer</button>
+            </div>
+        </div>
+        <div class="game-actions">
+            <button class="btn btn-primary" @onclick="SaveAsync">@Loc["App_Save"]</button>
+            <button class="btn btn-outline-secondary" @onclick="() => _edit = null">@Loc["App_Cancel"]</button>
+        </div>
+
+        @if (_edit.Id > 0)
+        {
+            <div class="game-field game-wide">
+                <label>Fotos</label>
+                @if (_editPhotos.Count > 0)
+                {
+                    <div class="match-photos">
+                        @foreach (var url in _editPhotos)
+                        {
+                            <div class="photo-edit-item">
+                                <AuthImage Src="@url" CssClass="match-photo" Alt="Partie-Foto" />
+                                <button class="btn btn-outline-danger btn-sm" @onclick="() => DeletePhotoAsync(url)">×</button>
+                            </div>
+                        }
+                    </div>
+                }
+                <PhotoUploader OnUpload="UploadMatchPhotoAsync" OnUploaded="RefreshEditPhotosAsync" Label="Foto(s) hinzufügen" />
+            </div>
+        }
+        else
+        {
+            <p class="wl-muted">Fotos kannst du nach dem Speichern der Partie hinzufügen.</p>
+        }
+
+        @if (_edit.Id > 0)
+        {
+            <details class="sb-details" open="@_scoreboardOpen">
+                <summary @onclick:preventDefault @onclick="() => _scoreboardOpen = !_scoreboardOpen">
+                    Live-Wertung & Punkte-Tausch
+                </summary>
+                <MatchScoreboard MatchId="_edit.Id" Participants="_edit.Participants"
+                                 NameOf="NameOf" OnChanged="OnScoreboardChangedAsync" />
+            </details>
+        }
+    </div>
+}
+
+@if (_loading)
+{
+    <p class="wl-muted">Lade…</p>
+}
+else if (_matches.Count == 0)
+{
+    <p class="wl-muted">Noch keine Partien.</p>
+}
+else
+{
+    @foreach (var m in _matches.OrderByDescending(x => x.PlayedOn).ThenByDescending(x => x.Id))
+    {
+        <div class="match-card glass" @key="m.Id">
+            <div class="match-head">
+                <div>
+                    <span class="match-title">@(string.IsNullOrWhiteSpace(m.Title) ? "Partie" : m.Title)</span>
+                    <span class="wl-muted"> · @m.PlayedOn.ToString("dd.MM.yyyy")</span>
+                    @if (m.IsCompleted) { <span class="badge badge-ok">abgeschlossen</span> }
+                </div>
+                <div class="match-actions">
+                    @if (!m.IsCompleted)
+                    {
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => StartEdit(m)">@Loc["App_Edit"]</button>
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => SetCompletedAsync(m, true)">Abschließen</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => SetCompletedAsync(m, false)">Wieder öffnen</button>
+                    }
+                    <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(m.Id)">@Loc["App_Delete"]</button>
+                </div>
+            </div>
+            <ul class="match-participants">
+                @foreach (var p in m.Participants.OrderByDescending(x => x.Score ?? double.MinValue))
+                {
+                    <li>
+                        <span>@(string.IsNullOrWhiteSpace(p.PersonDisplayName) ? "—" : p.PersonDisplayName)</span>
+                        <span class="match-score">@(p.Score?.ToString("0.#") ?? "–")</span>
+                    </li>
+                }
+            </ul>
+            @if (m.PhotoUrls.Count > 0)
+            {
+                <div class="match-photos">
+                    @foreach (var url in m.PhotoUrls)
+                    {
+                        <AuthImage Src="@url" CssClass="match-photo" Alt="Partie-Foto" />
+                    }
+                </div>
+            }
+        </div>
+    }
+}
+
+</ModuleGuard>
+
+@code {
+    [Parameter] public int GameId { get; set; }
+
+    private List<GameMatchDto> _matches = new();
+    private List<PersonLookupDto> _persons = new();
+    private SaveMatchRequest? _edit;
+    private List<string> _editPhotos = new();
+    private bool _scoreboardOpen;
+    private string? _gameName;
+    private bool _loading = true;
+    private int _pending;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Connectivity.Changed += OnConnectivityChanged;
+        Sync.Synced += OnSynced;
+        _persons = await MatchSvc.GetPersonsAsync();
+        var games = await GameSvc.GetAllAsync();
+        _gameName = games.FirstOrDefault(g => g.Id == GameId)?.Name;
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+        _loading = false;
+    }
+
+    private async Task ReloadAsync()
+    {
+        _matches = await MatchSvc.GetForGameAsync(GameId);
+        StateHasChanged();
+    }
+
+    private string NameOf(string personId)
+        => _persons.FirstOrDefault(p => p.Id == personId)?.DisplayName ?? personId;
+
+    /// <summary>Persists the live scoreboard's scores (optimistic + queued).</summary>
+    private async Task OnScoreboardChangedAsync()
+    {
+        if (_edit is null) return;
+        var names = _persons.ToDictionary(p => p.Id, p => p.DisplayName);
+        await MatchSvc.SaveAsync(_edit, names);
+        await ReloadAsync();
+        StateHasChanged();
+    }
+
+    private void StartCreate()
+    {
+        _editPhotos = new();
+        _edit = new SaveMatchRequest
+        {
+            GameId = GameId, PlayedOn = DateTime.Today,
+            Participants = new() { new MatchParticipantInputDto() }
+        };
+    }
+
+    private void StartEdit(GameMatchDto m)
+    {
+        _editPhotos = new(m.PhotoUrls);
+        _edit = new SaveMatchRequest
+        {
+            Id = m.Id, GameId = GameId, Title = m.Title, PlayedOn = m.PlayedOn,
+            ScoreDefinitionId = m.ScoreDefinitionId, Notes = m.Notes,
+            Participants = m.Participants.Select(p => new MatchParticipantInputDto { PersonId = p.PersonId, Score = p.Score }).ToList()
+        };
+    }
+
+    private async Task<bool> UploadMatchPhotoAsync(PhotoUploader.UploadedFile file)
+        => _edit is not null && await MatchSvc.UploadPhotoAsync(_edit.Id,
+            new UploadPhotoRequest { Base64 = file.Base64, ContentType = file.ContentType, FileName = file.FileName });
+
+    private async Task DeletePhotoAsync(string url)
+    {
+        if (TryPhotoId(url, out var photoId) && await MatchSvc.DeletePhotoAsync(photoId))
+        {
+            await RefreshEditPhotosAsync();
+        }
+    }
+
+    /// <summary>Re-reads the matches so the editor's photo strip reflects the server
+    /// after an upload/delete.</summary>
+    private async Task RefreshEditPhotosAsync()
+    {
+        if (_edit is null) return;
+        _matches = await MatchSvc.GetForGameAsync(GameId);
+        var current = _matches.FirstOrDefault(x => x.Id == _edit.Id);
+        _editPhotos = current is null ? new() : new(current.PhotoUrls);
+        StateHasChanged();
+    }
+
+    private static bool TryPhotoId(string url, out int id)
+    {
+        id = 0;
+        var last = url.TrimEnd('/').Split('/').LastOrDefault();
+        return int.TryParse(last, out id);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_edit is null) return;
+        _edit.Participants = _edit.Participants.Where(p => !string.IsNullOrEmpty(p.PersonId)).ToList();
+        var names = _persons.ToDictionary(p => p.Id, p => p.DisplayName);
+        await MatchSvc.SaveAsync(_edit, names);
+        _edit = null;
+        await AfterWriteAsync();
+    }
+
+    private async Task SetCompletedAsync(GameMatchDto m, bool completed)
+    {
+        await MatchSvc.SetCompletedAsync(GameId, m.Id, completed);
+        await AfterWriteAsync();
+    }
+
+    private async Task DeleteAsync(int matchId)
+    {
+        await MatchSvc.DeleteAsync(GameId, matchId);
+        await AfterWriteAsync();
+    }
+
+    private async Task AfterWriteAsync()
+    {
+        await ReloadAsync();
+        _pending = await Sync.PendingCountAsync();
+        StateHasChanged();
+    }
+
+    private async void OnConnectivityChanged(bool online) => await InvokeAsync(ReloadAsync);
+    private async void OnSynced(SyncResult result)
+        => await InvokeAsync(async () => { await ReloadAsync(); _pending = result.Remaining; StateHasChanged(); });
+
+    public void Dispose()
+    {
+        Connectivity.Changed -= OnConnectivityChanged;
+        Sync.Synced -= OnSynced;
+    }
+}

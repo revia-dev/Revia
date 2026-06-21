@@ -1,0 +1,210 @@
+@page "/lending/{Id:int}"
+@using Revia.Modules.Lending.Models
+@inject Revia.Modules.Lending.Services.ILendingService LendingService
+@inject Revia.Modules.Lending.Services.ToastService ToastService
+@inject NotificationService Notifications
+@inject NavigationManager Navigation
+
+<PageTitle>Ausleih-Details</PageTitle>
+
+<div class="page-shell">
+    @if (_item is null)
+    {
+        <div class="glass-card empty-card">Eintrag nicht gefunden.</div>
+    }
+    else
+    {
+        <div class="glass-card detail-card">
+            <div class="detail-top">
+                <div>
+                    <h1>@PrimaryItemLabel(_item)</h1>
+                    @if (AdditionalItems(_item).Any())
+                    {
+                        <p>@string.Join(", ", AdditionalItems(_item))</p>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_item.Title))
+                    {
+                        <p>@_item.Title</p>
+                    }
+                </div>
+                <LendingStatusBadge Status="@_item.Status" />
+            </div>
+
+            @if (GetCategoryNames(_item).Any())
+            {
+                <div class="detail-tags">
+                    @foreach (var category in GetCategoryNames(_item))
+                    {
+                        <span class="detail-tag">@category</span>
+                    }
+                </div>
+            }
+
+            <dl class="detail-grid">
+                <dt>Gegenstände</dt><dd>@ItemsSummary(_item)</dd>
+                <dt>Beschreibung</dt><dd>@ValueOrFallback(_item.Description)</dd>
+                <dt>Kategorien</dt><dd>@CategorySummary(_item)</dd>
+                <dt>Verleiher</dt><dd>@ValueOrFallback(_item.Lender?.DisplayName)</dd>
+                <dt>Entleiher</dt><dd>@ValueOrFallback(_item.Borrower?.DisplayName)</dd>
+                <dt>Ausleihdatum</dt><dd>@_item.LoanDate.ToString("dd.MM.yyyy")</dd>
+                <dt>Geplant zurück</dt><dd>@(_item.DueDate.HasValue ? _item.DueDate.Value.ToString("dd.MM.yyyy") : "-")</dd>
+                <dt>Zurückgegeben</dt><dd>@(_item.ReturnedAt.HasValue ? _item.ReturnedAt.Value.ToString("dd.MM.yyyy") : "-")</dd>
+                <dt>Notizen</dt><dd>@ValueOrFallback(_item.Notes)</dd>
+                <dt>Erstellt</dt><dd>@_item.CreatedAt.ToString("dd.MM.yyyy HH:mm")</dd>
+                <dt>Geändert</dt><dd>@_item.UpdatedAt.ToString("dd.MM.yyyy HH:mm")</dd>
+            </dl>
+
+            @if (_item.Photos.Count > 0)
+            {
+                <div class="detail-photos">
+                    <h2 class="ui-section-title">Fotos</h2>
+                    <div class="photo-grid">
+                        @foreach (var photo in _item.Photos.OrderBy(x => x.SortOrder).ThenBy(x => x.Id))
+                        {
+                            <a class="photo-thumb" href="@($"/lending/photos/{photo.Id}")" target="_blank" rel="noopener" @key="photo.Id">
+                                <img src="@($"/lending/photos/{photo.Id}")" alt="@(photo.OriginalName ?? "Foto")" loading="lazy" />
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="actions">
+                @if (CanBeMarkedAsReturned)
+                {
+                    <button type="button" class="btn btn-success btn-modern" @onclick="MarkAsReturnedAsync">
+                        Als zurückgegeben markieren
+                    </button>
+                }
+                <a class="btn btn-primary btn-modern" href="@($"/lending/edit/{_item.Id}")">Bearbeiten</a>
+                <a class="btn btn-secondary btn-modern" href="/lending">Zurück zur Liste</a>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .detail-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .45rem;
+        margin: 1rem 0 1.25rem;
+    }
+
+    .detail-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: .25rem .65rem;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: .82rem;
+        font-weight: 600;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private LendingEntry? _item;
+
+    private bool CanBeMarkedAsReturned => _item is not null
+        && !_item.ReturnedAt.HasValue
+        && _item.Status is not LendingEntryStatus.Returned
+        && _item.Status is not LendingEntryStatus.GivenAway
+        && _item.Status is not LendingEntryStatus.Lost;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _item = await LendingService.GetByIdAsync(Id);
+    }
+
+    private async Task MarkAsReturnedAsync()
+    {
+        if (_item is null)
+        {
+            return;
+        }
+
+        var updatedEntry = new LendingEntry
+        {
+            Id = _item.Id,
+            Title = _item.Title,
+            Description = _item.Description,
+            ItemName = _item.ItemName,
+            Category = _item.Category,
+            LenderId = _item.LenderId,
+            BorrowerId = _item.BorrowerId,
+            LoanDate = _item.LoanDate,
+            DueDate = _item.DueDate,
+            ReturnedAt = DateTime.Today,
+            Notes = _item.Notes,
+            Status = _item.Status,
+            Items = _item.Items
+                .OrderBy(x => x.SortOrder)
+                .Select(x => new LendingItem
+                {
+                    Name = x.Name,
+                    SortOrder = x.SortOrder
+                })
+                .ToList(),
+            CategoryLinks = _item.CategoryLinks
+                .Select(x => new LendingEntryCategory
+                {
+                    LendingCategoryId = x.LendingCategoryId
+                })
+                .ToList()
+        };
+
+        var updated = await LendingService.UpdateAsync(updatedEntry);
+        if (updated is null)
+        {
+            ToastService.Error("Der Eintrag konnte nicht aktualisiert werden.");
+            return;
+        }
+
+        ToastService.Success("Eintrag als zurückgegeben markiert.");
+        await Notifications.Notify(AppNotification.LendingReturned(
+            _item?.Title ?? PrimaryItemLabel(_item!), Id));
+        _item = await LendingService.GetByIdAsync(Id);
+    }
+
+    private static string ValueOrFallback(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private static string PrimaryItemLabel(LendingEntry item)
+        => item.Items.OrderBy(x => x.SortOrder).Select(x => x.Name).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+           ?? ValueOrFallback(item.ItemName);
+
+    private static IReadOnlyList<string> AdditionalItems(LendingEntry item)
+        => item.Items.OrderBy(x => x.SortOrder)
+            .Select(x => x.Name)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Skip(1)
+            .ToList();
+
+    private static IReadOnlyList<string> GetCategoryNames(LendingEntry item)
+        => item.CategoryLinks
+            .Select(x => x.LendingCategory?.Name)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .Cast<string>()
+            .ToList();
+
+    private static string ItemsSummary(LendingEntry item)
+    {
+        var items = item.Items.OrderBy(x => x.SortOrder)
+            .Select(x => x.Name)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        return items.Count == 0 ? ValueOrFallback(item.ItemName) : string.Join(", ", items);
+    }
+
+    private static string CategorySummary(LendingEntry item)
+    {
+        var categories = GetCategoryNames(item);
+        return categories.Count == 0 ? ValueOrFallback(item.Category) : string.Join(", ", categories);
+    }
+}

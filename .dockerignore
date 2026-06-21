@@ -11,7 +11,7 @@ docs/screenshots/
 **/*.db
 **/*.db-shm
 **/*.db-wal
-PrivateLibrary/Data/*.db
-PrivateLibrary/Data/*-photos/
-PrivateLibrary/Data/game-files/
-PrivateLibrary.Api/data/
+Revia/Data/*.db
+Revia/Data/*-photos/
+Revia/Data/game-files/
+Revia.Api/data/

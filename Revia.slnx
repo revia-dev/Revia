@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Revia.Api/Revia.Api.csproj" />
+  <Project Path="Revia.Client/Revia.Client.csproj" />
+  <Project Path="Revia.Shared/Revia.Shared.csproj" />
+  <Project Path="Revia.Tests/Revia.Tests.csproj" />
+  <Project Path="Revia/Revia.csproj" />
+</Solution>

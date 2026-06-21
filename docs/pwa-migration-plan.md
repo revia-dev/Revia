@@ -34,19 +34,19 @@ Offline-fähigen Client-Datenlayer) ersetzt.
 Drei Projekte (neue Solution-Struktur):
 
 ```
-PrivateLibrary.Shared   – DTOs, Enums, Validierung, Vertrags-Interfaces (kein EF, kein UI)
-PrivateLibrary.Api      – ASP.NET Core Web API: EF Core, Identity, REST-Endpunkte,
+Revia.Shared   – DTOs, Enums, Validierung, Vertrags-Interfaces (kein EF, kein UI)
+Revia.Api      – ASP.NET Core Web API: EF Core, Identity, REST-Endpunkte,
                           Datei-Serving, TMDB, Hintergrundjobs, CSV. Hostet die WASM-App.
-PrivateLibrary.Client   – Blazor WASM: UI (migrierte Razor-Komponenten), IndexedDB-Cache,
+Revia.Client   – Blazor WASM: UI (migrierte Razor-Komponenten), IndexedDB-Cache,
                           Mutations-Queue, Sync-Engine, Token-Auth.
-PrivateLibrary.Tests    – bestehend, erweitert
+Revia.Tests    – bestehend, erweitert
 ```
 
 - **Shared**: pro Modul Request/Response-DTOs (statt EF-Entities über die Leitung). Validierungsattribute hier, von Client und Api genutzt.
 - **Api**: übernimmt die heutigen Services nahezu 1:1 (sie bleiben server-seitig!), exponiert sie als Controller/Minimal-API. Household-Scoping bleibt **server-seitig erzwungen** (Sicherheit nie im Client).
 - **Client**: ruft API über typisierte `IModuleApi`-Clients. Dahinter liegt der Offline-Layer (siehe §4). UI-Komponenten kommen weitgehend unverändert herüber.
 
-Das heutige `PrivateLibrary`-Web-Projekt wird zerlegt; vorhandene Service-Logik
+Das heutige `Revia`-Web-Projekt wird zerlegt; vorhandene Service-Logik
 zieht in `Api` um (geringes Risiko, da Logik gleich bleibt).
 
 ---

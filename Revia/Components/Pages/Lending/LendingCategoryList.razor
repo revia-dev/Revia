@@ -1,0 +1,164 @@
+@page "/lending/categories"
+@using Revia.Modules.Lending.Models
+@inject Revia.Modules.Lending.Services.ILendingService LendingService
+@inject Revia.Modules.Lending.Services.ToastService ToastService
+@inject Revia.Services.PermissionService Permissions
+@inject NavigationManager Navigation
+
+<PageTitle>Kategorien</PageTitle>
+
+<div class="page-shell">
+    <div class="page-header glass-card">
+        <div>
+            <h1>Kategorien</h1>
+            <p>Kategorien für Ausleihen verwalten.</p>
+        </div>
+        @if (_canWrite)
+        {
+            <a class="btn btn-primary" href="/lending/categories/new">Neu anlegen</a>
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="glass-card ui-section">@_errorMessage</div>
+    }
+    else if (_categories is null)
+    {
+        <div class="glass-card ui-section">Lade Kategorien...</div>
+    }
+    else if (_categories.Count == 0)
+    {
+        <div class="glass-card ui-section">Noch keine Kategorien vorhanden.</div>
+    }
+    else
+    {
+        <div class="glass-card ui-section ui-stack">
+            <div class="toolbar">
+                <div class="search-box">
+                    <label class="search-label" for="category-search">Suche</label>
+                    <input id="category-search"
+                           class="form-control search-input"
+                           type="search"
+                           placeholder="Kategorie durchsuchen"
+                           @bind="_searchTerm"
+                           @bind:event="oninput" />
+                </div>
+                <div class="result-count">@FilteredCategories.Count() Kategorien</div>
+            </div>
+
+            @if (!FilteredCategories.Any())
+            {
+                <div class="glass-card ui-section">Keine Kategorien zum aktuellen Suchbegriff gefunden.</div>
+            }
+            else
+            {
+                <div class="ui-table-wrap ui-desktop-table">
+                    <table class="table ui-data-table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var category in FilteredCategories)
+                            {
+                                <tr>
+                                    <td><div class="item-title">@category.Name</div></td>
+                                    <td class="actions">
+                                        @if (_canWrite)
+                                        {
+                                            <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/categories/edit/{category.Id}")">Bearbeiten</a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategoryAsync(category.Id)">Löschen</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="ui-mobile-cards">
+                    @foreach (var category in FilteredCategories)
+                    {
+                        @if (_canWrite)
+                        {
+                            <SwipeToDelete @key="category.Id" DeleteLabel="Kategorie löschen" OnDelete="() => DeleteCategoryAsync(category.Id)">
+                                @CategoryCard(category)
+                            </SwipeToDelete>
+                        }
+                        else
+                        {
+                            <div @key="category.Id">@CategoryCard(category)</div>
+                        }
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<LendingCategory>? _categories;
+    private string _searchTerm = string.Empty;
+    private string? _errorMessage;
+    private bool _canWrite = true;
+
+    private RenderFragment CategoryCard(LendingCategory category) => @<article class="ui-mobile-card">
+        <div class="ui-mobile-card-head">
+            <div>
+                <div class="ui-mobile-card-title">@category.Name</div>
+            </div>
+        </div>
+        <div class="table-actions">
+            @if (_canWrite)
+            {
+                <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/categories/edit/{category.Id}")">Bearbeiten</a>
+                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategoryAsync(category.Id)">Löschen</button>
+            }
+        </div>
+    </article>;
+
+    private IEnumerable<LendingCategory> FilteredCategories => (_categories ?? Array.Empty<LendingCategory>())
+        .Where(category => string.IsNullOrWhiteSpace(_searchTerm)
+            || category.Name.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        var access = await Permissions.GetAccessAsync(AppModules.Lending);
+        if (!access.CanRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _canWrite = access.CanWrite;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _errorMessage = null;
+        _categories = await LendingService.GetCategoriesAsync();
+    }
+
+    private async Task DeleteCategoryAsync(int id)
+    {
+        try
+        {
+            var deleted = await LendingService.DeleteCategoryAsync(id);
+            if (!deleted)
+            {
+                ToastService.Error("Kategorie wurde nicht gefunden.");
+                return;
+            }
+
+            ToastService.Success("Kategorie gelöscht.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error(ex.Message);
+        }
+    }
+}

@@ -1,0 +1,175 @@
+@page "/movies/{Id:guid}"
+@attribute [Authorize]
+@using Revia.Client.Features.Movies
+@using Revia.Client.Features.Access
+@using Revia.Client.Offline
+@using Revia.Shared.Movies
+@inject MovieClientService MovieSvc
+@inject AccessClientService Access
+@inject NavigationManager Navigation
+@inject Microsoft.Extensions.Localization.IStringLocalizer<Revia.Client.Resources.AppStrings> Loc
+
+<PageTitle>@(_film?.Titel ?? "Film") – Revia</PageTitle>
+
+<ModuleGuard ModuleKey="movies">
+
+<div class="wl-head">
+    <h1>@(_film?.Titel ?? "Film")</h1>
+    @* Editing/deleting movies is admin-only. *@
+    @if (_film is not null && Access.IsAdmin)
+    {
+        <a class="btn btn-outline-secondary btn-sm" href="@($"/movies?edit={_film.Id}")">@Loc["App_Edit"]</a>
+        <button class="btn btn-outline-danger btn-sm" @onclick="DeleteAsync">@Loc["App_Delete"]</button>
+    }
+    <a class="btn btn-outline-secondary btn-sm" href="/movies">@Loc["App_Back"]</a>
+</div>
+
+@if (_loading)
+{
+    <p class="wl-muted">Lade…</p>
+}
+else if (_film is null)
+{
+    <p class="wl-muted">Film nicht gefunden.</p>
+}
+else
+{
+    <div class="movie-detail glass">
+        <img class="movie-detail-poster" src="@PosterUrl(_film)" alt="@_film.Titel" />
+        <div class="movie-detail-info">
+            <div class="movie-detail-facts">
+                @if (!string.IsNullOrWhiteSpace(_film.Jahr)) { <span><span class="wl-muted">Jahr</span> @_film.Jahr</span> }
+                @if (_film.Runtime is int rt) { <span><span class="wl-muted">Laufzeit</span> @rt min</span> }
+                @if (!string.IsNullOrWhiteSpace(_film.Fsk)) { <span><span class="wl-muted">FSK</span> @_film.Fsk</span> }
+                @if (!string.IsNullOrWhiteSpace(_film.Kategorie)) { <span><span class="wl-muted">Kategorie</span> @_film.Kategorie</span> }
+            </div>
+
+            @if (_film.Anbieter is { Count: > 0 })
+            {
+                <div class="movie-detail-tags">
+                    @foreach (var a in _film.Anbieter) { <span class="badge">@a</span> }
+                </div>
+            }
+            @if (_film.Tags is { Count: > 0 })
+            {
+                <div class="movie-detail-tags">
+                    @foreach (var t in _film.Tags) { <span class="badge badge-soft">@t</span> }
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_film.Handlung))
+            {
+                <p class="movie-detail-plot">@_film.Handlung</p>
+            }
+        </div>
+    </div>
+
+    @if (_seriesGroups.Count > 0)
+    {
+        <section class="movie-detail-related glass">
+            <h2 class="ui-section-title">Filmreihe</h2>
+            @if (_seriesGroups.Count > 1)
+            {
+                <div class="series-tabs">
+                    @foreach (var key in _seriesGroups.Keys)
+                    {
+                        <button class="series-tab @(key == _activeSeries ? "is-active" : "")"
+                                @onclick="() => _activeSeries = key">@SeriesLabel(key) (@_seriesGroups[key].Count)</button>
+                    }
+                </div>
+            }
+            <div class="movie-detail-related-grid">
+                @foreach (var related in ActiveSeriesFilms)
+                {
+                    <a class="movie-detail-related-card @(related.Id == _film.Id ? "is-active" : "")"
+                       href="@($"/movies/{related.Id}")">
+                        <img class="related-poster" src="@PosterUrl(related)" alt="@related.Titel" loading="lazy" />
+                        <span class="related-title">@(related.Titel ?? "Unbekannt")</span>
+                        @if (!string.IsNullOrWhiteSpace(related.Jahr)) { <span class="related-year">@related.Jahr</span> }
+                    </a>
+                }
+            </div>
+        </section>
+    }
+}
+
+</ModuleGuard>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private MovieDto? _film;
+    private bool _loading = true;
+
+    // Series key -> the films in it (>= 2), and the currently shown series.
+    private readonly Dictionary<string, List<MovieDto>> _seriesGroups = new(StringComparer.Ordinal);
+    private string? _activeSeries;
+
+    // The full movie list, read from cache once per detail open (no network).
+    private List<MovieDto> _all = new();
+
+    private IReadOnlyList<MovieDto> ActiveSeriesFilms =>
+        _activeSeries is not null && _seriesGroups.TryGetValue(_activeSeries, out var films)
+            ? films
+            : Array.Empty<MovieDto>();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        await Access.GetMyAccessAsync();
+        // Cache-only read: fast and offline-capable (no re-fetch of the whole list).
+        _all = await MovieSvc.GetCachedAsync();
+        _film = _all.FirstOrDefault(f => f.Id == Id);
+        BuildSeries();
+        _loading = false;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_film is null) return;
+        await MovieSvc.DeleteAsync(_film.Id);
+        Navigation.NavigateTo("/movies");
+    }
+
+    /// <summary>Groups movies into series via '#'-prefixed tags. A tag like
+    /// "#marvel#avengers" encodes several nested series levels, each a key; a film can
+    /// belong to several. Only series with at least two films are shown.</summary>
+    private void BuildSeries()
+    {
+        _seriesGroups.Clear();
+        _activeSeries = null;
+        if (_film is null) { return; }
+
+        foreach (var key in SeriesKeys(_film))
+        {
+            if (_seriesGroups.ContainsKey(key)) { continue; }
+
+            var films = _all
+                .Where(m => SeriesKeys(m).Contains(key))
+                .OrderBy(m => m.Jahr, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(m => m.Titel, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (films.Count >= 2) { _seriesGroups[key] = films; }
+        }
+
+        _activeSeries = _seriesGroups.Keys.FirstOrDefault();
+    }
+
+    private static IEnumerable<string> SeriesKeys(MovieDto film)
+        => (film.Tags ?? Enumerable.Empty<string>())
+            .Where(t => t.Contains('#'))
+            .SelectMany(t => t.Split('#', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Select(s => s.Trim())
+            .Where(s => s.Length > 0)
+            .Select(s => s.ToLowerInvariant())
+            .Distinct();
+
+    private static string SeriesLabel(string key)
+        => key.Length == 0 ? key : char.ToUpperInvariant(key[0]) + key[1..];
+
+    private static string PosterUrl(MovieDto f)
+        => string.IsNullOrWhiteSpace(f.PosterPath)
+            ? "/images/placeholder.png"
+            : $"https://image.tmdb.org/t/p/w400{f.PosterPath}";
+}

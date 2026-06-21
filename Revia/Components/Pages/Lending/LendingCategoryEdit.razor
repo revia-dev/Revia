@@ -1,0 +1,138 @@
+@page "/lending/categories/new"
+@page "/lending/categories/edit/{Id:int}"
+@using Microsoft.AspNetCore.Components.Forms
+@using Revia.Modules.Lending.Models
+@inject Revia.Modules.Lending.Services.ILendingService LendingService
+@inject Revia.Modules.Lending.Services.ToastService ToastService
+@inject Revia.Services.PermissionService Permissions
+@inject NavigationManager Navigation
+
+<PageTitle>@(_id.HasValue ? "Kategorie bearbeiten" : "Neue Kategorie")</PageTitle>
+
+<div class="page-shell">
+    <div class="glass-card page-header">
+        <div>
+            <h1>@(_id.HasValue ? "Kategorie bearbeiten" : "Neue Kategorie")</h1>
+            <p>Kategorie erfassen oder bearbeiten.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_loadError))
+    {
+        <div class="glass-card loading-card">@_loadError</div>
+    }
+    else if (_model is null)
+    {
+        <div class="glass-card loading-card">Lade Formular...</div>
+    }
+    else
+    {
+        <EditForm Model="_model" OnValidSubmit="SaveAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="glass-card form-shell">
+                <div class="form-grid">
+                    <div class="field field-wide">
+                        <label>Kategoriename *</label>
+                        <InputText class="form-control" @bind-Value="_model.Name" />
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-modern">
+                        @(_id.HasValue ? "Änderungen speichern" : "Kategorie anlegen")
+                    </button>
+                    <a class="btn btn-secondary btn-modern" href="/lending/categories">Abbrechen</a>
+                </div>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private int? _id;
+    private string? _loadError;
+    private CategoryEditModel? _model;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!await Permissions.CanWriteAsync(AppModules.Lending))
+        {
+            Navigation.NavigateTo("/lending/categories");
+            return;
+        }
+
+        _id = Id;
+        _loadError = null;
+
+        try
+        {
+            if (_id.HasValue)
+            {
+                var category = await LendingService.GetCategoryByIdAsync(_id.Value);
+                if (category is null)
+                {
+                    Navigation.NavigateTo("/lending/categories");
+                    return;
+                }
+
+                _model = new CategoryEditModel
+                {
+                    Id = category.Id,
+                    Name = category.Name
+                };
+            }
+            else
+            {
+                _model = new CategoryEditModel();
+            }
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"Formular konnte nicht geladen werden: {ex.Message}";
+            _model = null;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_model is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var entity = new LendingCategory
+            {
+                Id = _model.Id,
+                Name = _model.Name
+            };
+
+            if (entity.Id == 0)
+            {
+                await LendingService.CreateCategoryAsync(entity);
+                ToastService.Success("Kategorie erfolgreich angelegt.");
+            }
+            else
+            {
+                await LendingService.UpdateCategoryAsync(entity);
+                ToastService.Success("Änderungen gespeichert.");
+            }
+
+            Navigation.NavigateTo("/lending/categories");
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error(ex.Message);
+        }
+    }
+
+    private sealed class CategoryEditModel
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+}

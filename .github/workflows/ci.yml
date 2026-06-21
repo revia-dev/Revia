@@ -19,15 +19,15 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore PrivateLibrary/PrivateLibrary.csproj
+        run: dotnet restore Revia/Revia.csproj
 
       - name: Build
-        run: dotnet build PrivateLibrary/PrivateLibrary.csproj -c Release --no-restore
+        run: dotnet build Revia/Revia.csproj -c Release --no-restore
 
       - name: Test
         run: |
-          if [ -f "PrivateLibrary.Tests/PrivateLibrary.Tests.csproj" ]; then
-            dotnet test PrivateLibrary.Tests/PrivateLibrary.Tests.csproj -c Release --no-build --verbosity normal
+          if [ -f "Revia.Tests/Revia.Tests.csproj" ]; then
+            dotnet test Revia.Tests/Revia.Tests.csproj -c Release --no-build --verbosity normal
           else
             echo "No test project found, skipping tests."
           fi

@@ -1,0 +1,544 @@
+@page "/movies"
+@rendermode InteractiveServer
+@using Revia.Models
+@using Revia.Services
+@inject Revia.Services.MovieService MovieService
+@inject Revia.Services.MovieFilterService FilterService
+@inject Revia.Services.TmdbService TmdbService
+@inject Revia.Services.PosterResolverService PosterResolver
+@inject Revia.Services.DeferredDeleteService DeferredDelete
+@inject Revia.Services.PermissionService Permissions
+@inject NavigationManager Navigation
+
+<PageTitle>Movie Library</PageTitle>
+
+<div class="movies-shell">
+    <div class="movies-background-orb movies-background-orb-a"></div>
+    <div class="movies-background-orb movies-background-orb-b"></div>
+
+    <section class="movies-toolbar">
+        <div class="movies-toolbar-top">
+            <div>
+                <p class="movies-eyebrow">Movie Library</p>
+                <h1>Deine Filmsammlung</h1>
+            </div>
+
+            <div class="movies-toolbar-actions">
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        @onclick="ToggleFilters">
+                    <Icon Name="funnel" Size="14" /> @(isFilterVisible ? "Filter schließen" : "Filter öffnen")
+                </button>
+
+                @if (_canWrite)
+                {
+                    <button type="button"
+                            class="btn btn-primary"
+                            @onclick="CreateMovie">
+                        Neuer Datensatz
+                    </button>
+                }
+
+                <a class="btn btn-outline-secondary" href="/movies/export.csv" target="_blank" rel="noopener">
+                    CSV-Export
+                </a>
+            </div>
+        </div>
+
+        <div class="movies-toolbar-controls">
+            <input class="liquid-search"
+                   @bind="titleSearch"
+                   @bind:event="oninput"
+                   placeholder="Nach Titel oder Tags suchen..." />
+
+            <div class="movies-stats">
+                <span class="stat-pill">@filteredFilme.Count Treffer</span>
+                <span class="stat-pill">@filme.Count Gesamt</span>
+            </div>
+        </div>
+    </section>
+
+    @if (isEditVisible && editModel is not null)
+    {
+        <section class="movies-edit-panel">
+            <div class="movies-edit-card">
+                <div class="movies-edit-header">
+                    <div>
+                        <p class="movies-eyebrow">Movie Editor</p>
+                        <h3>@(isCreateMode ? "Neuen Film anlegen" : "Film bearbeiten")</h3>
+                    </div>
+                    <IconButton IconName="x-lg" AriaLabel="Editor schließen" OnClick="CloseEditor" />
+                </div>
+
+                <div class="movies-edit-grid">
+                    <div class="edit-field edit-field-wide">
+                        <label for="movie-title">Titel</label>
+                        <input id="movie-title" class="form-control" @bind="editModel.Titel" />
+                    </div>
+
+                    <div class="edit-field">
+                        <label for="movie-year">Jahr</label>
+                        <input id="movie-year" class="form-control" @bind="editModel.Jahr" />
+                    </div>
+
+                    <div class="edit-field">
+                        <label for="movie-fsk">FSK</label>
+                        <input id="movie-fsk" class="form-control" @bind="editModel.Fsk" />
+                    </div>
+
+                    <div class="edit-field">
+                        <label for="movie-category">Kategorie</label>
+                        <input id="movie-category" class="form-control" @bind="editModel.Kategorie" />
+                    </div>
+
+                    <div class="edit-field">
+                        <label for="movie-provider">Anbieter (Komma-getrennt)</label>
+                        <input id="movie-provider" class="form-control" @bind="editModel.AnbieterInput" />
+                    </div>
+
+                    <div class="edit-field edit-field-wide">
+                        <label for="movie-tags">Tags (Komma-getrennt)</label>
+                        <input id="movie-tags" class="form-control" @bind="editModel.TagsInput" />
+                    </div>
+
+                    <div class="edit-field edit-field-wide">
+                        <label for="tmdb-search">TMDB-Matching</label>
+                        <div class="tmdb-search-row">
+                            <input id="tmdb-search" class="form-control" @bind="tmdbSearchQuery" placeholder="Filmtitel suchen..." />
+                            <button type="button" class="btn btn-outline-secondary" @onclick="SearchTmdbAsync">Suchen</button>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(tmdbInfoMessage))
+                    {
+                        <div class="edit-field edit-field-wide tmdb-info">@tmdbInfoMessage</div>
+                    }
+
+                    @if (tmdbResults.Any())
+                    {
+                        <div class="edit-field edit-field-wide">
+                            <div class="tmdb-result-grid">
+                                @foreach (var result in tmdbResults)
+                                {
+                                    <button type="button" class="tmdb-result-card" @onclick="() => ApplyTmdbMatch(result)">
+                                        <img src="@result.PosterUrl" alt="@result.Title" class="tmdb-result-poster" />
+                                        <div class="tmdb-result-content">
+                                            <div class="tmdb-result-title">@result.Title</div>
+                                            <div class="tmdb-result-meta">@result.ReleaseYear · TMDB @result.Id</div>
+                                        </div>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <div class="edit-field">
+                        <label for="movie-tmdb-id">TMDB Id</label>
+                        <input id="movie-tmdb-id" class="form-control" @bind="editModel.TmdbIdText" />
+                    </div>
+                </div>
+
+                <div class="movies-edit-actions">
+                    <button type="button" class="btn btn-primary" @onclick="SaveMovieAsync">Speichern</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CloseEditor">Abbrechen</button>
+                </div>
+            </div>
+        </section>
+    }
+
+    @if (isFilterVisible)
+    {
+        <section class="movies-filter-panel">
+            <div class="filter-group-header">
+                <h3>Filter</h3>
+
+                <button type="button"
+                        class="btn btn-ghost"
+                        @onclick="ClearFilters">
+                    Zurücksetzen
+                </button>
+            </div>
+
+            @foreach (var group in filterData)
+            {
+                <div class="filter-block">
+                    <h4>@group.Title</h4>
+
+                    <div class="filter-tags">
+                        @foreach (var tag in group.Tags)
+                        {
+                            var isSelected = selectedTags.Contains(tag);
+
+                            <button type="button"
+                                    class="filter-chip @(isSelected ? "is-selected" : "")"
+                                    @onclick="() => ToggleTag(tag)">
+                                @tag.Name
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+        </section>
+    }
+
+    @if (isLoading)
+    {
+        <section class="loading-panel">
+            <div class="loading-card">
+                <div class="spinner"></div>
+                <p>Lade Filme und Poster ...</p>
+                <small>@progressIndex / @filme.Count</small>
+            </div>
+        </section>
+    }
+    else if (!filteredFilme.Any())
+    {
+        <section class="empty-state-panel">
+            <div class="empty-state-card">
+                <h3>Keine Filme gefunden</h3>
+                <p>Prüfe deinen Suchbegriff oder entferne aktive Filter.</p>
+            </div>
+        </section>
+    }
+    else
+    {
+        <section class="movie-grid-section">
+            <div class="movie-grid">
+                @foreach (var film in filteredFilme)
+                {
+                    @if (_canWrite)
+                    {
+                        <SwipeToDelete @key="film.Id" DeleteLabel="Film löschen" OnDelete="() => DeleteFilmAsync(film)">
+                            @MovieCard(film)
+                        </SwipeToDelete>
+                    }
+                    else
+                    {
+                        <div @key="film.Id">@MovieCard(film)</div>
+                    }
+                }
+            </div>
+        </section>
+    }
+</div>
+
+@if (selectedFilm is not null)
+{
+    <MovieDetail Film="selectedFilm"
+                 AllFilms="filme"
+                 CanWrite="_canWrite"
+                 OnClose="CloseDetail"
+                 OnFilmSelected="SelectFilm"
+                 OnEdit="OpenEditFromDetails"
+                 OnDelete="DeleteFromDetailsAsync" />
+}
+
+@code {
+    private RenderFragment MovieCard(Film film) => @<button type="button" class="movie-card" @onclick="() => SelectFilm(film)">
+        <div class="movie-poster-wrap">
+            <img src="@PosterResolver.ResolvePosterUrl(film)" alt="@(film.Titel ?? "Unbekannt")" class="movie-poster" />
+            <div class="movie-card-overlay movie-card-overlay-hover">
+                <div class="movie-card-title">@(film.Titel ?? "Unbekannt")</div>
+                <div class="movie-card-meta">
+                    @if (!string.IsNullOrWhiteSpace(film.Jahr)) { <span>@film.Jahr</span> }
+                    @if (!string.IsNullOrWhiteSpace(film.Fsk)) { <span>FSK @film.Fsk</span> }
+                </div>
+                @if (film.Tags?.Any() == true)
+                {
+                    <div class="movie-card-tags">
+                        @foreach (var tag in film.Tags.Take(3)) { <span>@tag</span> }
+                    </div>
+                }
+            </div>
+        </div>
+    </button>;
+
+    private bool _canWrite = true;
+
+    private List<Film> filme = new();
+    private List<Film> filteredFilme = new();
+    private List<FilterGroup> filterData = new();
+    private HashSet<FilterTag> selectedTags = new();
+
+    private Film? selectedFilm;
+
+    private bool isLoading;
+    private int progressIndex;
+    private bool isFilterVisible;
+    private bool isEditVisible;
+    private bool isCreateMode;
+
+    private MovieEditModel? editModel;
+    private string tmdbSearchQuery = string.Empty;
+    private List<TmdbService.TmdbSearchResult> tmdbResults = new();
+
+    private string? tmdbInfoMessage;
+
+    private string _titleSearch = string.Empty;
+
+    private string titleSearch
+    {
+        get => _titleSearch;
+        set
+        {
+            if (_titleSearch == value)
+                return;
+
+            _titleSearch = value;
+            ApplyFilters();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var access = await Permissions.GetAccessAsync(AppModules.Movies);
+        if (!access.CanRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _canWrite = access.CanWrite;
+        await ReloadMoviesAsync();
+    }
+
+    private async Task ReloadMoviesAsync()
+    {
+        isLoading = true;
+        progressIndex = 0;
+
+        // Posters are stored in the DB, so loading no longer needs any TMDB calls.
+        filme = await MovieService.GetAllAsync();
+        progressIndex = filme.Count;
+
+        filterData = FilterService.BuildFilterData(filme);
+        ApplyFilters();
+        isLoading = false;
+    }
+
+    private void ToggleFilters()
+    {
+        isFilterVisible = !isFilterVisible;
+    }
+
+    private void ToggleTag(FilterTag tag)
+    {
+        if (selectedTags.Contains(tag))
+            selectedTags.Remove(tag);
+        else
+            selectedTags.Add(tag);
+
+        ApplyFilters();
+    }
+
+    private void ClearFilters()
+    {
+        selectedTags.Clear();
+        titleSearch = string.Empty;
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        filteredFilme = FilterService.ApplyFilters(filme, titleSearch, selectedTags);
+    }
+
+    private void SelectFilm(Film film)
+    {
+        selectedFilm = film;
+    }
+
+    private void CloseDetail()
+    {
+        selectedFilm = null;
+    }
+
+    private void CreateMovie()
+    {
+        isCreateMode = true;
+        isEditVisible = true;
+        tmdbSearchQuery = string.Empty;
+        tmdbResults.Clear();
+        tmdbInfoMessage = null;
+        editModel = new MovieEditModel();
+    }
+
+    private Task OpenEditFromDetails(Film film)
+    {
+        isCreateMode = false;
+        isEditVisible = true;
+        tmdbSearchQuery = film.Titel ?? string.Empty;
+        tmdbResults.Clear();
+        tmdbInfoMessage = null;
+        editModel = MovieEditModel.FromFilm(film);
+        return Task.CompletedTask;
+    }
+
+    private void CloseEditor()
+    {
+        isEditVisible = false;
+        editModel = null;
+        tmdbResults.Clear();
+        tmdbInfoMessage = null;
+    }
+
+    private async Task SaveMovieAsync()
+    {
+        if (editModel is null)
+        {
+            return;
+        }
+
+        var updatedFilm = editModel.ToFilm();
+
+        // Keep the existing poster when editing; (re)fetch it from TMDB when an id is set.
+        var existing = filme.FirstOrDefault(x => x.Id == updatedFilm.Id);
+        if (existing is not null)
+        {
+            updatedFilm.PosterPath = existing.PosterPath;
+        }
+
+        if (updatedFilm.TmdbId is int tmdbId)
+        {
+            var details = await TmdbService.FetchDetailsAsync(tmdbId, updatedFilm.Kategorie);
+            if (details is not null)
+            {
+                updatedFilm.PosterPath = details.PosterPath ?? updatedFilm.PosterPath;
+                updatedFilm.Runtime = details.Runtime ?? updatedFilm.Runtime;
+            }
+        }
+
+        var saved = await MovieService.UpsertAsync(updatedFilm);
+        await ReloadMoviesAsync();
+        CloseEditor();
+
+        var savedFilm = filme.FirstOrDefault(x => x.Id == saved.Id);
+        if (savedFilm is not null)
+        {
+            SelectFilm(savedFilm);
+        }
+    }
+
+    private async Task DeleteFromDetailsAsync(Film film)
+    {
+        await MovieService.DeleteAsync(film.Id);
+        CloseDetail();
+        await ReloadMoviesAsync();
+    }
+
+    // Swipe-to-delete: remove the film from the list immediately and offer Undo.
+    // The real DB delete only happens once the Undo window elapses.
+    private Task DeleteFilmAsync(Film film)
+    {
+        filme.Remove(film);
+        ApplyFilters();
+
+        if (selectedFilm?.Id == film.Id)
+        {
+            CloseDetail();
+        }
+
+        DeferredDelete.DeleteWithUndo(
+            $"„{film.Titel ?? "Film"}“ gelöscht",
+            commit: () => MovieService.DeleteAsync(film.Id),
+            restore: () =>
+            {
+                filme.Add(film);
+                ApplyFilters();
+                return InvokeAsync(StateHasChanged);
+            });
+
+        return Task.CompletedTask;
+    }
+
+    private async Task SearchTmdbAsync()
+    {
+        tmdbResults.Clear();
+        tmdbInfoMessage = null;
+
+        if (string.IsNullOrWhiteSpace(tmdbSearchQuery))
+        {
+            tmdbInfoMessage = "Bitte gib einen Titel für die Suche ein.";
+            return;
+        }
+
+        try
+        {
+            tmdbResults = await TmdbService.SearchMoviesAsync(tmdbSearchQuery);
+
+            if (!tmdbResults.Any())
+            {
+                tmdbInfoMessage = "Keine Treffer gefunden.";
+            }
+        }
+        catch
+        {
+            tmdbInfoMessage = "TMDB-Suche konnte nicht geladen werden.";
+        }
+    }
+
+    private void ApplyTmdbMatch(TmdbService.TmdbSearchResult result)
+    {
+        if (editModel is null)
+        {
+            return;
+        }
+
+        editModel.TmdbIdText = result.Id.ToString();
+        if (string.IsNullOrWhiteSpace(editModel.Titel))
+        {
+            editModel.Titel = result.Title;
+        }
+        if (string.IsNullOrWhiteSpace(editModel.Jahr) && result.ReleaseYear != "-")
+        {
+            editModel.Jahr = result.ReleaseYear;
+        }
+        tmdbInfoMessage = $"TMDB-Match übernommen: {result.Title}";
+    }
+
+    private sealed class MovieEditModel
+    {
+        public Guid OriginalId { get; set; }
+        public string Titel { get; set; } = string.Empty;
+        public string Jahr { get; set; } = string.Empty;
+        public string Fsk { get; set; } = string.Empty;
+        public string Kategorie { get; set; } = string.Empty;
+        public string AnbieterInput { get; set; } = string.Empty;
+        public string TagsInput { get; set; } = string.Empty;
+        public string TmdbIdText { get; set; } = string.Empty;
+
+        public static MovieEditModel FromFilm(Film film) => new()
+        {
+            OriginalId = film.Id,
+            Titel = film.Titel ?? string.Empty,
+            Jahr = film.Jahr ?? string.Empty,
+            Fsk = film.Fsk ?? string.Empty,
+            Kategorie = film.Kategorie ?? string.Empty,
+            AnbieterInput = string.Join(", ", film.Anbieter ?? new List<string>()),
+            TagsInput = string.Join(", ", film.Tags ?? new List<string>()),
+            TmdbIdText = film.TmdbId?.ToString() ?? string.Empty
+        };
+
+        public Film ToFilm()
+        {
+            int? tmdbId = int.TryParse(TmdbIdText, out var parsedTmdbId) ? parsedTmdbId : null;
+            var id = OriginalId != Guid.Empty ? OriginalId : Guid.NewGuid();
+
+            return new Film
+            {
+                Id = id,
+                Titel = Titel?.Trim(),
+                Jahr = Jahr?.Trim(),
+                Fsk = string.IsNullOrWhiteSpace(Fsk) ? null : Fsk.Trim(),
+                Kategorie = string.IsNullOrWhiteSpace(Kategorie) ? null : Kategorie.Trim(),
+                TmdbId = tmdbId,
+                Anbieter = AnbieterInput
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToList(),
+                Tags = TagsInput
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToList()
+            };
+        }
+    }
+
+}

@@ -1,0 +1,256 @@
+@page "/admin"
+@using Microsoft.AspNetCore.Authorization
+@using Revia.Data
+@using Revia.Modules.Lending.Services
+@attribute [Authorize(Roles = "Admin")]
+@inject IPersonService PersonService
+@inject ToastService ToastService
+
+<PageTitle>Administration</PageTitle>
+
+<div class="page-shell">
+    <div class="glass-card page-header">
+        <div>
+            <div class="admin-eyebrow">Geschützter Bereich</div>
+            <h1>Administration</h1>
+            <p>Benutzer- und Rollenverwaltung für Revia.</p>
+        </div>
+        <div class="header-actions">
+            <a class="btn btn-outline-secondary btn-modern" href="/admin/permissions">Berechtigungen</a>
+            <a class="btn btn-primary btn-modern" href="/lending/persons/new">Neuer Benutzer</a>
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="glass-card loading-card">Lade Daten...</div>
+    }
+    else
+    {
+        <section class="glass-card ui-section ui-stack">
+            <div>
+                <h2 class="ui-section-title">Benutzer (@_users.Count)</h2>
+                <p class="section-subtitle">Alle registrierten Benutzer und ihre zugewiesenen Rollen.</p>
+            </div>
+
+            <div class="ui-table-wrap ui-desktop-table">
+                <table class="table ui-data-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Benutzername</th>
+                            <th>E-Mail</th>
+                            <th>Rolle</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in _users)
+                        {
+                            <tr>
+                                <td>@entry.User.DisplayName</td>
+                                <td><code>@entry.User.UserName</code></td>
+                                <td>@entry.User.Email</td>
+                                <td>
+                                    @if (entry.User.IsSystemUser)
+                                    {
+                                        <span class="badge bg-warning text-dark">@(entry.PrimaryRole)</span>
+                                    }
+                                    else
+                                    {
+                                        <select class="form-select form-select-sm role-select"
+                                                @onchange="e => ChangeRoleAsync(entry.User.Id, e.Value?.ToString())">
+                                            @foreach (var role in _roles)
+                                            {
+                                                <option value="@role" selected="@(role == entry.PrimaryRole)">@role</option>
+                                            }
+                                        </select>
+                                    }
+                                </td>
+                                <td class="table-actions">
+                                    <a class="btn btn-sm btn-outline-secondary" href="/lending/persons/edit/@entry.User.Id">Bearbeiten</a>
+                                    @if (!entry.User.IsSystemUser)
+                                    {
+                                        <a class="btn btn-sm btn-outline-danger" href="/lending/persons/delete/@entry.User.Id">Löschen</a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="ui-mobile-cards">
+                @foreach (var entry in _users)
+                {
+                    <article class="ui-mobile-card">
+                        <div class="ui-mobile-card-head">
+                            <div>
+                                <div class="ui-mobile-card-title">@entry.User.DisplayName</div>
+                                <div class="ui-mobile-card-subtitle">@entry.User.UserName</div>
+                            </div>
+                            <span class="badge bg-secondary">@entry.PrimaryRole</span>
+                        </div>
+                        <div class="ui-mobile-meta">
+                            <div class="ui-mobile-meta-row"><span>E-Mail</span><span>@entry.User.Email</span></div>
+                        </div>
+                        <div class="table-actions">
+                            <a class="btn btn-sm btn-outline-secondary" href="/lending/persons/edit/@entry.User.Id">Bearbeiten</a>
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+
+        <section class="glass-card ui-section ui-stack">
+            <div>
+                <h2 class="ui-section-title">Rollen</h2>
+                <p class="section-subtitle">Systemrollen verwalten. Admin und User können nicht gelöscht werden.</p>
+            </div>
+
+            <div class="admin-roles-layout">
+                <div class="admin-role-list">
+                    @foreach (var role in _roles)
+                    {
+                        <div class="admin-role-row">
+                            <span class="admin-role-name">@role</span>
+                            @if (role is not "Admin" and not "User")
+                            {
+                                <button class="btn btn-sm btn-outline-danger"
+                                        @onclick="() => DeleteRoleAsync(role)">
+                                    Löschen
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="admin-role-add">
+                    <input class="form-control" placeholder="Neue Rolle…"
+                           @bind="_newRoleName" @bind:event="oninput" />
+                    <button class="btn btn-secondary btn-modern"
+                            @onclick="CreateRoleAsync"
+                            disabled="@string.IsNullOrWhiteSpace(_newRoleName)">
+                        Anlegen
+                    </button>
+                </div>
+            </div>
+        </section>
+    }
+</div>
+
+<style>
+    .admin-eyebrow {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        margin-bottom: 0.3rem;
+    }
+
+    .role-select { min-width: 8rem; }
+
+    .admin-roles-layout { display: grid; gap: 1.5rem; }
+
+    .admin-role-list { display: grid; gap: 0.5rem; }
+
+    .admin-role-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.55rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--surface-soft);
+    }
+
+    .admin-role-name { font-weight: 500; }
+
+    .admin-role-add { display: flex; gap: 0.75rem; }
+</style>
+
+@code {
+    private sealed record UserEntry(ApplicationUser User, string PrimaryRole);
+
+    private List<UserEntry> _users = [];
+    private List<string> _roles = [];
+    private string _newRoleName = string.Empty;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var users = await PersonService.GetAllAsync();
+            _roles = [.. await PersonService.GetAvailableRolesAsync()];
+
+            var entries = new List<UserEntry>(users.Count);
+            foreach (var user in users)
+            {
+                var userRoles = await PersonService.GetUserRolesAsync(user.Id);
+                var primary = userRoles.Contains("Admin") ? "Admin"
+                    : userRoles.FirstOrDefault() ?? string.Empty;
+                entries.Add(new UserEntry(user, primary));
+            }
+            _users = entries;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ChangeRoleAsync(string userId, string? newRole)
+    {
+        if (string.IsNullOrWhiteSpace(newRole)) return;
+
+        var user = await PersonService.GetByIdAsync(userId);
+        if (user is null) return;
+
+        var result = await PersonService.UpdateAsync(user, newRole);
+        if (result is not null)
+        {
+            ToastService.Success($"Rolle auf '{newRole}' geändert.");
+            await LoadAsync();
+        }
+        else
+        {
+            ToastService.Error("Rolle konnte nicht geändert werden.");
+        }
+    }
+
+    private async Task CreateRoleAsync()
+    {
+        var name = _newRoleName.Trim();
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        var result = await PersonService.CreateRoleAsync(name);
+        if (result.Succeeded)
+        {
+            ToastService.Success($"Rolle '{name}' wurde angelegt.");
+            _newRoleName = string.Empty;
+            await LoadAsync();
+        }
+        else
+        {
+            ToastService.Error(result.ErrorMessage ?? "Rolle konnte nicht angelegt werden.");
+        }
+    }
+
+    private async Task DeleteRoleAsync(string roleName)
+    {
+        var result = await PersonService.DeleteRoleAsync(roleName);
+        if (result.Succeeded)
+        {
+            ToastService.Success($"Rolle '{roleName}' wurde gelöscht.");
+            await LoadAsync();
+        }
+        else
+        {
+            ToastService.Error(result.ErrorMessage ?? "Rolle konnte nicht gelöscht werden.");
+        }
+    }
+}

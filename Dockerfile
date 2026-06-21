@@ -7,15 +7,15 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Restore first for better layer caching (copy only the project files).
-COPY PrivateLibrary/PrivateLibrary.csproj                 PrivateLibrary/
-COPY PrivateLibrary.Shared/PrivateLibrary.Shared.csproj   PrivateLibrary.Shared/
-COPY PrivateLibrary.Client/PrivateLibrary.Client.csproj   PrivateLibrary.Client/
-COPY PrivateLibrary.Api/PrivateLibrary.Api.csproj         PrivateLibrary.Api/
-RUN dotnet restore PrivateLibrary.Api/PrivateLibrary.Api.csproj
+COPY Revia/Revia.csproj                 Revia/
+COPY Revia.Shared/Revia.Shared.csproj   Revia.Shared/
+COPY Revia.Client/Revia.Client.csproj   Revia.Client/
+COPY Revia.Api/Revia.Api.csproj         Revia.Api/
+RUN dotnet restore Revia.Api/Revia.Api.csproj
 
 # Copy everything and publish the API (pulls in the client + service worker).
 COPY . .
-RUN dotnet publish PrivateLibrary.Api/PrivateLibrary.Api.csproj -c Release -o /app/publish
+RUN dotnet publish Revia.Api/Revia.Api.csproj -c Release -o /app/publish
 
 # ---- runtime ----
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
@@ -35,4 +35,4 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 
 EXPOSE 8080
 VOLUME /data
-ENTRYPOINT ["dotnet", "PrivateLibrary.Api.dll"]
+ENTRYPOINT ["dotnet", "Revia.Api.dll"]

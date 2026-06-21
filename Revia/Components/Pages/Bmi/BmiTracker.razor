@@ -1,0 +1,315 @@
+@page "/bmi"
+@using Revia.Data
+@using Revia.Modules.Bmi
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@attribute [Authorize]
+@implements IDisposable
+@inject BmiService BmiService
+@inject Revia.Modules.Lending.Services.IPersonService PersonService
+@inject Revia.Modules.Lending.Services.ToastService ToastService
+@inject Revia.Services.PermissionService Permissions
+@inject NavigationManager Navigation
+
+<PageTitle>Gewicht &amp; BMI</PageTitle>
+
+<div class="page-shell">
+    <div class="glass-card page-header">
+        <div>
+            <h1>Gewicht &amp; BMI</h1>
+            <p>Messungen erfassen, Verlauf und Zeitraffer ansehen.</p>
+        </div>
+        <div class="header-actions">
+            <a class="btn btn-outline-secondary" href="/bmi/export.csv" target="_blank" rel="noopener">CSV-Export</a>
+        </div>
+    </div>
+
+    @* ---- Add form ---- *@
+    @if (_canWrite)
+    {
+    <div class="glass-card ui-section">
+        <h2 class="ui-section-title">Neue Messung</h2>
+        <div class="bmi-form-grid">
+            <div class="field">
+                <label>Person</label>
+                <select class="form-select" @bind="_formPersonId">
+                    <option value="">— wählen —</option>
+                    @foreach (var p in _persons)
+                    {
+                        <option value="@p.Id">@p.DisplayName</option>
+                    }
+                </select>
+            </div>
+            <div class="field">
+                <label>Datum</label>
+                <input type="date" class="form-control" @bind="_formDate" @bind:format="yyyy-MM-dd" />
+            </div>
+            <div class="field">
+                <label>Gewicht (kg)</label>
+                <input type="number" step="0.1" min="0" class="form-control" @bind="_formWeight" />
+            </div>
+            <div class="field">
+                <label>Größe (cm)</label>
+                <input type="number" step="0.1" min="0" class="form-control" @bind="_formHeight" />
+            </div>
+            <div class="field">
+                <label>BMI</label>
+                <input class="form-control" value="@PreviewBmi" readonly />
+            </div>
+            <div class="field field-wide">
+                <label>Schnappschuss-Foto (optional)</label>
+                <MediaUpload OnChange="OnPhotoSelected" OnCapture="OnPhotoCaptured" />
+                @if (_capturedPhoto is not null) { <div class="text-muted small">Foto aufgenommen ✓</div> }
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn btn-primary btn-modern" disabled="@_saving" @onclick="AddAsync">Messung speichern</button>
+        </div>
+    </div>
+    }
+
+    @* ---- Filter ---- *@
+    <div class="glass-card ui-section ui-stack">
+        <div class="toolbar">
+            <div class="field" style="min-width:14rem;">
+                <label>Person filtern</label>
+                <select class="form-select" @bind="_filterPersonId" @bind:after="ReloadAsync">
+                    <option value="">Alle Personen</option>
+                    @foreach (var p in _persons)
+                    {
+                        <option value="@p.Id">@p.DisplayName</option>
+                    }
+                </select>
+            </div>
+            @if (PhotoRecords.Count > 0)
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="ToggleTimelapse">
+                    @(_playing ? "Zeitraffer stoppen" : "Zeitraffer abspielen")
+                </button>
+            }
+        </div>
+
+        @* ---- Timelapse ---- *@
+        @if (_playing && PhotoRecords.Count > 0)
+        {
+            var frame = PhotoRecords[_frameIndex % PhotoRecords.Count];
+            <div class="bmi-timelapse">
+                <img src="@($"/bmi/photo/{frame.Id}")" alt="Zeitraffer" />
+                <div class="bmi-timelapse-caption">
+                    @frame.MeasuredOn.ToString("dd.MM.yyyy") · @frame.WeightKg.ToString("0.#") kg · BMI @frame.Bmi.ToString("0.#")
+                </div>
+            </div>
+        }
+
+        @* ---- Chart ---- *@
+        @if (_records.Count >= 2)
+        {
+            <div class="bmi-chart">
+                <h2 class="ui-section-title">BMI-Verlauf</h2>
+                @((MarkupString)BuildChartSvg())
+            </div>
+        }
+
+        @* ---- List ---- *@
+        @if (_records.Count == 0)
+        {
+            <div class="text-muted">Noch keine Messungen erfasst.</div>
+        }
+        else
+        {
+            <table class="table ui-data-table align-middle">
+                <thead>
+                    <tr><th>Foto</th><th>Person</th><th>Datum</th><th>kg</th><th>cm</th><th>BMI</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in _records.OrderByDescending(x => x.MeasuredOn).ThenByDescending(x => x.Id))
+                    {
+                        <tr @key="r.Id">
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(r.PhotoFileName))
+                                {
+                                    <img class="bmi-thumb" src="@($"/bmi/photo/{r.Id}")" alt="" loading="lazy" />
+                                }
+                                else { <span class="text-muted">—</span> }
+                            </td>
+                            <td>@(r.Person?.DisplayName ?? "—")</td>
+                            <td>@r.MeasuredOn.ToString("dd.MM.yyyy")</td>
+                            <td>@r.WeightKg.ToString("0.#")</td>
+                            <td>@r.HeightCm.ToString("0.#")</td>
+                            <td>@r.Bmi.ToString("0.#")</td>
+                            <td>@if (_canWrite) { <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(r.Id)">Löschen</button> }</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<ApplicationUser> _persons = Array.Empty<ApplicationUser>();
+    private List<BmiRecord> _records = new();
+
+    private string _formPersonId = string.Empty;
+    private DateTime _formDate = DateTime.Today;
+    private double? _formWeight;
+    private double? _formHeight;
+    private IBrowserFile? _photoFile;
+    private CapturedPhoto? _capturedPhoto;
+    private bool _saving;
+    private bool _canWrite = true;
+
+    private string _filterPersonId = string.Empty;
+
+    private bool _playing;
+    private int _frameIndex;
+    private CancellationTokenSource? _playCts;
+
+    private const long MaxPhotoBytes = 15 * 1024 * 1024;
+
+    private string PreviewBmi => (_formWeight is > 0 && _formHeight is > 0)
+        ? BmiRecord.Calculate(_formWeight.Value, _formHeight.Value).ToString("0.#")
+        : "—";
+
+    private List<BmiRecord> PhotoRecords => _records.Where(x => !string.IsNullOrWhiteSpace(x.PhotoFileName)).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var access = await Permissions.GetAccessAsync(AppModules.Bmi);
+        if (!access.CanRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _canWrite = access.CanWrite;
+        _persons = await PersonService.GetLookupAsync();
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        StopTimelapse();
+        _records = (await BmiService.GetAllAsync(string.IsNullOrWhiteSpace(_filterPersonId) ? null : _filterPersonId)).ToList();
+    }
+
+    private void OnPhotoSelected(InputFileChangeEventArgs e) { _photoFile = e.File; _capturedPhoto = null; }
+
+    private void OnPhotoCaptured(CapturedPhoto p) { _capturedPhoto = p; _photoFile = null; ToastService.Success("Foto aufgenommen."); }
+
+    private async Task AddAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_formPersonId)) { ToastService.Error("Bitte eine Person wählen."); return; }
+        if (_formWeight is not > 0 || _formHeight is not > 0) { ToastService.Error("Bitte Gewicht und Größe (> 0) eingeben."); return; }
+
+        _saving = true;
+        try
+        {
+            Stream? stream = null;
+            string? contentType = null;
+            string? name = null;
+            if (_capturedPhoto is not null)
+            {
+                stream = _capturedPhoto.OpenReadStream();
+                contentType = _capturedPhoto.ContentType;
+                name = _capturedPhoto.FileName;
+            }
+            else if (_photoFile is not null)
+            {
+                stream = _photoFile.OpenReadStream(MaxPhotoBytes);
+                contentType = _photoFile.ContentType;
+                name = _photoFile.Name;
+            }
+
+            try
+            {
+                await BmiService.AddAsync(_formPersonId, _formDate, _formWeight!.Value, _formHeight!.Value, stream, contentType, name);
+            }
+            finally
+            {
+                if (stream is not null) await stream.DisposeAsync();
+            }
+
+            _formWeight = null;
+            _photoFile = null;
+            _capturedPhoto = null;
+            ToastService.Success("Messung gespeichert.");
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error(ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        await BmiService.DeleteAsync(id);
+        await ReloadAsync();
+    }
+
+    private void ToggleTimelapse()
+    {
+        if (_playing) { StopTimelapse(); return; }
+        if (PhotoRecords.Count == 0) return;
+
+        _playing = true;
+        _frameIndex = 0;
+        _playCts = new CancellationTokenSource();
+        _ = RunTimelapseAsync(_playCts.Token);
+    }
+
+    private async Task RunTimelapseAsync(CancellationToken token)
+    {
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                await Task.Delay(1200, token);
+                _frameIndex++;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (TaskCanceledException) { /* stopped */ }
+    }
+
+    private void StopTimelapse()
+    {
+        _playing = false;
+        _playCts?.Cancel();
+        _playCts?.Dispose();
+        _playCts = null;
+    }
+
+    private string BuildChartSvg()
+    {
+        var points = _records.OrderBy(x => x.MeasuredOn).ThenBy(x => x.Id).ToList();
+        if (points.Count < 2) return string.Empty;
+
+        const double w = 640, h = 220, padL = 36, padR = 12, padT = 12, padB = 24;
+        var minBmi = points.Min(p => p.Bmi);
+        var maxBmi = points.Max(p => p.Bmi);
+        if (Math.Abs(maxBmi - minBmi) < 0.001) { maxBmi += 1; minBmi -= 1; }
+
+        double X(int i) => padL + (w - padL - padR) * (points.Count == 1 ? 0 : (double)i / (points.Count - 1));
+        double Y(double bmi) => padT + (h - padT - padB) * (1 - (bmi - minBmi) / (maxBmi - minBmi));
+
+        var poly = string.Join(" ", points.Select((p, i) => $"{X(i):0.#},{Y(p.Bmi):0.#}"));
+        var dots = string.Concat(points.Select((p, i) => $"<circle cx='{X(i):0.#}' cy='{Y(p.Bmi):0.#}' r='3' fill='var(--accent)' />"));
+
+        const string axis = "fill='var(--text-muted)' font-size='10'";
+        return $@"<svg viewBox='0 0 {w} {h}' style='width:100%;height:auto' preserveAspectRatio='xMidYMid meet'>
+            <text x='4' y='{Y(maxBmi):0.#}' {axis}>{maxBmi:0.#}</text>
+            <text x='4' y='{Y(minBmi):0.#}' {axis}>{minBmi:0.#}</text>
+            <text x='{padL:0.#}' y='{h - 6:0.#}' {axis}>{points.First().MeasuredOn:dd.MM.yy}</text>
+            <text x='{w - padR:0.#}' y='{h - 6:0.#}' {axis} text-anchor='end'>{points.Last().MeasuredOn:dd.MM.yy}</text>
+            <polyline fill='none' stroke='var(--accent)' stroke-width='2' points='{poly}' />
+            {dots}
+        </svg>";
+    }
+
+    public void Dispose() => StopTimelapse();
+}

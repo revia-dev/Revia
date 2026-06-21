@@ -1,0 +1,270 @@
+@page "/lending"
+@using Microsoft.AspNetCore.Components
+@using Revia.Modules.Lending.Models
+@inject Revia.Modules.Lending.Services.ILendingService LendingService
+@inject Revia.Modules.Lending.Services.ToastService ToastService
+@inject Revia.Services.DeferredDeleteService DeferredDelete
+@inject Revia.Services.PermissionService Permissions
+@inject NavigationManager Navigation
+
+<PageTitle>Ausleihen</PageTitle>
+
+<div class="page-shell">
+    <div class="page-header glass-card">
+        <div>
+            <h1>Ausleihen</h1>
+            <p>Verliehene und geliehene Gegenstände verwalten.</p>
+        </div>
+        <div class="header-actions">
+            @if (_canWrite)
+            {
+                <a class="btn btn-primary" href="/lending/new">Neu anlegen</a>
+            }
+            <a class="btn btn-outline-secondary" href="/lending/persons">Personen</a>
+            <a class="btn btn-outline-secondary" href="/lending/categories">Kategorien</a>
+            <a class="btn btn-outline-secondary" href="/lending/export.csv" target="_blank" rel="noopener">CSV-Export</a>
+        </div>
+    </div>
+
+    <div class="glass-card filter-bar">
+        <div class="filter-field search-field">
+            <label for="lending-search">Suche</label>
+            <input id="lending-search"
+                   class="form-control"
+                   type="search"
+                   placeholder="Gegenstand, Titel, Kategorie oder Person durchsuchen"
+                   @bind="_searchTerm"
+                   @bind:event="oninput" />
+        </div>
+
+        <div class="filter-field status-field">
+            <label for="status-filter">Status filtern</label>
+            <select id="status-filter" class="form-select" @onchange="OnStatusChanged">
+                <option value="">Alle</option>
+                <option value="@LendingEntryStatus.Active">Aktiv</option>
+                <option value="@LendingEntryStatus.Overdue">Überfällig</option>
+                <option value="@LendingEntryStatus.Returned">Zurückgegeben</option>
+                <option value="@LendingEntryStatus.Lost">Verloren</option>
+                <option value="@LendingEntryStatus.GivenAway">Verschenkt</option>
+            </select>
+        </div>
+
+        <div class="result-count">@FilteredItems.Count() Einträge</div>
+    </div>
+
+    @if (_items is null)
+    {
+        <div class="glass-card ui-section">Lade Einträge...</div>
+    }
+    else if (_items.Count == 0)
+    {
+        <div class="glass-card ui-section ui-stack">
+            <p>Noch keine Einträge vorhanden.</p>
+            <a class="btn btn-primary" href="/lending/new">Ersten Eintrag anlegen</a>
+        </div>
+    }
+    else if (!FilteredItems.Any())
+    {
+        <div class="glass-card ui-section">Keine Einträge zum aktuellen Suchbegriff gefunden.</div>
+    }
+    else
+    {
+        <div class="ui-table-wrap ui-desktop-table glass-card">
+            <table class="table ui-data-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Titel</th>
+                        <th>Gegenstand</th>
+                        <th>Kategorie</th>
+                        <th>Verleiher</th>
+                        <th>Entleiher</th>
+                        <th>Status</th>
+                        <th>Fällig</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var entry in FilteredItems)
+                    {
+                        <tr>
+                            <td>
+                                <div class="item-title">@entry.Title</div>
+                                <div class="item-subtitle">@entry.Description</div>
+                            </td>
+                            <td>@FormatItemNames(entry)</td>
+                            <td>@ValueOrFallback(entry.Category)</td>
+                            <td>@entry.Lender.DisplayName</td>
+                            <td>@entry.Borrower.DisplayName</td>
+                            <td><span class="status-pill @StatusClass(entry.Status)">@StatusLabel(entry.Status)</span></td>
+                            <td>@FormatDate(entry.DueDate)</td>
+                            <td class="actions">
+                                <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/{entry.Id}")">Details</a>
+                                @if (_canWrite)
+                                {
+                                    <a class="btn btn-sm btn-outline-primary" href="@($"/lending/edit/{entry.Id}")">Bearbeiten</a>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(entry)">Löschen</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="ui-mobile-cards">
+            @foreach (var entry in FilteredItems)
+            {
+                @if (_canWrite)
+                {
+                    <SwipeToDelete @key="entry.Id" DeleteLabel="Eintrag löschen" OnDelete="() => DeleteAsync(entry)">
+                        @LendingCard(entry)
+                    </SwipeToDelete>
+                }
+                else
+                {
+                    <div @key="entry.Id">@LendingCard(entry)</div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<LendingEntry>? _items;
+    private string _searchTerm = string.Empty;
+    private LendingEntryStatus? _statusFilter;
+    private bool _canWrite = true;
+
+    private RenderFragment LendingCard(LendingEntry entry) => @<article class="ui-mobile-card">
+        <div class="ui-mobile-card-head">
+            <div>
+                <div class="ui-mobile-card-title">@entry.Title</div>
+                <div class="ui-mobile-card-subtitle">@FormatItemNames(entry)</div>
+            </div>
+            <span class="status-pill @StatusClass(entry.Status)">@StatusLabel(entry.Status)</span>
+        </div>
+        <div class="ui-mobile-meta">
+            <div class="ui-mobile-meta-row"><span>Kategorie</span><span>@ValueOrFallback(entry.Category)</span></div>
+            <div class="ui-mobile-meta-row"><span>Verleiher</span><span>@entry.Lender.DisplayName</span></div>
+            <div class="ui-mobile-meta-row"><span>Entleiher</span><span>@entry.Borrower.DisplayName</span></div>
+            <div class="ui-mobile-meta-row"><span>Fällig</span><span>@FormatDate(entry.DueDate)</span></div>
+        </div>
+        <div class="table-actions">
+            <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/{entry.Id}")">Details</a>
+            @if (_canWrite)
+            {
+                <a class="btn btn-sm btn-outline-primary" href="@($"/lending/edit/{entry.Id}")">Bearbeiten</a>
+                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(entry)">Löschen</button>
+            }
+        </div>
+    </article>;
+
+    private IEnumerable<LendingEntry> FilteredItems => (_items ?? Enumerable.Empty<LendingEntry>())
+        .Where(entry => !_statusFilter.HasValue || entry.Status == _statusFilter)
+        .Where(entry => string.IsNullOrWhiteSpace(_searchTerm)
+            || Matches(entry.Title)
+            || Matches(entry.ItemName)
+            || Matches(entry.Category)
+            || Matches(entry.Description)
+            || Matches(entry.Lender.DisplayName)
+            || Matches(entry.Borrower.DisplayName)
+            || entry.Items.Any(item => Matches(item.Name))
+            || entry.CategoryLinks.Any(link => Matches(link.LendingCategory?.Name)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        var access = await Permissions.GetAccessAsync(AppModules.Lending);
+        if (!access.CanRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _canWrite = access.CanWrite;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _items = (await LendingService.GetAllAsync()).ToList();
+    }
+
+    // Swipe-to-delete with Undo: remove the entry from the list immediately, and
+    // only commit the DB delete once the Undo window elapses.
+    private Task DeleteAsync(LendingEntry entry)
+    {
+        var index = _items?.IndexOf(entry) ?? -1;
+        if (index < 0 || _items is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        _items.RemoveAt(index);
+        var restoreIndex = index;
+
+        DeferredDelete.DeleteWithUndo(
+            $"„{ValueOrFallback(entry.Title)}“ gelöscht",
+            commit: () => LendingService.DeleteAsync(entry.Id),
+            restore: () =>
+            {
+                _items ??= new List<LendingEntry>();
+                _items.Insert(Math.Min(restoreIndex, _items.Count), entry);
+                return InvokeAsync(StateHasChanged);
+            });
+
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private void OnStatusChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        _statusFilter = Enum.TryParse<LendingEntryStatus>(value, out var status)
+            ? status
+            : null;
+    }
+
+    private bool Matches(string? value)
+        => !string.IsNullOrWhiteSpace(value)
+           && value.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatDate(DateTime? value)
+        => value?.ToString("dd.MM.yyyy") ?? "-";
+
+    private static string ValueOrFallback(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private static string FormatItemNames(LendingEntry entry)
+    {
+        var names = entry.Items
+            .OrderBy(x => x.SortOrder)
+            .Select(x => x.Name)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        if (names.Count == 0 && !string.IsNullOrWhiteSpace(entry.ItemName))
+        {
+            names.Add(entry.ItemName);
+        }
+
+        return names.Count == 0 ? "-" : string.Join(", ", names);
+    }
+
+    private static string StatusLabel(LendingEntryStatus status) => status switch
+    {
+        LendingEntryStatus.Active => "Aktiv",
+        LendingEntryStatus.Overdue => "Überfällig",
+        LendingEntryStatus.Returned => "Zurückgegeben",
+        LendingEntryStatus.Lost => "Verloren",
+        LendingEntryStatus.GivenAway => "Verschenkt",
+        _ => status.ToString()
+    };
+
+    private static string StatusClass(LendingEntryStatus status) => status switch
+    {
+        LendingEntryStatus.Active => "status-active",
+        LendingEntryStatus.Overdue => "status-overdue",
+        LendingEntryStatus.Returned => "status-returned",
+        LendingEntryStatus.Lost => "status-lost",
+        LendingEntryStatus.GivenAway => "status-givenaway",
+        _ => string.Empty
+    };
+}

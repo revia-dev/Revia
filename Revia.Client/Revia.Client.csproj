@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Keep blazor.webassembly.js at a stable name so index.html can reference it
+         without the #[.{fingerprint}] placeholder (which isn't resolved in this
+         hosted-publish setup). The service worker handles cache-busting via its
+         versioned assets manifest. -->
+    <WasmFingerprintDotnetJs>false</WasmFingerprintDotnetJs>
+    <OverrideHtmlAssetPlaceholders>false</OverrideHtmlAssetPlaceholders>
+    <!-- PWA: emit the manifest of cacheable assets used by the service worker for
+         offline app-shell caching. -->
+    <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.6" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" Version="10.0.6" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.6" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Localization" Version="10.0.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Revia.Shared\Revia.Shared.csproj" />
+  </ItemGroup>
+
+  <!-- PWA service worker: dev SW is a no-op; on publish it is replaced by
+       service-worker.published.js (real offline caching). -->
+  <ItemGroup>
+    <ServiceWorker Include="wwwroot\service-worker.js"
+                   PublishedContent="wwwroot\service-worker.published.js" />
+  </ItemGroup>
+
+</Project>

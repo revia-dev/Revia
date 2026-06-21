@@ -66,11 +66,11 @@ Verbindung besteht.
 
 | Projekt | Rolle |
 |---|---|
-| `PrivateLibrary.Client` | Blazor **WebAssembly** PWA (UI, Offline-Cache, Sync-Engine) |
-| `PrivateLibrary.Api` | ASP.NET Core Host: serviert die PWA **und** die REST-API (JWT) |
-| `PrivateLibrary.Shared` | geteilte DTOs / Verträge zwischen Client und Api |
-| `PrivateLibrary` | bestehende Domänen-/Identity-Schicht (von der Api wiederverwendet) |
-| `PrivateLibrary.Tests` | xUnit-Tests |
+| `Revia.Client` | Blazor **WebAssembly** PWA (UI, Offline-Cache, Sync-Engine) |
+| `Revia.Api` | ASP.NET Core Host: serviert die PWA **und** die REST-API (JWT) |
+| `Revia.Shared` | geteilte DTOs / Verträge zwischen Client und Api |
+| `Revia` | bestehende Domänen-/Identity-Schicht (von der Api wiederverwendet) |
+| `Revia.Tests` | xUnit-Tests |
 
 Datenhaltung: **SQLite** (EF Core). Fotos/Dateien liegen in konfigurierbaren
 Verzeichnissen.
@@ -81,7 +81,7 @@ Voraussetzung: **.NET 10 SDK**.
 
 ```bash
 # API + PWA starten (Development)
-dotnet run --project PrivateLibrary.Api
+dotnet run --project Revia.Api
 # -> http://localhost:5223
 ```
 
@@ -94,7 +94,7 @@ Standard-Login: `admin` / `Admin123!` (beim ersten Start geseedet; via
 ## Tests
 
 ```bash
-dotnet test PrivateLibrary.Tests
+dotnet test Revia.Tests
 ```
 
 ## Im LAN betreiben (Published-PWA)
@@ -158,7 +158,7 @@ eigenen Haushalt und lässt echte Daten unberührt).
 ASPNETCORE_ENVIRONMENT=Production \
 ConnectionStrings__DefaultConnection="Data Source=/tmp/revia-demo.db" \
 Demo__Enabled=true Jwt__SigningKey="<32+ Zeichen>" \
-dotnet PrivateLibrary.Api.dll
+dotnet Revia.Api.dll
 ```
 
 ## Lokale Domain & HTTPS

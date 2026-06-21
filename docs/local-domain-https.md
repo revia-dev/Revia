@@ -61,7 +61,7 @@ das Helfer-Skript `setup-https.sh`:
 
 ```bash
 brew install mkcert nss          # einmalig (nss nur für Firefox)
-cd /Users/revia-dev/Documents/PrivateLibrary
+cd /Users/revia-dev/Documents/Revia
 ./setup-https.sh                 # installiert die lokale CA (fragt dein Passwort)
                                  # und erzeugt certs/revia-cert.pem + revia-key.pem
 ```

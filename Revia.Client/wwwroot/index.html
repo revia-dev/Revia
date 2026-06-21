@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#e9eef5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <title>Revia Library</title>
+    <base href="/" />
+    <link rel="preload" id="webassembly" />
+    <link rel="stylesheet" href="css/app.css" />
+    <!-- Versioned icon URLs bust stale browser/PWA caches (?v=3 = new app icon). -->
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=3" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=3" />
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=3" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png?v=3" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png?v=3" />
+    <script type="importmap"></script>
+    <script src="js/token-store.js"></script>
+    <script src="js/offline-store.js"></script>
+    <script src="js/qrcode.js"></script>
+    <script src="js/jsqr.js"></script>
+    <script src="js/qr-scanner.js"></script>
+    <script src="js/sortable.js"></script>
+    <script src="js/file-download.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <svg class="loading-progress">
+            <circle r="40%" cx="50%" cy="50%" />
+            <circle r="40%" cx="50%" cy="50%" />
+        </svg>
+        <div class="loading-progress-text"></div>
+    </div>
+
+    <div id="blazor-error-ui">
+        Ein unerwarteter Fehler ist aufgetreten.
+        <a href="." class="reload">Neu laden</a>
+        <span class="dismiss">🗙</span>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script>navigator.serviceWorker.register('service-worker.js');</script>
+</body>
+
+</html>

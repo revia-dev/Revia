@@ -1,0 +1,82 @@
+@page "/lending/delete/{Id:int}"
+@page "/lending/persons/delete/{Id}"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject Revia.Modules.Lending.Services.ILendingService LendingService
+@inject Revia.Modules.Lending.Services.IPersonService PersonService
+@inject NavigationManager Navigation
+
+<PageTitle>Löschen bestätigen</PageTitle>
+
+<div class="page-shell">
+    <div class="glass-card">
+        <h1>Löschen bestätigen</h1>
+        <p>@Message</p>
+
+        <div class="actions">
+            <button class="btn btn-danger btn-modern" @onclick="DeleteAsync">Löschen</button>
+            <a class="btn btn-secondary btn-modern" href="@BackUrl">Abbrechen</a>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="alert alert-warning mt-3">@_error</div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string? Id { get; set; }
+
+    private string? _error;
+    private bool _isPersonRoute;
+    private string BackUrl => _isPersonRoute ? "/lending/persons" : "/lending";
+    private string Message => _isPersonRoute
+        ? "Möchten Sie diesen Benutzer wirklich löschen?"
+        : "Möchten Sie diesen Ausleih-Eintrag wirklich löschen?";
+
+    protected override void OnInitialized()
+    {
+        _isPersonRoute = Navigation.Uri.Contains("/lending/persons/delete/");
+    }
+
+    private async Task DeleteAsync()
+    {
+        _error = null;
+
+        if (_isPersonRoute)
+        {
+            if (string.IsNullOrWhiteSpace(Id))
+            {
+                _error = "Benutzer wurde nicht gefunden.";
+                return;
+            }
+
+            var deleted = await PersonService.DeleteAsync(Id);
+            if (!deleted.Succeeded)
+            {
+                _error = deleted.ErrorMessage ?? "Benutzer konnte nicht gelöscht werden.";
+                return;
+            }
+
+            Navigation.NavigateTo("/lending/persons");
+            return;
+        }
+
+        if (!int.TryParse(Id, out var lendingId))
+        {
+            _error = "Eintrag wurde nicht gefunden.";
+            return;
+        }
+
+        var result = await LendingService.DeleteAsync(lendingId);
+        if (!result)
+        {
+            _error = "Eintrag konnte nicht gelöscht werden.";
+            return;
+        }
+
+        Navigation.NavigateTo("/lending");
+    }
+}

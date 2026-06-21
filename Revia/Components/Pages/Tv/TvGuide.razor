@@ -1,0 +1,291 @@
+@page "/tv"
+@using Revia.Data
+@using Revia.Services
+@attribute [Authorize]
+@inject TvGuideService Guide
+@inject TmdbService TmdbService
+@inject Revia.Modules.Lending.Services.ToastService ToastService
+@inject Revia.Services.DeferredDeleteService DeferredDelete
+@inject Revia.Services.PermissionService Permissions
+@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Fernsehprogramm</PageTitle>
+
+<div class="page-shell">
+    <div class="glass-card page-header">
+        <div>
+            <h1>Fernsehprogramm</h1>
+            <p>Stelle dir aus deiner Filmsammlung ein lineares Programm zusammen.</p>
+        </div>
+        <div class="header-actions">
+            <a class="btn btn-outline-secondary" href="/tv/export.csv" target="_blank" rel="noopener">CSV-Export</a>
+        </div>
+    </div>
+
+    <div class="glass-card ui-section ui-stack">
+        <div class="tv-tabs">
+            <button type="button" class="tv-tab @(_tab == Tab.Private ? "is-active" : "")" @onclick="() => SetTab(Tab.Private)">Mein Programm</button>
+            <button type="button" class="tv-tab @(_tab == Tab.Family ? "is-active" : "")" @onclick="() => SetTab(Tab.Family)">Familienprogramm</button>
+        </div>
+
+        @* ---- Add form ---- *@
+        @if (_canWrite)
+        {
+        <div class="tv-add">
+            <div class="tv-add-grid">
+                <div class="field field-wide">
+                    <label>Film</label>
+                    @if (_selectedMovie is not null)
+                    {
+                        <div class="tv-selected">
+                            <span>@_selectedMovie.Title @(string.IsNullOrWhiteSpace(_selectedMovie.Year) ? "" : $"({_selectedMovie.Year})")</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => _selectedMovie = null">Ändern</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <input class="form-control" placeholder="Film suchen..." @bind="_movieFilter" @bind:event="oninput" />
+                        @if (!string.IsNullOrWhiteSpace(_movieFilter))
+                        {
+                            <div class="tv-movie-results">
+                                @foreach (var option in FilteredOptions)
+                                {
+                                    <button type="button" class="tv-movie-option" @onclick="() => SelectMovie(option)">
+                                        @option.Title @(string.IsNullOrWhiteSpace(option.Year) ? "" : $"({option.Year})")
+                                    </button>
+                                }
+                                @if (!FilteredOptions.Any())
+                                {
+                                    <div class="text-muted small">Keine Treffer.</div>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="field">
+                    <label>Datum &amp; Uhrzeit</label>
+                    <input type="datetime-local" class="form-control" @bind="_newStartsAt" @bind:format="yyyy-MM-ddTHH:mm" />
+                </div>
+                <div class="field">
+                    <label>Sender (optional)</label>
+                    <input class="form-control" @bind="_newChannel" />
+                </div>
+                <div class="field field-wide">
+                    <label>Notiz (optional)</label>
+                    <input class="form-control" @bind="_newNote" />
+                </div>
+
+                @if (_tab == Tab.Private)
+                {
+                    <div class="field field-wide">
+                        <label class="checkbox-field">
+                            <input type="checkbox" @bind="_newShared" />
+                            <span>Für Familienprogramm freigeben</span>
+                        </label>
+                    </div>
+                }
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary btn-modern" @onclick="AddEntryAsync">Zum Programm hinzufügen</button>
+            </div>
+        </div>
+        }
+
+        @* ---- Linear schedule ---- *@
+        @if (_entries is null)
+        {
+            <div>Lade Programm...</div>
+        }
+        else if (_entries.Count == 0)
+        {
+            <div class="text-muted">Noch keine Einträge im Programm.</div>
+        }
+        else
+        {
+            @foreach (var day in _entries.GroupBy(e => e.StartsAt.Date).OrderBy(g => g.Key))
+            {
+                <div class="tv-day">
+                    <div class="tv-day-head">@day.Key.ToString("dddd, dd.MM.yyyy")</div>
+                    <div class="tv-entries">
+                        @foreach (var entry in day.OrderBy(e => e.StartsAt))
+                        {
+                            @if (CanDelete(entry))
+                            {
+                                <SwipeToDelete @key="entry.Id" DeleteLabel="Eintrag löschen" OnDelete="() => DeleteEntryAsync(entry)">
+                                    @TvEntryCard(entry)
+                                </SwipeToDelete>
+                            }
+                            else
+                            {
+                                <div @key="entry.Id">@TvEntryCard(entry)</div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private enum Tab { Private, Family }
+    private Tab _tab = Tab.Private;
+    private bool _canWrite = true;
+
+    private RenderFragment TvEntryCard(TvProgramEntry entry) => @<div class="tv-entry">
+        <div class="tv-entry-time">@entry.StartsAt.ToString("HH:mm")</div>
+        <img class="tv-entry-poster" src="@Poster(entry.Movie)" alt="" loading="lazy" />
+        <div class="tv-entry-body">
+            <div class="tv-entry-title">@(entry.Movie?.Titel ?? "Unbekannt")</div>
+            <div class="tv-entry-meta">
+                @if (!string.IsNullOrWhiteSpace(entry.Channel)) { <span>@entry.Channel</span> }
+                @if (_tab == Tab.Family && entry.TvProgram?.OwnerUser is not null)
+                {
+                    <span class="badge text-bg-info">von @entry.TvProgram.OwnerUser.DisplayName</span>
+                }
+                @if (_tab == Tab.Private && entry.SharedWithHousehold)
+                {
+                    <span class="badge text-bg-success">freigegeben</span>
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(entry.Note)) { <div class="tv-entry-note">@entry.Note</div> }
+        </div>
+        <div class="tv-entry-actions">
+            @if (_tab == Tab.Private && _canWrite)
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ToggleShareAsync(entry)">
+                    @(entry.SharedWithHousehold ? "Freigabe zurücknehmen" : "Freigeben")
+                </button>
+            }
+            @if (CanDelete(entry))
+            {
+                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteEntryAsync(entry)">Löschen</button>
+            }
+        </div>
+    </div>;
+
+    private List<TvProgramEntry>? _entries;
+    private IReadOnlyList<MovieOption> _options = Array.Empty<MovieOption>();
+
+    private string _movieFilter = string.Empty;
+    private MovieOption? _selectedMovie;
+    private DateTime _newStartsAt = DateTime.Now.Date.AddHours(20);
+    private string? _newChannel;
+    private string? _newNote;
+    private bool _newShared;
+
+    private IEnumerable<MovieOption> FilteredOptions => _options
+        .Where(o => o.Title.Contains(_movieFilter, StringComparison.OrdinalIgnoreCase))
+        .Take(15);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var access = await Permissions.GetAccessAsync(AppModules.Tv);
+        if (!access.CanRead)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+        _canWrite = access.CanWrite;
+        _options = await Guide.GetMovieOptionsAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _entries = (_tab == Tab.Private
+            ? await Guide.GetPrivateEntriesAsync()
+            : await Guide.GetHouseholdEntriesAsync()).ToList();
+    }
+
+    private async Task SetTab(Tab tab)
+    {
+        _tab = tab;
+        _entries = null;
+        await LoadAsync();
+    }
+
+    private void SelectMovie(MovieOption option)
+    {
+        _selectedMovie = option;
+        _movieFilter = string.Empty;
+    }
+
+    private async Task AddEntryAsync()
+    {
+        if (_selectedMovie is null)
+        {
+            ToastService.Error("Bitte einen Film auswählen.");
+            return;
+        }
+
+        try
+        {
+            if (_tab == Tab.Private)
+            {
+                await Guide.AddPrivateEntryAsync(_selectedMovie.Id, _newStartsAt, _newChannel, _newNote, _newShared);
+            }
+            else
+            {
+                await Guide.AddHouseholdEntryAsync(_selectedMovie.Id, _newStartsAt, _newChannel, _newNote);
+            }
+
+            _selectedMovie = null;
+            _newChannel = null;
+            _newNote = null;
+            _newShared = false;
+            ToastService.Success("Eintrag hinzugefügt.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ToastService.Error(ex.Message);
+        }
+    }
+
+    private async Task ToggleShareAsync(TvProgramEntry entry)
+    {
+        await Guide.SetSharedAsync(entry.Id, !entry.SharedWithHousehold);
+        await LoadAsync();
+    }
+
+    private Task DeleteEntryAsync(TvProgramEntry entry)
+    {
+        if (!CanDelete(entry) || _entries is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var index = _entries.IndexOf(entry);
+        if (index < 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        _entries.RemoveAt(index);
+        var restoreIndex = index;
+
+        DeferredDelete.DeleteWithUndo(
+            $"„{entry.Movie?.Titel ?? "Eintrag"}“ gelöscht",
+            commit: () => Guide.DeleteEntryAsync(entry.Id),
+            restore: () =>
+            {
+                _entries ??= new List<TvProgramEntry>();
+                _entries.Insert(Math.Min(restoreIndex, _entries.Count), entry);
+                return InvokeAsync(StateHasChanged);
+            });
+
+        return InvokeAsync(StateHasChanged);
+    }
+
+    // In the family view, shared private entries are read-only here (edit them in "Mein Programm").
+    private bool CanDelete(TvProgramEntry entry)
+        => _canWrite && (_tab == Tab.Private || entry.TvProgram?.OwnerUserId is null);
+
+    private string Poster(Movie? movie)
+        => string.IsNullOrWhiteSpace(movie?.PosterPath)
+            ? "/images/placeholder.png"
+            : TmdbService.GetPosterUrl(movie.PosterPath, 200);
+}

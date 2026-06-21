@@ -1,0 +1,68 @@
+@using Revia.Client.Offline
+@using Revia.Shared.Offline
+@inject SyncEngine Sync
+@inject ConnectivityService Connectivity
+@implements IDisposable
+
+@if (!Connectivity.IsOnline && _pending > 0)
+{
+    <span class="sync-chip sync-offline" title="Offline – Änderungen werden gesendet, sobald du wieder online bist">
+        ⚡ @_pending offline
+    </span>
+}
+else if (_poisoned > 0)
+{
+    <span class="sync-chip sync-error" title="Einige Änderungen konnten nicht gesendet werden">
+        ⚠ @_poisoned hängt
+        <button class="sync-retry" @onclick="RetryAsync">erneut</button>
+    </span>
+}
+else if (_pending > 0)
+{
+    <span class="sync-chip sync-busy" title="Synchronisiere Änderungen">⟳ @_pending</span>
+}
+
+@code {
+    private int _pending;
+    private int _poisoned;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Sync.Synced += OnSynced;
+        Sync.Queued += OnQueued;
+        Connectivity.Changed += OnConnectivity;
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _pending = await Sync.PendingCountAsync();
+        _poisoned = await Sync.PoisonCountAsync();
+        StateHasChanged();
+    }
+
+    private async void OnSynced(SyncResult result)
+        => await InvokeAsync(() =>
+        {
+            _pending = result.Remaining;
+            _poisoned = result.Poisoned;
+            StateHasChanged();
+        });
+
+    private async void OnQueued() => await InvokeAsync(RefreshAsync);
+
+    private async void OnConnectivity(bool online) => await InvokeAsync(RefreshAsync);
+
+    private async Task RetryAsync()
+    {
+        await Sync.RetryPoisonedAsync();
+        await RefreshAsync();
+    }
+
+    public void Dispose()
+    {
+        Sync.Synced -= OnSynced;
+        Sync.Queued -= OnQueued;
+        Connectivity.Changed -= OnConnectivity;
+    }
+}

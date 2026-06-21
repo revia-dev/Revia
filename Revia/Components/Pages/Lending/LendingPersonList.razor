@@ -1,0 +1,276 @@
+@page "/lending/persons"
+@using Revia.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize]
+@inject Revia.Modules.Lending.Services.IPersonService PersonService
+@inject Revia.Modules.Lending.Services.ToastService ToastService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Personen</PageTitle>
+
+<div class="page-shell">
+    <div class="page-header glass-card">
+        <div>
+            <h1>Personen</h1>
+            <p>Personen und Rollen verwalten.</p>
+        </div>
+        <div class="header-actions">
+            <a class="btn btn-primary" href="/lending/persons/new">Neu anlegen</a>
+            <a class="btn btn-outline-secondary" href="/persons/export.csv" target="_blank" rel="noopener">CSV-Export</a>
+        </div>
+    </div>
+
+    <AuthorizeView Roles="Admin">
+        <Authorized>
+            <div class="glass-card ui-section ui-stack">
+                <div class="toolbar">
+                    <div>
+                        <h2>Rollenverwaltung</h2>
+                        <p class="text-muted mb-0">Neue Rollen anlegen oder ungenutzte Rollen löschen.</p>
+                    </div>
+                </div>
+
+                <div class="role-admin-row">
+                    <EditForm Model="this" OnValidSubmit="CreateRoleAsync" FormName="person-role-create-form" Context="roleFormContext">
+                        <div class="role-admin-row">
+                            <input class="form-control" placeholder="Neue Rolle eingeben" @bind="_newRoleName" />
+                            <button type="submit" class="btn btn-primary">Rolle anlegen</button>
+                        </div>
+                    </EditForm>
+                </div>
+
+                <div class="role-chip-list">
+                    @foreach (var role in _roles)
+                    {
+                        <div class="role-chip-item">
+                            <span class="badge text-bg-secondary">@role</span>
+                            <button class="btn btn-sm btn-outline-danger"
+                                    @onclick="() => DeleteRoleAsync(role)">
+                                Rolle löschen
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+
+    @if (_users is null)
+    {
+        <div class="glass-card ui-section">Lade Benutzer...</div>
+    }
+    else if (_users.Count == 0)
+    {
+        <div class="glass-card ui-section">Noch keine Personen vorhanden.</div>
+    }
+    else
+    {
+        <div class="glass-card ui-section ui-stack">
+            <div class="toolbar">
+                <div class="search-box">
+                    <label class="search-label" for="person-search">Suche</label>
+                    <input id="person-search"
+                           class="form-control search-input"
+                           type="search"
+                           placeholder="Name, E-Mail, Benutzername oder Ort durchsuchen"
+                           @bind="_searchTerm"
+                           @bind:event="oninput" />
+                </div>
+                <div class="result-count">@FilteredUsers.Count() Personen</div>
+            </div>
+
+            @if (!FilteredUsers.Any())
+            {
+                <div class="glass-card ui-section">Keine Personen zum aktuellen Suchbegriff gefunden.</div>
+            }
+            else
+            {
+                <div class="ui-table-wrap ui-desktop-table">
+                    <table class="table ui-data-table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Kontakt</th>
+                                <th>Ort</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in FilteredUsers)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="person-cell">
+                                            <span class="person-avatar">
+                                                @if (!string.IsNullOrWhiteSpace(user.ProfilePhotoFileName))
+                                                {
+                                                    <img src="@($"/persons/photo/{user.Id}")" alt="" loading="lazy" />
+                                                }
+                                                else
+                                                {
+                                                    <span class="person-avatar-initials">@Initials(user)</span>
+                                                }
+                                            </span>
+                                            <span>
+                                                <div class="item-title">@DisplayName(user)</div>
+                                                <div class="text-muted small">@ValueOrFallback(user.UserName)</div>
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>@ValueOrFallback(user.Email)<br />@ValueOrFallback(user.Phone)</td>
+                                    <td>@FormatLocation(user)</td>
+                                    <td>
+                                        @if (user.IsSystemUser)
+                                        {
+                                            <span class="badge text-bg-dark">System</span>
+                                        }
+                                        else if (user.IsLoginless)
+                                        {
+                                            <span class="badge text-bg-info">Ohne Login</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge text-bg-secondary">Benutzer</span>
+                                        }
+                                    </td>
+                                    <td class="actions">
+                                        <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/persons/edit/{user.Id}")">Bearbeiten</a>
+                                        @if (_canManageUsers)
+                                        {
+                                            <a class="btn btn-sm btn-outline-danger" href="@($"/lending/persons/delete/{user.Id}")">Löschen</a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="ui-mobile-cards">
+                    @foreach (var user in FilteredUsers)
+                    {
+                        <article class="ui-mobile-card">
+                            <div class="ui-mobile-card-head">
+                                <div>
+                                    <div class="ui-mobile-card-title">@DisplayName(user)</div>
+                                    <div class="ui-mobile-card-subtitle">@ValueOrFallback(user.UserName)</div>
+                                </div>
+                            </div>
+                            <div class="ui-mobile-meta">
+                                <div class="ui-mobile-meta-row"><span>E-Mail</span><span>@ValueOrFallback(user.Email)</span></div>
+                                <div class="ui-mobile-meta-row"><span>Telefon</span><span>@ValueOrFallback(user.Phone)</span></div>
+                                <div class="ui-mobile-meta-row"><span>Ort</span><span>@FormatLocation(user)</span></div>
+                            </div>
+                            <div class="table-actions">
+                                <a class="btn btn-sm btn-outline-secondary" href="@($"/lending/persons/edit/{user.Id}")">Bearbeiten</a>
+                                @if (_canManageUsers)
+                                {
+                                    <a class="btn btn-sm btn-outline-danger" href="@($"/lending/persons/delete/{user.Id}")">Löschen</a>
+                                }
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<ApplicationUser>? _users;
+    private IReadOnlyList<string> _roles = Array.Empty<string>();
+    private string _searchTerm = string.Empty;
+    private string _newRoleName = string.Empty;
+    private bool _canManageUsers;
+
+    private IEnumerable<ApplicationUser> FilteredUsers => (_users ?? Array.Empty<ApplicationUser>())
+        .Where(user => string.IsNullOrWhiteSpace(_searchTerm)
+            || Matches(DisplayName(user))
+            || Matches(user.Email)
+            || Matches(user.Phone)
+            || Matches(user.UserName)
+            || Matches($"{user.PostalCode} {user.City}")
+            || Matches(user.City));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _canManageUsers = await CurrentUserIsAdminAsync();
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _users = await PersonService.GetAllAsync();
+        _roles = await PersonService.GetAvailableRolesAsync();
+    }
+
+    private async Task CreateRoleAsync()
+    {
+        if (!_canManageUsers)
+        {
+            return;
+        }
+
+        var result = await PersonService.CreateRoleAsync(_newRoleName);
+        if (!result.Succeeded)
+        {
+            ToastService.Error(result.ErrorMessage ?? "Rolle konnte nicht angelegt werden.");
+            return;
+        }
+
+        _newRoleName = string.Empty;
+        ToastService.Success("Rolle erfolgreich angelegt.");
+        await LoadDataAsync();
+    }
+
+    private async Task DeleteRoleAsync(string roleName)
+    {
+        if (!_canManageUsers)
+        {
+            return;
+        }
+
+        var result = await PersonService.DeleteRoleAsync(roleName);
+        if (!result.Succeeded)
+        {
+            ToastService.Error(result.ErrorMessage ?? "Rolle konnte nicht gelöscht werden.");
+            return;
+        }
+
+        ToastService.Success("Rolle erfolgreich gelöscht.");
+        await LoadDataAsync();
+    }
+
+    private bool Matches(string? value)
+        => !string.IsNullOrWhiteSpace(value)
+           && value.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase);
+
+    private static string ValueOrFallback(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private static string DisplayName(ApplicationUser user)
+        => string.IsNullOrWhiteSpace(user.DisplayName) ? ValueOrFallback(user.Email) : user.DisplayName;
+
+    private static string Initials(ApplicationUser user)
+    {
+        var first = user.FirstName?.Trim();
+        var last = user.LastName?.Trim();
+        var initials = $"{(first?.Length > 0 ? first[0] : ' ')}{(last?.Length > 0 ? last[0] : ' ')}".Trim();
+        return string.IsNullOrWhiteSpace(initials) ? "?" : initials.ToUpperInvariant();
+    }
+
+    private static string FormatLocation(ApplicationUser user)
+    {
+        var location = $"{user.PostalCode} {user.City}".Trim();
+        return string.IsNullOrWhiteSpace(location) ? "-" : location;
+    }
+
+    private async Task<bool> CurrentUserIsAdminAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return authState.User.IsInRole(IdentitySeeder.AdminRoleName);
+    }
+}
