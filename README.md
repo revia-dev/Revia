@@ -112,7 +112,9 @@ Two test projects:
 dotnet test Revia.slnx   # runs both
 ```
 
-Architecture decisions are recorded as ADRs in [docs/adr/](docs/adr/).
+Architecture decisions are recorded as ADRs in [docs/adr/](docs/adr/), and there's a
+narrated code &amp; architecture walkthrough in
+[docs/architecture/index.html](docs/architecture/index.html).
 
 ## Operations & observability
 
@@ -124,7 +126,8 @@ The API host is set up to run in production, not just on a laptop:
   and runtime instrumentation). Traces/metrics are exported over OTLP **only when
   `OTEL_EXPORTER_OTLP_ENDPOINT` is set**, so the app runs unchanged without a collector.
 - **Fail-fast config:** in Production the host refuses to start without a strong
-  (>= 32 char) `Jwt:SigningKey` and rejects the shipped default admin password.
+  (>= 32 char) `Jwt:SigningKey`, and logs a loud warning if the default admin
+  password is still in place.
 - **Consistent errors:** an `IExceptionHandler` turns any unhandled exception into
   an RFC 7807 ProblemDetails response with a trace id — the stack trace stays in the
   logs, never on the wire.

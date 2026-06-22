@@ -23,6 +23,9 @@ services:
       Demo__Enabled: "${REVIA_DEMO_ENABLED:-false}"
       Demo__ResetOnStartup: "${REVIA_DEMO_RESET:-true}"
       Tmdb__ApiKey: "${REVIA_TMDB_KEY:-}"
+      # Optional: export OpenTelemetry traces/metrics to an OTLP collector.
+      # Empty (default) disables export — the app runs without a collector.
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${REVIA_OTEL_ENDPOINT:-}"
     volumes:
       - revia-data:/data
     restart: unless-stopped

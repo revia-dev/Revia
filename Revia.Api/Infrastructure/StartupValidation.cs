@@ -5,8 +5,12 @@ namespace Revia.Api.Infrastructure;
 /// <summary>
 /// Fail-fast configuration validation run at startup. The principle: a misconfigured
 /// production deployment must refuse to start rather than come up silently insecure.
-/// In Development we stay convenient (auto-generate a key, allow the demo password);
-/// in Production we hard-fail on anything that would weaken auth.
+/// In Development we stay convenient (auto-generate a key); in Production we hard-fail
+/// on the catastrophic case — a missing/weak token-signing key — because that would
+/// make every issued token forgeable. The weak default admin password is a softer
+/// risk (it can be changed after login) and would break the documented out-of-the-box
+/// Docker/LAN flow if it hard-failed, so it is surfaced as a loud warning instead
+/// (see <see cref="UsesDefaultAdminPassword"/>).
 /// </summary>
 public static class StartupValidation
 {
@@ -14,8 +18,7 @@ public static class StartupValidation
     /// hash add no security and are a common foot-gun.</summary>
     public const int MinSigningKeyLength = 32;
 
-    /// <summary>The seeded default admin password shipped in appsettings; must never
-    /// survive into Production.</summary>
+    /// <summary>The seeded default admin password shipped in appsettings.</summary>
     public const string DefaultAdminPassword = "Admin123!";
 
     public static void ValidateAndHardenJwt(
@@ -43,13 +46,11 @@ public static class StartupValidation
                 $"Jwt:SigningKey is too short ({jwt.SigningKey.Length} chars); " +
                 $"use at least {MinSigningKeyLength} characters in Production.");
         }
-
-        if (!env.IsDevelopment()
-            && string.Equals(configuration["Seed:AdminPassword"], DefaultAdminPassword, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException(
-                "Seed:AdminPassword is still the shipped default. Set a unique admin " +
-                "password via Seed__AdminPassword before starting in Production.");
-        }
     }
+
+    /// <summary>True when running outside Development with the shipped default admin
+    /// password still in place — worth a startup warning so an operator changes it.</summary>
+    public static bool UsesDefaultAdminPassword(IHostEnvironment env, IConfiguration configuration)
+        => !env.IsDevelopment()
+            && string.Equals(configuration["Seed:AdminPassword"], DefaultAdminPassword, StringComparison.Ordinal);
 }

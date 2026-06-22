@@ -27,7 +27,10 @@ credentials, and the ability to revoke a session.
 - **Defense in depth on the login surface:** Identity per-account lockout *and* an
   edge fixed-window rate limiter on `…/auth/login` and `…/auth/refresh`.
 - **Fail-fast config:** in Production the host refuses to start without a strong
-  (>= 32 char) `Jwt:SigningKey` and rejects the shipped default admin password.
+  (>= 32 char) `Jwt:SigningKey` — a missing/weak key would make every token forgeable.
+  The shipped default admin password is the softer risk (it can be changed after
+  login), so it is surfaced as a loud startup **warning** rather than a hard failure,
+  to keep the documented out-of-the-box Docker/LAN flow working.
 
 ## Consequences
 

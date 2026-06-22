@@ -157,6 +157,13 @@ using (var scope = app.Services.CreateScope())
         var userManager = sp.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = sp.GetRequiredService<RoleManager<IdentityRole>>();
 
+        if (StartupValidation.UsesDefaultAdminPassword(app.Environment, app.Configuration))
+        {
+            log.LogWarning(
+                "Seed:AdminPassword is still the shipped default in a non-Development " +
+                "environment. Set a unique admin password via Seed__AdminPassword.");
+        }
+
         log.LogInformation("Applying migrations and seeding identity…");
         await db.Database.MigrateAsync();
         await IdentitySeeder.SeedAsync(userManager, roleManager, db, app.Configuration);
