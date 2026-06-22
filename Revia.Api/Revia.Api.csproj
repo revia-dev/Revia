@@ -7,9 +7,7 @@
          services). Build it with static web assets disabled so its wwwroot
          (bootstrap, favicon, app.css, …) doesn't clash with the WASM client's,
          and don't pull its content (appsettings.json, etc.) into our publish. -->
-    <ProjectReference Include="..\Revia\Revia.csproj"
-                      AdditionalProperties="StaticWebAssetsEnabled=false"
-                      ExcludeAssets="contentFiles" />
+    <ProjectReference Include="..\Revia\Revia.csproj" AdditionalProperties="StaticWebAssetsEnabled=false" ExcludeAssets="contentFiles" />
   </ItemGroup>
 
   <ItemGroup>
@@ -17,6 +15,11 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.6" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.6" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.6" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -30,8 +33,7 @@
        Api uses its own configuration. -->
   <Target Name="RemoveServerAppSettingsFromPublish" AfterTargets="ComputeResolvedFilesToPublishList">
     <ItemGroup>
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
-                             Condition="$([System.String]::Copy('%(ResolvedFileToPublish.FullPath)').Contains('Revia/appsettings'))" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(ResolvedFileToPublish.FullPath)').Contains('Revia/appsettings'))" />
     </ItemGroup>
   </Target>
 

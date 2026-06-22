@@ -97,11 +97,22 @@ Default login: `admin` / `Admin123!` (seeded on first start; changeable via
 dotnet test Revia.Tests
 ```
 
-The suite covers the domain logic (lending status, BMI, CSV round-trips,
-permissions, point transfer) **and the offline `SyncEngine`** — its FIFO replay,
-exponential backoff, poison-message handling and server-wins dispatch are tested
-headlessly against in-memory fakes (the engine depends only on the `IOutboxStore` /
-`IConnectivity` abstractions).
+Two test projects:
+
+- **`Revia.Tests`** — unit tests of the domain logic (lending status, BMI, CSV
+  round-trips, permissions, point transfer) **and the offline `SyncEngine`** (FIFO
+  replay, exponential backoff, poison-message handling, server-wins dispatch),
+  tested headlessly against in-memory fakes via the `IOutboxStore` / `IConnectivity`
+  abstractions.
+- **`Revia.IntegrationTests`** — end-to-end over the real HTTP pipeline with
+  `WebApplicationFactory`: health probes, the login flow (200 / 401 / unauthorized
+  without a token), and the auth rate limiter returning **429** under a burst.
+
+```bash
+dotnet test Revia.slnx   # runs both
+```
+
+Architecture decisions are recorded as ADRs in [docs/adr/](docs/adr/).
 
 ## Operations & observability
 
@@ -109,6 +120,11 @@ The API host is set up to run in production, not just on a laptop:
 
 - **Structured logging** of every request (method, path, status, duration) via
   `AddHttpLogging`; startup migration/seed logs and auth events are logged too.
+- **Distributed tracing + metrics** via **OpenTelemetry** (ASP.NET Core, HttpClient
+  and runtime instrumentation). Traces/metrics are exported over OTLP **only when
+  `OTEL_EXPORTER_OTLP_ENDPOINT` is set**, so the app runs unchanged without a collector.
+- **Fail-fast config:** in Production the host refuses to start without a strong
+  (>= 32 char) `Jwt:SigningKey` and rejects the shipped default admin password.
 - **Consistent errors:** an `IExceptionHandler` turns any unhandled exception into
   an RFC 7807 ProblemDetails response with a trace id — the stack trace stays in the
   logs, never on the wire.

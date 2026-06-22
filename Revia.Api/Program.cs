@@ -37,6 +37,9 @@ builder.Services.AddHttpLogging(o =>
     o.CombineLogs = true;
 });
 
+// ---- Distributed tracing + metrics (OpenTelemetry) ----
+builder.Services.AddReviaTelemetry(builder.Configuration);
+
 // ---- Consistent error responses (RFC 7807 ProblemDetails) ----
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -90,11 +93,7 @@ builder.Services
 
 // ---- JWT auth ----
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
-if (string.IsNullOrWhiteSpace(jwt.SigningKey))
-{
-    // Dev fallback so the app runs out of the box; override via config/secret in prod.
-    jwt.SigningKey = "dev-only-insecure-signing-key-change-me-32+chars-please!!";
-}
+StartupValidation.ValidateAndHardenJwt(jwt, builder.Environment, builder.Configuration);
 builder.Services.AddSingleton(jwt);
 builder.Services.AddScoped<JwtTokenService>();
 
