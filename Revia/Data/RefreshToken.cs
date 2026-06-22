@@ -17,9 +17,11 @@ public sealed class RefreshToken
 
     public ApplicationUser? User { get; set; }
 
-    /// <summary>Opaque random token value (the secret handed to the client).</summary>
+    /// <summary>SHA-256 hash (hex) of the opaque token handed to the client. The
+    /// plaintext token is never persisted, so a database leak can't yield a usable
+    /// refresh token.</summary>
     [Required, StringLength(200)]
-    public string Token { get; set; } = string.Empty;
+    public string TokenHash { get; set; } = string.Empty;
 
     public DateTime ExpiresAt { get; set; }
 

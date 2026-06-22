@@ -7,7 +7,7 @@ namespace Revia.Client.Offline;
 /// The sync engine subscribes to flush the outbox when connectivity returns; the
 /// UI can subscribe to show an "offline" indicator.
 /// </summary>
-public sealed class ConnectivityService(OfflineStore store) : IAsyncDisposable
+public sealed class ConnectivityService(OfflineStore store) : IConnectivity, IAsyncDisposable
 {
     private readonly OfflineStore _store = store;
     private DotNetObjectReference<ConnectivityService>? _ref;

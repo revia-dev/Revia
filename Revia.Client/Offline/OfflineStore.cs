@@ -8,7 +8,7 @@ namespace Revia.Client.Offline;
 /// Thin C# wrapper over the window.reviaOffline IndexedDB helper. Provides the
 /// read-cache and outbox primitives the repositories and sync engine build on.
 /// </summary>
-public sealed class OfflineStore(IJSRuntime js)
+public sealed class OfflineStore(IJSRuntime js) : IOutboxStore
 {
     private readonly IJSRuntime _js = js;
 

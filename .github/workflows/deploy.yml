@@ -17,8 +17,10 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # Publish the API host — it serves the WASM PWA *and* the REST API. The
+      # legacy Revia/Revia.csproj is the old Blazor Server app and is not deployed.
       - name: Publish
-        run: dotnet publish Revia/Revia.csproj \
+        run: dotnet publish Revia.Api/Revia.Api.csproj \
                -c Release \
                -o ./publish
 

@@ -55,8 +55,13 @@ works offline and syncs changes as soon as a connection is available again.
 - **Light/dark mode** automatically following the system setting; **consistent,
   responsive design**; **localization** (German / English) via resource files.
 - **Demo mode** without credentials, with seeded sample data (reset on every restart).
-- **Security:** JWT (access + rotating refresh tokens), login lockout,
-  household-scoped data access; 56 unit tests, 0 build warnings.
+- **Security:** JWT (access + rotating refresh tokens, **hashed at rest**), login
+  lockout **and edge rate limiting** on the auth endpoints, household-scoped data
+  access; 63 unit tests, 0 build warnings.
+- **Operations & observability:** structured request logging, a global
+  RFC 7807 ProblemDetails error handler (no stack traces leak to clients),
+  `/health` + `/health/ready` (DB) probes, baseline security headers, and OpenAPI
+  in Development. See [Operations](#operations--observability).
 
 ## Architecture
 
@@ -91,6 +96,35 @@ Default login: `admin` / `Admin123!` (seeded on first start; changeable via
 ```bash
 dotnet test Revia.Tests
 ```
+
+The suite covers the domain logic (lending status, BMI, CSV round-trips,
+permissions, point transfer) **and the offline `SyncEngine`** — its FIFO replay,
+exponential backoff, poison-message handling and server-wins dispatch are tested
+headlessly against in-memory fakes (the engine depends only on the `IOutboxStore` /
+`IConnectivity` abstractions).
+
+## Operations & observability
+
+The API host is set up to run in production, not just on a laptop:
+
+- **Structured logging** of every request (method, path, status, duration) via
+  `AddHttpLogging`; startup migration/seed logs and auth events are logged too.
+- **Consistent errors:** an `IExceptionHandler` turns any unhandled exception into
+  an RFC 7807 ProblemDetails response with a trace id — the stack trace stays in the
+  logs, never on the wire.
+- **Health probes:** `GET /health` (liveness) and `GET /health/ready` (also checks
+  the database). The Docker image ships a `HEALTHCHECK` against `/health`.
+- **Rate limiting:** a fixed-window limiter throttles `…/api/auth/login` and
+  `…/api/auth/refresh` (10/min) on top of Identity's per-account lockout.
+- **Refresh tokens are hashed at rest** (SHA-256); the plaintext is returned to the
+  client once and never stored, so a DB leak yields no usable token.
+- **Security headers** (`X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, `Permissions-Policy`) on every response.
+- **OpenAPI** is mapped at `/openapi/v1.json` in Development.
+
+CI (`.github/workflows/ci.yml`) builds the **whole solution** with
+`-warnaserror` and runs the tests; deploy publishes **`Revia.Api`** (the PWA + API
+host), not the legacy project.
 
 ## Run on the LAN (published PWA)
 

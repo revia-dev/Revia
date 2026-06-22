@@ -5,12 +5,17 @@
 // client; the Server app keeps its own cookie auth and is unaffected.
 
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Revia.Api.Auth;
+using Revia.Api.Infrastructure;
 using Revia.Data;
 using Revia.Modules.Lending.Services;
 using Revia.Modules.Wishlists;
@@ -19,6 +24,45 @@ using Revia.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+
+// ---- Observability ----
+// Structured request logging so every request is traceable (method, path, status,
+// duration). Tuned to skip the noisy reachability probe and the static WASM files.
+builder.Services.AddHttpLogging(o =>
+{
+    o.LoggingFields = Microsoft.AspNetCore.HttpLogging.HttpLoggingFields.RequestMethod
+        | Microsoft.AspNetCore.HttpLogging.HttpLoggingFields.RequestPath
+        | Microsoft.AspNetCore.HttpLogging.HttpLoggingFields.ResponseStatusCode
+        | Microsoft.AspNetCore.HttpLogging.HttpLoggingFields.Duration;
+    o.CombineLogs = true;
+});
+
+// ---- Consistent error responses (RFC 7807 ProblemDetails) ----
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+// ---- API documentation ----
+builder.Services.AddOpenApi();
+
+// ---- Health checks ----
+// "live" = process is up; the DB check is tagged "ready" so a load balancer can
+// distinguish "started" from "can actually serve requests".
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>("database", tags: ["ready"]);
+
+// ---- Rate limiting ----
+// A tight fixed window on the auth endpoints throttles credential stuffing /
+// brute force at the edge, on top of Identity's per-account lockout.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("auth", o =>
+    {
+        o.Window = TimeSpan.FromMinutes(1);
+        o.PermitLimit = 10;
+        o.QueueLimit = 0;
+    });
+});
 
 // ---- Data + Identity (reused from the Revia project) ----
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -105,25 +149,47 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var sp = scope.ServiceProvider;
-    var db = sp.GetRequiredService<AppDbContext>();
-    var userManager = sp.GetRequiredService<UserManager<ApplicationUser>>();
-    var roleManager = sp.GetRequiredService<RoleManager<IdentityRole>>();
-
-    await db.Database.MigrateAsync();
-    await IdentitySeeder.SeedAsync(userManager, roleManager, db, app.Configuration);
-
-    if (app.Configuration.GetValue<bool>("Demo:Enabled"))
+    // Named-category logger (not ILogger<Program>): the referenced legacy Revia
+    // project also defines a top-level Program type, so the generic form is ambiguous.
+    var log = sp.GetRequiredService<ILoggerFactory>().CreateLogger("Revia.Api.Startup");
+    try
     {
-        // Reset the demo data on each start by default, so anything a visitor changed
-        // is discarded; set Demo:ResetOnStartup=false to keep it between restarts.
-        var resetDemo = app.Configuration.GetValue("Demo:ResetOnStartup", true);
-        await DemoSeeder.SeedAsync(userManager, roleManager, db, reset: resetDemo);
+        var db = sp.GetRequiredService<AppDbContext>();
+        var userManager = sp.GetRequiredService<UserManager<ApplicationUser>>();
+        var roleManager = sp.GetRequiredService<RoleManager<IdentityRole>>();
+
+        log.LogInformation("Applying migrations and seeding identity…");
+        await db.Database.MigrateAsync();
+        await IdentitySeeder.SeedAsync(userManager, roleManager, db, app.Configuration);
+
+        if (app.Configuration.GetValue<bool>("Demo:Enabled"))
+        {
+            // Reset the demo data on each start by default, so anything a visitor changed
+            // is discarded; set Demo:ResetOnStartup=false to keep it between restarts.
+            var resetDemo = app.Configuration.GetValue("Demo:ResetOnStartup", true);
+            log.LogInformation("Demo mode enabled (resetOnStartup={Reset}); seeding demo data…", resetDemo);
+            await DemoSeeder.SeedAsync(userManager, roleManager, db, reset: resetDemo);
+        }
+        log.LogInformation("Startup migration + seed complete.");
+    }
+    catch (Exception ex)
+    {
+        // A failed migration/seed means the app can't serve correctly — fail fast and
+        // loud rather than starting in a half-initialised state.
+        log.LogCritical(ex, "Database migration/seed failed during startup.");
+        throw;
     }
 }
+
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+app.UseSecurityHeaders();
+app.UseHttpLogging();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseWebAssemblyDebugging();
+    app.MapOpenApi();
 }
 
 app.UseBlazorFrameworkFiles();
@@ -131,10 +197,22 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Health endpoints: /health is a cheap liveness probe; /health/ready also verifies
+// the database is reachable (tagged "ready") so orchestrators gate traffic on it.
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = _ => false // liveness only: don't run the DB check
+});
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
 
 // Lightweight reachability probe used by the PWA client to distinguish
 // "device has WiFi" from "our server is actually up". Returns 200 immediately.

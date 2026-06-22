@@ -20,6 +20,12 @@ RUN dotnet publish Revia.Api/Revia.Api.csproj -c Release -o /app/publish
 # ---- runtime ----
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
+
+# curl is used only by the container health probe defined at the end of this stage.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app/publish .
 
 # Data (SQLite DB + uploaded photos/files) lives on the mounted /data volume.
@@ -35,4 +41,10 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 
 EXPOSE 8080
 VOLUME /data
+
+# Liveness probe: /health returns 200 once the app is up. (/health/ready also
+# verifies the database — use that one behind an orchestrator that gates traffic.)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:8080/health || exit 1
+
 ENTRYPOINT ["dotnet", "Revia.Api.dll"]

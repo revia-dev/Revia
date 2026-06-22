@@ -238,7 +238,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
         modelBuilder.Entity<RefreshToken>(builder =>
         {
-            builder.HasIndex(x => x.Token).IsUnique();
+            builder.HasIndex(x => x.TokenHash).IsUnique();
             builder.HasIndex(x => x.UserId);
 
             builder.HasOne(x => x.User)

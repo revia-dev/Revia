@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Revia.Api.Auth;
 using Revia.Data;
 using Revia.Shared.Auth;
@@ -11,26 +12,31 @@ namespace Revia.Api.Controllers;
 [Route("api/auth")]
 public sealed class AuthController(
     UserManager<ApplicationUser> userManager,
-    JwtTokenService tokens) : ControllerBase
+    JwtTokenService tokens,
+    ILogger<AuthController> logger) : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;
     private readonly JwtTokenService _tokens = tokens;
+    private readonly ILogger<AuthController> _logger = logger;
 
     private const string InvalidCredentials = "Benutzername oder Passwort ist falsch.";
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
         var user = await _userManager.FindByNameAsync(request.UserName);
         if (user is null || user.IsLoginless)
         {
+            _logger.LogWarning("Login failed for unknown/loginless user {User}", request.UserName);
             return Unauthorized(new { message = InvalidCredentials });
         }
 
         // Honour Identity lockout so repeated wrong passwords throttle brute force.
         if (await _userManager.IsLockedOutAsync(user))
         {
+            _logger.LogWarning("Login blocked for locked-out user {UserId}", user.Id);
             return Unauthorized(new { message = "Konto vorübergehend gesperrt. Bitte später erneut versuchen." });
         }
 
@@ -38,6 +44,7 @@ public sealed class AuthController(
         {
             // Count the failure (locks the account after the configured threshold).
             await _userManager.AccessFailedAsync(user);
+            _logger.LogWarning("Login failed (bad password) for user {UserId}", user.Id);
             return Unauthorized(new { message = InvalidCredentials });
         }
 
@@ -47,10 +54,12 @@ public sealed class AuthController(
             await _userManager.ResetAccessFailedCountAsync(user);
         }
 
+        _logger.LogInformation("User {UserId} logged in", user.Id);
         return await _tokens.IssueAsync(user, ct);
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("refresh")]
     public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshRequest request, CancellationToken ct)
     {

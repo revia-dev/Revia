@@ -33,9 +33,13 @@ builder.Services.AddHttpClient("api", c => c.BaseAddress = apiBase)
 // Default injected HttpClient = the authenticated "api" client.
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("api"));
 
-// Offline core (IndexedDB cache, outbox, connectivity, sync engine).
+// Offline core (IndexedDB cache, outbox, connectivity, sync engine). The sync
+// engine depends only on the IOutboxStore / IConnectivity abstractions so it stays
+// unit-testable; map them onto the concrete browser-backed implementations.
 builder.Services.AddScoped<OfflineStore>();
 builder.Services.AddScoped<ConnectivityService>();
+builder.Services.AddScoped<IOutboxStore>(sp => sp.GetRequiredService<OfflineStore>());
+builder.Services.AddScoped<IConnectivity>(sp => sp.GetRequiredService<ConnectivityService>());
 builder.Services.AddScoped<SyncEngine>();
 
 // Offline-capable features.

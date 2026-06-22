@@ -71,8 +71,11 @@ public sealed class JwtTokenService(
     /// <summary>Rotates a refresh token: validates it, revokes it, and issues a fresh pair.</summary>
     public async Task<AuthResponse?> RefreshAsync(string refreshToken, CancellationToken ct = default)
     {
+        // Only the hash is stored; look the token up by its hash so a DB leak never
+        // exposes a usable token.
+        var hash = HashToken(refreshToken);
         var existing = await _db.RefreshTokens
-            .FirstOrDefaultAsync(t => t.Token == refreshToken, ct);
+            .FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
 
         if (existing is null || !existing.IsActive)
         {
@@ -93,7 +96,8 @@ public sealed class JwtTokenService(
 
     public async Task RevokeAsync(string refreshToken, CancellationToken ct = default)
     {
-        var existing = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.Token == refreshToken, ct);
+        var hash = HashToken(refreshToken);
+        var existing = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == hash, ct);
         if (existing is { RevokedAt: null })
         {
             existing.RevokedAt = DateTime.UtcNow;
@@ -106,16 +110,23 @@ public sealed class JwtTokenService(
         var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48))
             .Replace('+', '-').Replace('/', '_').TrimEnd('=');
 
+        // Store only the SHA-256 hash. The plaintext is returned to the client once and
+        // never persisted — refresh tokens are high-entropy secrets, so a fast hash is
+        // sufficient (unlike passwords, there's nothing to brute-force back).
         _db.RefreshTokens.Add(new RefreshToken
         {
             UserId = userId,
-            Token = token,
+            TokenHash = HashToken(token),
             CreatedAt = DateTime.UtcNow,
             ExpiresAt = DateTime.UtcNow.AddDays(_options.RefreshTokenDays)
         });
         await _db.SaveChangesAsync(ct);
         return token;
     }
+
+    /// <summary>SHA-256 of the token, hex-encoded, for storage and lookup.</summary>
+    internal static string HashToken(string token)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
     private static void EnsureClaim(List<Claim> claims, string type, string value)
     {

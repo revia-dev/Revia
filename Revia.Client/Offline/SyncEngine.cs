@@ -9,10 +9,10 @@ namespace Revia.Client.Offline;
 /// successful flush it raises <see cref="Synced"/> so the UI can refresh from the
 /// server (server-wins).
 /// </summary>
-public sealed class SyncEngine(OfflineStore store, ConnectivityService connectivity)
+public sealed class SyncEngine(IOutboxStore store, IConnectivity connectivity)
 {
-    private readonly OfflineStore _store = store;
-    private readonly ConnectivityService _connectivity = connectivity;
+    private readonly IOutboxStore _store = store;
+    private readonly IConnectivity _connectivity = connectivity;
     private readonly Dictionary<string, Func<OutboxMutation, Task<bool>>> _handlers = new(StringComparer.Ordinal);
     private bool _running;
 

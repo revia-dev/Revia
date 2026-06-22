@@ -23,6 +23,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Revia\Revia.csproj" />
     <ProjectReference Include="..\Revia.Shared\Revia.Shared.csproj" />
+    <!-- Referenced for unit-testing the offline SyncEngine's pure replay logic
+         (it depends only on the IOutboxStore / IConnectivity abstractions). -->
+    <ProjectReference Include="..\Revia.Client\Revia.Client.csproj" />
   </ItemGroup>
 
 </Project>

@@ -19,17 +19,15 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore
-        run: dotnet restore Revia/Revia.csproj
+        run: dotnet restore Revia.slnx
 
+      # Build the whole solution (Api + WASM Client + Shared + domain + tests),
+      # not just the legacy project, and treat warnings as errors so the
+      # "0 warnings" guarantee is actually enforced in CI.
       - name: Build
-        run: dotnet build Revia/Revia.csproj -c Release --no-restore
+        run: dotnet build Revia.slnx -c Release --no-restore -warnaserror
 
       - name: Test
-        run: |
-          if [ -f "Revia.Tests/Revia.Tests.csproj" ]; then
-            dotnet test Revia.Tests/Revia.Tests.csproj -c Release --no-build --verbosity normal
-          else
-            echo "No test project found, skipping tests."
-          fi
+        run: dotnet test Revia.Tests/Revia.Tests.csproj -c Release --no-build --verbosity normal
         env:
           Seed__AdminPassword: CI_placeholder_password_123!
