@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Revia.Data;
+using Revia.Modules.Bmi;
 using Revia.Services;
 using Revia.Shared.Backup;
 
@@ -9,23 +10,56 @@ namespace Revia.Api.Backup;
 /// Produces/consumes the cross-app <see cref="BackupDocument"/> for the signed-in
 /// user's household. Maps the web's <see cref="Movie"/> entity (German columns,
 /// comma-joined lists, '#'-tag series) to/from the shared, English, camelCase JSON the
-/// native app reads — so a backup file round-trips the movie catalogue between the two.
+/// native app reads, plus the per-person watch progress and BMI tables — the latter
+/// reconcile by <c>personName</c> (the web's Identity ids ≠ the native UUIDs).
 /// </summary>
-public sealed class BackupService(AppDbContext db, CurrentUserContext currentUser)
+public sealed class BackupService(AppDbContext db, CurrentUserContext currentUser, IBmiPhotoStorage photoStorage)
 {
     private readonly AppDbContext _db = db;
     private readonly CurrentUserContext _currentUser = currentUser;
+    private readonly IBmiPhotoStorage _photoStorage = photoStorage;
 
     public async Task<BackupDocument> ExportAsync(CancellationToken ct = default)
     {
         var householdId = await _currentUser.RequireHouseholdIdAsync();
+
         var movies = await _db.Movies.AsNoTracking()
-            .Where(m => m.HouseholdId == householdId)
-            .ToListAsync(ct);
+            .Where(m => m.HouseholdId == householdId).ToListAsync(ct);
+
+        var users = await _db.Users.AsNoTracking()
+            .Where(u => u.HouseholdId == householdId).ToListAsync(ct);
+        var nameOf = users.ToDictionary(u => u.Id, u => u.DisplayName);
+
+        var progress = await _db.WatchProgresses.AsNoTracking()
+            .Where(w => w.HouseholdId == householdId).ToListAsync(ct);
+        var bmis = await _db.BmiRecords.AsNoTracking()
+            .Where(b => b.HouseholdId == householdId).ToListAsync(ct);
 
         return new BackupDocument
         {
             Movies = movies.Select(ToBak).ToList(),
+            WatchProgress = progress.Select(w => new WatchProgressBak
+            {
+                Id = w.Id,
+                PersonId = Guid.TryParse(w.UserId, out var g) ? g : Guid.Empty,
+                PersonName = nameOf.GetValueOrDefault(w.UserId, string.Empty),
+                MovieId = w.MovieId,
+                Status = w.Status,
+                PositionSeconds = w.PositionSeconds,
+                Season = w.Season,
+                Episode = w.Episode,
+                UpdatedAt = w.UpdatedAt,
+            }).ToList(),
+            BmiRecords = bmis.Select(b => new BmiBak
+            {
+                Id = Guid.NewGuid(), // web BMI ids are ints; the row matches by person+date
+                PersonId = Guid.TryParse(b.PersonId, out var g) ? g : Guid.Empty,
+                PersonName = nameOf.GetValueOrDefault(b.PersonId, string.Empty),
+                MeasuredOn = b.MeasuredOn,
+                WeightKg = b.WeightKg,
+                HeightCm = b.HeightCm,
+                PhotoData = ReadPhoto(b.PhotoFileName),
+            }).ToList(),
         };
     }
 
@@ -47,8 +81,92 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
             overwritten.Add("movies");
         }
 
+        // Person-keyed tables: resolve the owner from the household's users BY NAME so a
+        // backup made on the native app (different ids) re-attaches to the right person.
+        var users = await _db.Users.AsNoTracking()
+            .Where(u => u.HouseholdId == householdId).ToListAsync(ct);
+
+        if (doc.WatchProgress is not null)
+        {
+            _db.WatchProgresses.RemoveRange(
+                _db.WatchProgresses.Where(w => w.HouseholdId == householdId));
+            foreach (var b in doc.WatchProgress)
+            {
+                var userId = ResolveUserId(users, b.PersonName);
+                if (userId is null) continue; // orphan — no local person of that name
+                _db.WatchProgresses.Add(new WatchProgress
+                {
+                    Id = b.Id == Guid.Empty ? Guid.NewGuid() : b.Id,
+                    HouseholdId = householdId,
+                    UserId = userId,
+                    MovieId = b.MovieId,
+                    Status = b.Status,
+                    PositionSeconds = b.PositionSeconds,
+                    Season = b.Season,
+                    Episode = b.Episode,
+                    UpdatedAt = b.UpdatedAt == default ? DateTime.UtcNow : b.UpdatedAt,
+                });
+            }
+            overwritten.Add("watchProgress");
+        }
+
+        if (doc.BmiRecords is not null)
+        {
+            _db.BmiRecords.RemoveRange(_db.BmiRecords.Where(b => b.HouseholdId == householdId));
+            foreach (var b in doc.BmiRecords)
+            {
+                var userId = ResolveUserId(users, b.PersonName);
+                if (userId is null) continue;
+                string? fileName = null;
+                if (b.PhotoData is { Length: > 0 })
+                {
+                    using var ms = new MemoryStream(b.PhotoData);
+                    fileName = await _photoStorage.SaveAsync(ms, ".jpg", ct);
+                }
+                _db.BmiRecords.Add(new BmiRecord
+                {
+                    HouseholdId = householdId,
+                    PersonId = userId,
+                    MeasuredOn = b.MeasuredOn,
+                    WeightKg = b.WeightKg,
+                    HeightCm = b.HeightCm,
+                    Bmi = BmiRecord.Calculate(b.WeightKg, b.HeightCm),
+                    PhotoFileName = fileName,
+                    CreatedAt = DateTime.UtcNow,
+                });
+            }
+            overwritten.Add("bmiRecords");
+        }
+
         await _db.SaveChangesAsync(ct);
         return overwritten;
+    }
+
+    /// <summary>Finds a household user whose name matches the backup's personName,
+    /// trying the display name and its parts (case-insensitive). Null = no match.</summary>
+    private static string? ResolveUserId(IReadOnlyList<ApplicationUser> users, string personName)
+    {
+        if (string.IsNullOrWhiteSpace(personName)) return null;
+        var name = personName.Trim();
+        bool Eq(string? s) => !string.IsNullOrWhiteSpace(s)
+            && string.Equals(s.Trim(), name, StringComparison.OrdinalIgnoreCase);
+
+        var match = users.FirstOrDefault(u => Eq(u.DisplayName))
+            ?? users.FirstOrDefault(u => Eq(u.Nickname))
+            ?? users.FirstOrDefault(u => Eq($"{u.FirstName} {u.LastName}"))
+            ?? users.FirstOrDefault(u => Eq(u.FirstName));
+        return match?.Id;
+    }
+
+    private byte[]? ReadPhoto(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName)) return null;
+        try
+        {
+            var path = _photoStorage.GetPath(fileName);
+            return File.Exists(path) ? File.ReadAllBytes(path) : null;
+        }
+        catch { return null; }
     }
 
     // ---- mapping (mirrors the native MovieBak + the CSV transfer rules) ----

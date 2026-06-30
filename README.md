@@ -68,14 +68,16 @@ works offline and syncs changes as soon as a connection is available again.
 - **Global JSON backup (admin):** a whole-database export/import on the dashboard
   (`/api/backup`, admin-only) in the **same JSON format as the native app**, so the web
   and native databases can be kept consistent by exchanging one file. Restore is
-  **selective** — only the tables present in the file are overwritten. (See
-  `Revia.Shared/Backup` for the shared contract; the native app reads/writes the same shape.)
+  **selective** — only the tables present in the file are overwritten. Covers the movie
+  catalogue (shared Guid ids) plus the per-person **watch progress** and **BMI** tables,
+  which **reconcile by person name** (web Identity ids ≠ native UUIDs, so rows re-attach
+  to the local person of the same name). (See `Revia.Shared/Backup` for the shared contract.)
 - **Light/dark mode** automatically following the system setting; **consistent,
   responsive design**; **localization** (German / English) via resource files.
 - **Demo mode** without credentials, with seeded sample data (reset on every restart).
 - **Security:** JWT (access + rotating refresh tokens, **hashed at rest**), login
   lockout **and edge rate limiting** on the auth endpoints, household-scoped data
-  access; **69 unit + 16 integration tests**, 0 build warnings.
+  access; **69 unit + 17 integration tests**, 0 build warnings.
 - **Operations & observability:** structured request logging, a global
   RFC 7807 ProblemDetails error handler (no stack traces leak to clients),
   `/health` + `/health/ready` (DB) probes, baseline security headers, and OpenAPI

@@ -80,6 +80,60 @@ public sealed class BackupEndpointTests(ReviaApiFactory factory) : IClassFixture
         Assert.Equal("Sci-Fi", mine.GetProperty("tags")[0].GetString());
     }
 
+    [Fact]
+    public async Task Backup_WatchProgressAndBmi_ReconcileByPersonName()
+    {
+        var client = _factory.CreateClient();
+        var token = await LoginAsAdminAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        // A named, loginless person so name-resolution has a real target (the admin has
+        // an empty display name).
+        var personName = "Backup Tester " + Guid.NewGuid().ToString("N")[..6];
+        var createPerson = await client.PostAsJsonAsync("/api/persons", new { firstName = personName });
+        createPerson.EnsureSuccessStatusCode();
+
+        var movieId = Guid.NewGuid();
+        var document = new
+        {
+            formatVersion = 1,
+            movies = new[] { new { id = movieId, title = "WP Movie", category = "movie",
+                                   providers = Array.Empty<string>(), tags = Array.Empty<string>() } },
+            watchProgress = new[]
+            {
+                // foreign personId (native-style UUID) — must re-attach by name
+                new { id = Guid.NewGuid(), personId = Guid.NewGuid(), personName,
+                      movieId, status = "watched", season = (int?)null, episode = (int?)null,
+                      positionSeconds = (int?)null, updatedAt = DateTime.UtcNow },
+                // a person who doesn't exist here → dropped, not mis-attached
+                new { id = Guid.NewGuid(), personId = Guid.NewGuid(), personName = "Ghost Nobody",
+                      movieId, status = "watched", season = (int?)null, episode = (int?)null,
+                      positionSeconds = (int?)null, updatedAt = DateTime.UtcNow },
+            },
+            bmiRecords = new[]
+            {
+                new { id = Guid.NewGuid(), personId = Guid.NewGuid(), personName,
+                      measuredOn = DateTime.UtcNow, weightKg = 70.0, heightCm = 175.0 },
+            },
+        };
+        var post = await client.PostAsJsonAsync("/api/backup", document);
+        Assert.Equal(HttpStatusCode.OK, post.StatusCode);
+
+        var raw = await client.GetStringAsync("/api/backup");
+        using var doc = JsonDocument.Parse(raw);
+
+        var progress = doc.RootElement.GetProperty("watchProgress").EnumerateArray().ToList();
+        // The named person's row survived and re-attached; the ghost row was dropped.
+        Assert.Contains(progress, p => p.GetProperty("personName").GetString() == personName
+                                       && p.GetProperty("movieId").GetGuid() == movieId
+                                       && p.GetProperty("status").GetString() == "watched");
+        Assert.DoesNotContain(progress, p => p.GetProperty("personName").GetString() == "Ghost Nobody");
+
+        var bmi = doc.RootElement.GetProperty("bmiRecords").EnumerateArray().ToList();
+        Assert.Contains(bmi, b => b.GetProperty("personName").GetString() == personName
+                                  && Math.Abs(b.GetProperty("weightKg").GetDouble() - 70.0) < 0.001);
+    }
+
     private static async Task<string> LoginAsAdminAsync(HttpClient client)
     {
         var res = await client.PostAsJsonAsync("/api/auth/login",

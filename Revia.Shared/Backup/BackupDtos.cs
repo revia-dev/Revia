@@ -6,10 +6,11 @@ namespace Revia.Shared.Backup;
 /// overwrites only the tables present in the file (selective restore). Field names are
 /// serialised camelCase to match the native app's JSON exactly.
 ///
-/// This .NET side currently maps the <see cref="Movies"/> catalogue (clean Guid ids,
-/// household-scoped). Other tables in a native backup are accepted and ignored here;
-/// they reference user/person ids that differ between the two systems and need separate
-/// reconciliation.
+/// This .NET side maps the <see cref="Movies"/> catalogue (clean Guid ids), plus the
+/// person-keyed <see cref="WatchProgress"/> and <see cref="BmiRecords"/> tables. The
+/// latter carry <c>personName</c> so each app can re-attach the rows to its OWN person
+/// (web Identity ids ≠ native UUIDs — they reconcile by name). Tables not modelled here
+/// are accepted and ignored.
 /// </summary>
 public sealed class BackupDocument
 {
@@ -17,12 +18,16 @@ public sealed class BackupDocument
     public DateTime ExportedAt { get; set; } = DateTime.UtcNow;
 
     public List<MovieBak>? Movies { get; set; }
+    public List<WatchProgressBak>? WatchProgress { get; set; }
+    public List<BmiBak>? BmiRecords { get; set; }
 
     /// <summary>Table keys actually present (non-null) — the ones a restore overwrites.</summary>
     public List<string> PresentTables()
     {
         var t = new List<string>();
         if (Movies is not null) t.Add("movies");
+        if (WatchProgress is not null) t.Add("watchProgress");
+        if (BmiRecords is not null) t.Add("bmiRecords");
         return t;
     }
 }
@@ -43,4 +48,32 @@ public sealed class MovieBak
     public double? Rating { get; set; }
     public bool Watched { get; set; }
     public string? PosterPath { get; set; }
+}
+
+/// <summary>Per-person watch progress. <c>personName</c> is the cross-app key (the row
+/// re-attaches to the local person of that name); <c>movieId</c> is the shared Guid.</summary>
+public sealed class WatchProgressBak
+{
+    public Guid Id { get; set; }
+    public Guid PersonId { get; set; }
+    public string PersonName { get; set; } = string.Empty;
+    public Guid MovieId { get; set; }
+    public string Status { get; set; } = "unwatched";
+    public int? PositionSeconds { get; set; }
+    public int? Season { get; set; }
+    public int? Episode { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>A BMI measurement. <c>personName</c> is the cross-app key; the snapshot photo
+/// travels inline as bytes (web stores it as a file, native as data).</summary>
+public sealed class BmiBak
+{
+    public Guid Id { get; set; }
+    public Guid PersonId { get; set; }
+    public string PersonName { get; set; } = string.Empty;
+    public DateTime MeasuredOn { get; set; }
+    public double WeightKg { get; set; }
+    public double HeightCm { get; set; }
+    public byte[]? PhotoData { get; set; }
 }
