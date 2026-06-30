@@ -58,6 +58,7 @@ builder.Services.AddScoped<Revia.Client.Features.Access.AccessClientService>();
 builder.Services.AddScoped<Revia.Client.Features.Access.LayoutClientService>();
 builder.Services.AddScoped<Revia.Client.Features.Access.AdminPermissionsClientService>();
 builder.Services.AddScoped<Revia.Client.Features.Export.CsvBackupClientService>();
+builder.Services.AddScoped<Revia.Client.Features.Backup.BackupClientService>();
 builder.Services.AddScoped<Revia.Client.Features.Media.PhotoCacheService>();
 builder.Services.AddScoped<Revia.Client.Features.Games.GameFilesClientService>();
 builder.Services.AddScoped<Revia.Client.Features.Persons.PersonsClientService>();

@@ -1,0 +1,64 @@
+@using Revia.Client.Features.Backup
+@using Revia.Client.Features.Access
+@inject BackupClientService Backup
+@inject AccessClientService Access
+
+@*
+    Admin-only global backup: download the whole database as JSON (shared format with
+    the native app) or upload one to restore it. Restore overwrites only the tables in
+    the file.
+*@
+@if (Access.IsAdmin)
+{
+    <section class="glass" style="padding:1rem;margin-top:1rem;">
+        <h2 class="ui-section-title">Globales Backup (JSON)</h2>
+        <p class="wl-muted">Tausche die Datenbank mit der nativen App aus. Beim Einspielen
+            werden nur die enthaltenen Tabellen überschrieben.</p>
+        <div class="csv-actions">
+            <button class="btn btn-outline-secondary btn-sm" disabled="@_busy" @onclick="ExportAsync">
+                Backup exportieren
+            </button>
+            <label class="btn btn-outline-secondary btn-sm csv-import-btn">
+                Backup einspielen
+                <InputFile OnChange="ImportAsync" accept=".json,application/json" hidden disabled="@_busy" />
+            </label>
+            @if (_busy) { <span class="wl-muted">…</span> }
+        </div>
+        @if (_message is not null)
+        {
+            <p class="@(_ok ? "wl-syncing" : "login-error") csv-result">@_message</p>
+        }
+    </section>
+}
+
+@code {
+    private bool _busy;
+    private bool _ok;
+    private string? _message;
+
+    private async Task ExportAsync()
+    {
+        _busy = true; _message = null;
+        _ok = await Backup.ExportAsync();
+        if (!_ok) { _message = "Export fehlgeschlagen."; }
+        _busy = false;
+    }
+
+    private async Task ImportAsync(InputFileChangeEventArgs e)
+    {
+        _busy = true; _message = null;
+        try
+        {
+            // Backups can be large (inlined photos); allow up to 256 MB.
+            using var stream = e.File.OpenReadStream(maxAllowedSize: 256L * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            ms.Position = 0;
+            var result = await Backup.ImportAsync(ms);
+            _ok = result is not null;
+            _message = _ok ? "Backup eingespielt." : "Einspielen fehlgeschlagen.";
+        }
+        catch { _ok = false; _message = "Datei konnte nicht gelesen werden."; }
+        _busy = false;
+    }
+}

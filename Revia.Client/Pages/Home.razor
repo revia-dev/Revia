@@ -3,6 +3,7 @@
 @using Revia.Client.Features.Dashboard
 @using Revia.Client.Features.Analytics
 @using Revia.Client.Features.Access
+@using Revia.Client.Features.Backup
 @using Revia.Client.Offline
 @using Revia.Shared.Dashboard
 @using Revia.Shared.Access
@@ -146,6 +147,8 @@ else
         }
     }
 }
+
+<GlobalBackup />
 
 @code {
     private DashboardDto _d = new();
