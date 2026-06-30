@@ -21,7 +21,9 @@ services:
       Jwt__SigningKey: "${REVIA_JWT_KEY:-change-me-to-a-long-random-32+char-secret-please}"
       Seed__AdminPassword: "${REVIA_ADMIN_PASSWORD:-Admin123!}"
       Demo__Enabled: "${REVIA_DEMO_ENABLED:-false}"
-      Demo__ResetOnStartup: "${REVIA_DEMO_RESET:-true}"
+      # Default false so data PERSISTS across restarts. Only set true for a throwaway
+      # demo that should wipe everything visitors changed on each start.
+      Demo__ResetOnStartup: "${REVIA_DEMO_RESET:-false}"
       Tmdb__ApiKey: "${REVIA_TMDB_KEY:-}"
       # Optional: export OpenTelemetry traces/metrics to an OTLP collector.
       # Empty (default) disables export — the app runs without a collector.

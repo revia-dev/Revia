@@ -45,6 +45,7 @@ builder.Services.AddHttpClient<TmdbService>();
 builder.Services.AddHttpClient<MovieCsvService>();
 builder.Services.AddScoped<MovieFilterService>();
 builder.Services.AddScoped<MovieService>();
+builder.Services.AddScoped<Revia.Modules.Progress.WatchProgressService>();
 builder.Services.AddScoped<TvGuideService>();
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<DashboardLayoutService>();

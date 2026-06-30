@@ -31,9 +31,22 @@ works offline and syncs changes as soon as a connection is available again.
 - **Offline-first PWA** – read cache (IndexedDB) + mutation queue (outbox);
   the server wins on conflicts (last-write-wins). Service worker for true
   offline (close & reload the app), including photos visible while offline.
+- **Native-app capabilities** – installable with a standalone manifest,
+  **app shortcuts** (long-press menu), a **share target** (share a title into Revia
+  → it searches your library), **Window Controls Overlay** (custom desktop title
+  bar), and safe-area / overscroll / tap-highlight tuning plus cross-fade
+  **View Transitions**. On startup it requests **persistent storage**
+  (`navigator.storage.persist()`) so the OS can't evict your offline data, mirrors
+  the **pending-sync count onto the app icon badge**, and can save a CSV backup to a
+  real file via the **File System Access API** (with an **OPFS** rolling copy and a
+  download fallback). See [PWA capabilities](docs/pwa-migration-plan.md).
 - **Modules:**
   - **Movies** – TMDb posters, detail page with movie collections (including
     parent collections), full-text search; create/edit/delete **for admins only**.
+    **Per-user watch progress**: every member tracks their own "how far did I get" —
+    a resume minute for films, the last watched **season/episode** for series, and a
+    `not started / in progress / watched` status. Private per user, offline-capable
+    (cached + queued like every other write).
   - **TV guide** – "My program" + "Family" with a **live progress bar**
     (running for / X min left) and an **automatically advancing episode** for TV series.
   - **Games & matches** – with photo upload, rules/expansion files.
@@ -57,7 +70,7 @@ works offline and syncs changes as soon as a connection is available again.
 - **Demo mode** without credentials, with seeded sample data (reset on every restart).
 - **Security:** JWT (access + rotating refresh tokens, **hashed at rest**), login
   lockout **and edge rate limiting** on the auth endpoints, household-scoped data
-  access; 63 unit tests, 0 build warnings.
+  access; **69 unit + 14 integration tests**, 0 build warnings.
 - **Operations & observability:** structured request logging, a global
   RFC 7807 ProblemDetails error handler (no stack traces leak to clients),
   `/health` + `/health/ready` (DB) probes, baseline security headers, and OpenAPI

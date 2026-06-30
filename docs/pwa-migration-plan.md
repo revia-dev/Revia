@@ -12,6 +12,29 @@ funktionsfähig.** Es wird parallel gebaut und erst am Ende umgeschaltet.
 
 ---
 
+## Native-App-Fähigkeiten — umgesetzt (Nachtrag)
+
+Über den reinen Offline-Umbau hinaus ist die PWA inzwischen **installierbar mit
+nativem Feel**. Implementiert in [`pwa.js`](../Revia.Client/wwwroot/js/pwa.js) +
+[`PwaInterop.cs`](../Revia.Client/Features/Pwa/PwaInterop.cs), alle mit sauberem
+Fallback:
+
+- **`navigator.storage.persist()`** beim Start (schützt IndexedDB-Cache + Outbox
+  vor OS-Eviction — die wichtigste Zeile für client-only).
+- **Badging API**: Anzahl unsynchronisierter Mutationen am App-Icon (an die
+  `SyncEngine`-Events gekoppelt).
+- **File System Access** (CSV-Backup in echte Datei, Download-Fallback) + **OPFS**
+  (rollendes Lokal-Backup).
+- **Web Share Target** → `/movies?q=…` durchsucht die Bibliothek; **App-Shortcuts**;
+  **Window Controls Overlay** (eigene Desktop-Titelleiste); `launch_handler`,
+  `id`/`scope`/`categories` im [Manifest](../Revia.Client/wwwroot/manifest.json).
+- **Safe-Area / Overscroll / Tap-Highlight / View Transitions** in `app.css`.
+
+Eine didaktische Gesamtübersicht (zusammen mit Watch-Progress und der Apple-On-Device-KI)
+steht in der [Lern-Zusammenfassung](lernzusammenfassung.md).
+
+---
+
 ## 1. Ausgangslage (vermessen)
 
 - Rendering: durchgehend `InteractiveServer` (Server-seitige UI, SignalR-Pflicht → **nicht offline-fähig**).

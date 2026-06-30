@@ -432,6 +432,30 @@ html, body {
     letter-spacing: -0.01em;
 }
 
+/* Native-app feel: no rubber-band chaining to the page, no grey tap flash, and
+   no accidental long-press text selection on buttons/chrome. */
+html, body {
+    overscroll-behavior-y: contain;
+    -webkit-tap-highlight-color: transparent;
+}
+.app-topbar, .btn, .badge, .series-tab, .progress-status button { -webkit-user-select: none; user-select: none; }
+
+/* Window Controls Overlay (installed desktop app with a custom title bar): keep the
+   top bar clear of the OS window controls and make the empty area draggable. */
+html.wco-active .app-topbar {
+    padding-top: calc(env(titlebar-area-height, 40px) - 1.5rem);
+    -webkit-app-region: drag;
+    app-region: drag;
+}
+html.wco-active .app-topbar .btn,
+html.wco-active .app-topbar a { -webkit-app-region: no-drag; app-region: no-drag; }
+
+/* View Transitions: a soft cross-fade between routed pages where supported. The
+   @media query makes it a no-op for users who ask for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+    @view-transition { navigation: auto; }
+}
+
 /* Frosted, sticky top bar (iOS large-title navigation feel). */
 .app-topbar {
     position: sticky; top: 0; z-index: 20;
@@ -599,6 +623,17 @@ img, video, svg, canvas { max-width: 100%; height: auto; }
 .related-poster { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 10px; background: var(--surface-2); }
 .related-title { font-size: 0.85rem; font-weight: 600; line-height: 1.2; }
 .related-year { font-size: 0.78rem; color: var(--text-muted); }
+
+/* Per-user watch progress on the movie detail page. */
+.movie-progress { padding: 1rem; margin-top: 1rem; }
+.progress-status { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.progress-fields { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; margin-top: 0.75rem; }
+.progress-fields label { display: grid; gap: 0.25rem; font-size: 0.8rem; color: var(--text-muted); }
+.progress-fields input { width: 6rem; }
+.progress-hint { margin: 0.5rem 0 0; font-size: 0.8rem; }
+.progress-bar-track { margin-top: 0.6rem; height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.progress-bar-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.2s ease; }
+.progress-saved { display: inline-block; margin-top: 0.6rem; font-size: 0.8rem; }
 
 /* ---- mobile header: let dashboard actions wrap below the title ---- */
 @media (max-width: 640px) {

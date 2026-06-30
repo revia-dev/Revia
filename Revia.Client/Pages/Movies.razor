@@ -126,6 +126,14 @@ else
         _pending = await Sync.PendingCountAsync();
         _loading = false;
 
+        // Opened via the PWA share target (or a deep link) with ?q=… — prefill the
+        // search box so a shared title lands straight on the matching films.
+        if (TryGetQuery("q", out var shared) && !string.IsNullOrWhiteSpace(shared))
+        {
+            _search = shared.Trim();
+            ApplyFilter();
+        }
+
         // Opened from a movie's detail page with ?edit={id} (admin only).
         if (Access.IsAdmin && TryGetEditId(out var editId))
         {
@@ -145,6 +153,24 @@ else
         var amp = value.IndexOf('&');
         if (amp >= 0) { value = value[..amp]; }
         return Guid.TryParse(value, out id);
+    }
+
+    /// <summary>Reads a single query-string value (URL-decoded), e.g. the share
+    /// target's <c>?q=…</c>.</summary>
+    private bool TryGetQuery(string key, out string value)
+    {
+        value = string.Empty;
+        var query = new Uri(Navigation.Uri).Query.TrimStart('?');
+        foreach (var pair in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var eq = pair.IndexOf('=');
+            var name = eq >= 0 ? pair[..eq] : pair;
+            if (!string.Equals(name, key, StringComparison.Ordinal)) { continue; }
+            var raw = eq >= 0 ? pair[(eq + 1)..] : string.Empty;
+            value = Uri.UnescapeDataString(raw.Replace('+', ' '));
+            return true;
+        }
+        return false;
     }
 
     private void StartCreate()

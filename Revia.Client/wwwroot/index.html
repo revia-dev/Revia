@@ -26,6 +26,7 @@
     <script src="js/qr-scanner.js"></script>
     <script src="js/sortable.js"></script>
     <script src="js/file-download.js"></script>
+    <script src="js/pwa.js"></script>
 </head>
 
 <body>
@@ -43,7 +44,12 @@
         <span class="dismiss">🗙</span>
     </div>
     <script src="_framework/blazor.webassembly.js"></script>
-    <script>navigator.serviceWorker.register('service-worker.js');</script>
+    <script>
+        navigator.serviceWorker.register('service-worker.js');
+        // Ask the OS to keep our offline data (IndexedDB cache + outbox) from being
+        // evicted. Best-effort and fire-and-forget — the app works either way.
+        if (window.reviaPersistStorage) { window.reviaPersistStorage(); }
+    </script>
 </body>
 
 </html>

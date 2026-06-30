@@ -41,10 +41,12 @@ builder.Services.AddScoped<ConnectivityService>();
 builder.Services.AddScoped<IOutboxStore>(sp => sp.GetRequiredService<OfflineStore>());
 builder.Services.AddScoped<IConnectivity>(sp => sp.GetRequiredService<ConnectivityService>());
 builder.Services.AddScoped<SyncEngine>();
+builder.Services.AddScoped<Revia.Client.Features.Pwa.PwaInterop>();
 
 // Offline-capable features.
 builder.Services.AddScoped<Revia.Client.Features.Wishlists.WishlistClientService>();
 builder.Services.AddScoped<Revia.Client.Features.Movies.MovieClientService>();
+builder.Services.AddScoped<Revia.Client.Features.Progress.WatchProgressClientService>();
 builder.Services.AddScoped<Revia.Client.Features.Bmi.BmiClientService>();
 builder.Services.AddScoped<Revia.Client.Features.Tv.TvClientService>();
 builder.Services.AddScoped<Revia.Client.Features.Games.GameClientService>();
@@ -71,6 +73,7 @@ await connectivity.InitializeAsync();
 // before the engine performs its first flush.
 _ = host.Services.GetRequiredService<Revia.Client.Features.Wishlists.WishlistClientService>();
 _ = host.Services.GetRequiredService<Revia.Client.Features.Movies.MovieClientService>();
+_ = host.Services.GetRequiredService<Revia.Client.Features.Progress.WatchProgressClientService>();
 _ = host.Services.GetRequiredService<Revia.Client.Features.Bmi.BmiClientService>();
 _ = host.Services.GetRequiredService<Revia.Client.Features.Tv.TvClientService>();
 _ = host.Services.GetRequiredService<Revia.Client.Features.Games.GameClientService>();
@@ -78,6 +81,9 @@ _ = host.Services.GetRequiredService<Revia.Client.Features.Games.GameMatchClient
 _ = host.Services.GetRequiredService<Revia.Client.Features.Lending.LendingClientService>();
 
 await host.Services.GetRequiredService<SyncEngine>().InitializeAsync();
+
+// Request persistent storage and mirror the pending-sync count onto the app badge.
+await host.Services.GetRequiredService<Revia.Client.Features.Pwa.PwaInterop>().InitializeAsync();
 
 // Resolve the current user's effective module access up front so the nav, tiles and
 // write actions can gate themselves on first render (cached for offline).

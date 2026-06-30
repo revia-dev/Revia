@@ -2,9 +2,12 @@
 @attribute [Authorize]
 @using Revia.Client.Features.Movies
 @using Revia.Client.Features.Access
+@using Revia.Client.Features.Progress
 @using Revia.Client.Offline
 @using Revia.Shared.Movies
+@using Revia.Shared.Progress
 @inject MovieClientService MovieSvc
+@inject WatchProgressClientService ProgressSvc
 @inject AccessClientService Access
 @inject NavigationManager Navigation
 @inject Microsoft.Extensions.Localization.IStringLocalizer<Revia.Client.Resources.AppStrings> Loc
@@ -64,6 +67,63 @@ else
         </div>
     </div>
 
+    @* Per-user viewing progress: each member tracks their own "how far did I get". *@
+    <section class="movie-progress glass">
+        <h2 class="ui-section-title">Mein Fortschritt</h2>
+        <div class="progress-status" role="group" aria-label="Status">
+            <button class="btn btn-sm @(Status == WatchStatus.Unwatched ? "btn-primary" : "btn-outline-secondary")"
+                    @onclick="() => SetStatusAsync(WatchStatus.Unwatched)">Nicht gesehen</button>
+            <button class="btn btn-sm @(Status == WatchStatus.InProgress ? "btn-primary" : "btn-outline-secondary")"
+                    @onclick="() => SetStatusAsync(WatchStatus.InProgress)">Angefangen</button>
+            <button class="btn btn-sm @(Status == WatchStatus.Watched ? "btn-primary" : "btn-outline-secondary")"
+                    @onclick="() => SetStatusAsync(WatchStatus.Watched)">Gesehen</button>
+        </div>
+
+        @if (Status == WatchStatus.InProgress)
+        {
+            @if (_isSeries)
+            {
+                <div class="progress-fields">
+                    <label>Staffel
+                        <input type="number" min="1" class="form-control form-control-sm"
+                               value="@(_season?.ToString() ?? "")"
+                               @onchange="e => OnSeasonChanged(e.Value?.ToString())" />
+                    </label>
+                    <label>Folge
+                        <input type="number" min="1" class="form-control form-control-sm"
+                               value="@(_episode?.ToString() ?? "")"
+                               @onchange="e => OnEpisodeChanged(e.Value?.ToString())" />
+                    </label>
+                </div>
+                <p class="wl-muted progress-hint">Zuletzt gesehene Episode – hier hast du aufgehört.</p>
+            }
+            else
+            {
+                <div class="progress-fields">
+                    <label>Minute
+                        <input type="number" min="0" max="@(_film.Runtime ?? 100000)" class="form-control form-control-sm"
+                               value="@(_positionMinutes?.ToString() ?? "")"
+                               @onchange="e => OnPositionChanged(e.Value?.ToString())" />
+                    </label>
+                    @if (_film.Runtime is int total && total > 0)
+                    {
+                        <span class="wl-muted">von @total min</span>
+                    }
+                </div>
+                @if (_film.Runtime is int rtTotal && rtTotal > 0 && _positionMinutes is int pos)
+                {
+                    <div class="progress-bar-track" aria-hidden="true">
+                        <div class="progress-bar-fill" style="width:@(Math.Clamp(pos * 100.0 / rtTotal, 0, 100).ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                    </div>
+                }
+            }
+        }
+        @if (_savedHint)
+        {
+            <span class="progress-saved wl-muted">Gespeichert ✓</span>
+        }
+    </section>
+
     @if (_seriesGroups.Count > 0)
     {
         <section class="movie-detail-related glass">
@@ -101,6 +161,16 @@ else
     private MovieDto? _film;
     private bool _loading = true;
 
+    // Per-user watch progress for this movie.
+    private WatchProgressDto? _progress;
+    private bool _isSeries;
+    private int? _season;
+    private int? _episode;
+    private int? _positionMinutes;
+    private bool _savedHint;
+
+    private string Status => _progress?.Status ?? WatchStatus.Unwatched;
+
     // Series key -> the films in it (>= 2), and the currently shown series.
     private readonly Dictionary<string, List<MovieDto>> _seriesGroups = new(StringComparer.Ordinal);
     private string? _activeSeries;
@@ -121,8 +191,71 @@ else
         _all = await MovieSvc.GetCachedAsync();
         _film = _all.FirstOrDefault(f => f.Id == Id);
         BuildSeries();
+        await LoadProgressAsync();
         _loading = false;
     }
+
+    /// <summary>A movie counts as a series when its category mentions "tv" (matches
+    /// the server's episode logic), so the editor shows season/episode instead of a
+    /// resume minute.</summary>
+    private async Task LoadProgressAsync()
+    {
+        _isSeries = (_film?.Kategorie ?? string.Empty).Contains("tv", StringComparison.OrdinalIgnoreCase);
+        _progress = await ProgressSvc.GetForMovieAsync(Id);
+        _season = _progress?.Season;
+        _episode = _progress?.Episode;
+        _positionMinutes = _progress?.PositionSeconds is int s ? s / 60 : null;
+    }
+
+    private async Task SetStatusAsync(string status)
+    {
+        // Clearing back to "unwatched" drops the saved position/episode entirely.
+        if (status == WatchStatus.Unwatched)
+        {
+            _season = _episode = _positionMinutes = null;
+        }
+        await SaveAsync(status);
+    }
+
+    private Task OnSeasonChanged(string? raw)
+    {
+        _season = ParseInt(raw);
+        return SaveAsync(WatchStatus.InProgress);
+    }
+
+    private Task OnEpisodeChanged(string? raw)
+    {
+        _episode = ParseInt(raw);
+        return SaveAsync(WatchStatus.InProgress);
+    }
+
+    private Task OnPositionChanged(string? raw)
+    {
+        _positionMinutes = ParseInt(raw);
+        return SaveAsync(WatchStatus.InProgress);
+    }
+
+    private async Task SaveAsync(string status)
+    {
+        if (_film is null) { return; }
+
+        var request = new SaveWatchProgressRequest
+        {
+            MovieId = _film.Id,
+            Status = status,
+            Season = _isSeries ? _season : null,
+            Episode = _isSeries ? _episode : null,
+            PositionSeconds = !_isSeries && _positionMinutes is int m ? m * 60 : null,
+        };
+
+        await ProgressSvc.SaveAsync(request);
+        _progress = await ProgressSvc.GetForMovieAsync(_film.Id);
+        _savedHint = true;
+        StateHasChanged();
+    }
+
+    private static int? ParseInt(string? raw)
+        => int.TryParse(raw, out var v) && v > 0 ? v : null;
 
     private async Task DeleteAsync()
     {

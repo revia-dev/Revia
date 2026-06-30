@@ -846,6 +846,51 @@ namespace Revia.Migrations
                     b.ToTable("TvProgramEntries");
                 });
 
+            modelBuilder.Entity("Revia.Data.WatchProgress", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Episode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("MovieId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PositionSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Season")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MovieId");
+
+                    b.HasIndex("UserId", "MovieId")
+                        .IsUnique();
+
+                    b.HasIndex("HouseholdId", "UserId", "Status");
+
+                    b.ToTable("WatchProgresses");
+                });
+
             modelBuilder.Entity("Revia.Data.Wishlist", b =>
                 {
                     b.Property<int>("Id")
@@ -1327,6 +1372,17 @@ namespace Revia.Migrations
                     b.Navigation("Movie");
 
                     b.Navigation("TvProgram");
+                });
+
+            modelBuilder.Entity("Revia.Data.WatchProgress", b =>
+                {
+                    b.HasOne("Revia.Data.Movie", "Movie")
+                        .WithMany()
+                        .HasForeignKey("MovieId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Movie");
                 });
 
             modelBuilder.Entity("Revia.Data.Wishlist", b =>

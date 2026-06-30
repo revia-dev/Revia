@@ -38,6 +38,21 @@ public sealed class CsvBackupClientService(
         catch { return false; }
     }
 
+    /// <summary>Fetches the module's CSV export as text (for File System Access /
+    /// OPFS backup), or null when offline / on error.</summary>
+    public async Task<string?> GetCsvTextAsync(string module)
+    {
+        if (!_connectivity.IsOnline) return null;
+        try
+        {
+            using var response = await _http.GetAsync($"api/csv/{module}/export");
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadAsStringAsync()
+                : null;
+        }
+        catch { return null; }
+    }
+
     /// <summary>Uploads a CSV file to the module's import endpoint.</summary>
     public async Task<CsvImportResult?> ImportAsync(string module, Stream content, string fileName)
     {

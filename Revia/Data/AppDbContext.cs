@@ -35,6 +35,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ModulePermission> ModulePermissions => Set<ModulePermission>();
     public DbSet<AnalyticsWidget> AnalyticsWidgets => Set<AnalyticsWidget>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<WatchProgress> WatchProgresses => Set<WatchProgress>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -244,6 +245,21 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             builder.HasOne(x => x.User)
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WatchProgress>(builder =>
+        {
+            // One progress row per (user, movie): the upsert key.
+            builder.HasIndex(x => new { x.UserId, x.MovieId }).IsUnique();
+            // Cheap "all my progress" and "continue watching" queries.
+            builder.HasIndex(x => new { x.HouseholdId, x.UserId, x.Status });
+
+            builder.Property(x => x.Status).HasMaxLength(20);
+
+            builder.HasOne(x => x.Movie)
+                .WithMany()
+                .HasForeignKey(x => x.MovieId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

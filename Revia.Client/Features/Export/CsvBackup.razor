@@ -1,6 +1,8 @@
 @using Revia.Client.Features.Export
+@using Revia.Client.Features.Pwa
 @using Revia.Shared.Export
 @inject CsvBackupClientService Csv
+@inject PwaInterop Pwa
 
 @*
     CSV export + import for a module. Drop in with <CsvBackup Module="bmi" Label="BMI" />.
@@ -14,6 +16,8 @@
             <summary>CSV-Backup</summary>
             <div class="csv-actions">
                 <button class="btn btn-outline-secondary btn-sm" disabled="@_busy" @onclick="ExportAsync">CSV exportieren</button>
+                <button class="btn btn-outline-secondary btn-sm" disabled="@_busy" @onclick="SaveToFileAsync"
+                        title="In eine echte Datei speichern (mit lokalem Backup)">Als Datei sichern</button>
                 @if (AllowImport)
                 {
                     <label class="btn btn-outline-secondary btn-sm csv-import-btn">
@@ -51,6 +55,31 @@
         var ok = await Csv.ExportAsync(Module, $"{Label}.csv");
         _busy = false;
         if (!ok) { _ok = false; _message = "Export fehlgeschlagen."; }
+    }
+
+    /// <summary>Saves the CSV to a real, user-chosen file via the File System Access
+    /// API (download fallback elsewhere) and keeps a rolling copy in OPFS.</summary>
+    private async Task SaveToFileAsync()
+    {
+        _busy = true; _message = null;
+        var csv = await Csv.GetCsvTextAsync(Module);
+        if (csv is null)
+        {
+            _busy = false; _ok = false; _message = "Export fehlgeschlagen.";
+            return;
+        }
+
+        var outcome = await Pwa.SaveTextFileAsync($"{Label}.csv", csv);
+        await Pwa.WriteOpfsBackupAsync($"{Module}-backup.csv", csv);
+        _busy = false;
+        _ok = outcome is SaveFileOutcome.Saved or SaveFileOutcome.Downloaded;
+        _message = outcome switch
+        {
+            SaveFileOutcome.Saved => "Gespeichert ✓ (lokales Backup aktualisiert)",
+            SaveFileOutcome.Downloaded => "Heruntergeladen ✓ (lokales Backup aktualisiert)",
+            SaveFileOutcome.Cancelled => null,
+            _ => "Speichern fehlgeschlagen.",
+        };
     }
 
     private async Task ImportAsync(InputFileChangeEventArgs e)

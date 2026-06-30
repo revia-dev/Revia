@@ -124,6 +124,7 @@ builder.Services.AddScoped<CurrentUserContext>();
 // Reused domain services.
 builder.Services.AddScoped<WishlistService>();
 builder.Services.AddScoped<MovieService>();
+builder.Services.AddScoped<Revia.Modules.Progress.WatchProgressService>();
 builder.Services.AddScoped<Revia.Modules.Bmi.BmiService>();
 builder.Services.AddSingleton<Revia.Modules.Bmi.IBmiPhotoStorage, Revia.Modules.Bmi.BmiPhotoStorage>();
 builder.Services.AddScoped<IPersonService, PersonService>();

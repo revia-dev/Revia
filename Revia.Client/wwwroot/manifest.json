@@ -1,12 +1,21 @@
 {
+  "id": "/",
   "name": "Revia Library",
   "short_name": "Revia",
   "description": "Eure Sammlung: Filme, Spiele, Ausleihen und mehr",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#e9eef5",
   "theme_color": "#007aff",
   "lang": "de",
+  "dir": "ltr",
+  "orientation": "any",
+  "categories": ["entertainment", "lifestyle", "productivity"],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "icons": [
     {
       "src": "icon-192.png",
@@ -26,5 +35,37 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Filme",
+      "short_name": "Filme",
+      "description": "Eure Filmsammlung öffnen",
+      "url": "/movies",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Fernsehen",
+      "short_name": "TV",
+      "description": "TV-Programm öffnen",
+      "url": "/tv",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Übersicht",
+      "short_name": "Start",
+      "description": "Dashboard öffnen",
+      "url": "/",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "/movies",
+    "method": "GET",
+    "params": {
+      "title": "q",
+      "text": "q",
+      "url": "q"
+    }
+  }
 }
