@@ -134,6 +134,72 @@ public sealed class BackupEndpointTests(ReviaApiFactory factory) : IClassFixture
                                   && Math.Abs(b.GetProperty("weightKg").GetDouble() - 70.0) < 0.001);
     }
 
+    [Fact]
+    public async Task Backup_LoansAndMatches_ReconcileByName()
+    {
+        var client = _factory.CreateClient();
+        var token = await LoginAsAdminAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var suffix = Guid.NewGuid().ToString("N")[..6];
+        var lender = "Lender " + suffix;
+        var borrower = "Borrower " + suffix;
+        var gameName = "Catan " + suffix;
+
+        (await client.PostAsJsonAsync("/api/persons", new { firstName = lender })).EnsureSuccessStatusCode();
+        (await client.PostAsJsonAsync("/api/persons", new { firstName = borrower })).EnsureSuccessStatusCode();
+        var gameRes = await client.PostAsJsonAsync("/api/games",
+            new { name = gameName, types = Array.Empty<object>(), scoreDefinitions = Array.Empty<object>() });
+        gameRes.EnsureSuccessStatusCode();
+
+        var document = new
+        {
+            formatVersion = 1,
+            loans = new[]
+            {
+                new { id = Guid.NewGuid(), title = "Drill", items = new[] { "Drill", "Bits" },
+                      lenderPersonId = Guid.NewGuid(), lenderName = lender,
+                      borrowerPersonId = Guid.NewGuid(), borrowerName = borrower,
+                      loanDate = DateTime.UtcNow, dueDate = (DateTime?)null, returnedAt = (DateTime?)null },
+                // unresolvable people → dropped (web FK needs real users)
+                new { id = Guid.NewGuid(), title = "Ghost loan", items = new[] { "x" },
+                      lenderPersonId = Guid.NewGuid(), lenderName = "Nobody A",
+                      borrowerPersonId = Guid.NewGuid(), borrowerName = "Nobody B",
+                      loanDate = DateTime.UtcNow, dueDate = (DateTime?)null, returnedAt = (DateTime?)null },
+            },
+            matches = new[]
+            {
+                new { id = Guid.NewGuid(), gameId = Guid.NewGuid(), gameName,
+                      playedOn = DateTime.UtcNow, note = "gg",
+                      participants = new[] { new { id = Guid.NewGuid(), personId = Guid.NewGuid(),
+                                                   personName = lender, score = 5.0 } } },
+                // unknown game → dropped (same shape so the anonymous array has one type)
+                new { id = Guid.NewGuid(), gameId = Guid.NewGuid(), gameName = "No Such Game " + suffix,
+                      playedOn = DateTime.UtcNow, note = "x",
+                      participants = new[] { new { id = Guid.NewGuid(), personId = Guid.NewGuid(),
+                                                   personName = lender, score = 1.0 } } },
+            },
+        };
+        var post = await client.PostAsJsonAsync("/api/backup", document);
+        Assert.Equal(HttpStatusCode.OK, post.StatusCode);
+
+        var raw = await client.GetStringAsync("/api/backup");
+        using var doc = JsonDocument.Parse(raw);
+
+        var loans = doc.RootElement.GetProperty("loans").EnumerateArray().ToList();
+        var loan = loans.Single(l => l.GetProperty("lenderName").GetString() == lender);
+        Assert.Equal(borrower, loan.GetProperty("borrowerName").GetString());
+        Assert.Contains("Drill", loan.GetProperty("items").EnumerateArray().Select(i => i.GetString()));
+        Assert.DoesNotContain(loans, l => l.GetProperty("lenderName").GetString() == "Nobody A");
+
+        var matches = doc.RootElement.GetProperty("matches").EnumerateArray().ToList();
+        var match = matches.Single(m => m.GetProperty("gameName").GetString() == gameName);
+        var participant = match.GetProperty("participants").EnumerateArray().Single();
+        Assert.Equal(lender, participant.GetProperty("personName").GetString());
+        Assert.Equal(5.0, participant.GetProperty("score").GetDouble(), 3);
+        Assert.DoesNotContain(matches, m => m.GetProperty("gameName").GetString() == "No Such Game " + suffix);
+    }
+
     private static async Task<string> LoginAsAdminAsync(HttpClient client)
     {
         var res = await client.PostAsJsonAsync("/api/auth/login",

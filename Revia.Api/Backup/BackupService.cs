@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Revia.Data;
 using Revia.Modules.Bmi;
+using Revia.Modules.Lending.Models;
 using Revia.Services;
 using Revia.Shared.Backup;
 
@@ -34,6 +35,11 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
             .Where(w => w.HouseholdId == householdId).ToListAsync(ct);
         var bmis = await _db.BmiRecords.AsNoTracking()
             .Where(b => b.HouseholdId == householdId).ToListAsync(ct);
+        var loans = await _db.LendingEntries.AsNoTracking().Include(l => l.Items)
+            .Where(l => l.HouseholdId == householdId).ToListAsync(ct);
+        var matches = await _db.GameMatches.AsNoTracking()
+            .Include(m => m.Game).Include(m => m.Participants)
+            .Where(m => m.HouseholdId == householdId).ToListAsync(ct);
 
         return new BackupDocument
         {
@@ -59,6 +65,36 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
                 WeightKg = b.WeightKg,
                 HeightCm = b.HeightCm,
                 PhotoData = ReadPhoto(b.PhotoFileName),
+            }).ToList(),
+            Loans = loans.Select(l => new LoanBak
+            {
+                Id = Guid.NewGuid(), // web lending ids are ints; the row carries its names
+                Title = l.Title,
+                Items = l.Items.OrderBy(i => i.SortOrder).Select(i => i.Name).ToList(),
+                LenderPersonId = Guid.TryParse(l.LenderId, out var lg) ? lg : Guid.Empty,
+                LenderName = nameOf.GetValueOrDefault(l.LenderId, string.Empty),
+                BorrowerPersonId = Guid.TryParse(l.BorrowerId, out var bg) ? bg : Guid.Empty,
+                BorrowerName = nameOf.GetValueOrDefault(l.BorrowerId, string.Empty),
+                LoanDate = l.LoanDate,
+                DueDate = l.DueDate,
+                ReturnedAt = l.ReturnedAt,
+                PhotoData = null, // loan photos are not bridged yet
+            }).ToList(),
+            Matches = matches.Select(m => new MatchBak
+            {
+                Id = Guid.NewGuid(),
+                GameId = Guid.Empty, // games reconcile by name (web ids are ints)
+                GameName = m.Game?.Name ?? string.Empty,
+                PlayedOn = m.PlayedOn,
+                Note = m.Notes,
+                PhotoData = null,
+                Participants = m.Participants.Select(p => new ParticipantBak
+                {
+                    Id = Guid.NewGuid(),
+                    PersonId = Guid.TryParse(p.PersonId, out var pg) ? pg : Guid.Empty,
+                    PersonName = nameOf.GetValueOrDefault(p.PersonId, string.Empty),
+                    Score = p.Score ?? 0,
+                }).ToList(),
             }).ToList(),
         };
     }
@@ -136,6 +172,62 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
                 });
             }
             overwritten.Add("bmiRecords");
+        }
+
+        if (doc.Loans is not null)
+        {
+            _db.LendingEntries.RemoveRange(_db.LendingEntries.Where(l => l.HouseholdId == householdId));
+            foreach (var b in doc.Loans)
+            {
+                var lender = ResolveUserId(users, b.LenderName);
+                var borrower = ResolveUserId(users, b.BorrowerName);
+                if (lender is null || borrower is null) continue; // FK needs real users
+                _db.LendingEntries.Add(new LendingEntry
+                {
+                    HouseholdId = householdId,
+                    Title = b.Title ?? b.Items.FirstOrDefault(),
+                    LenderId = lender,
+                    BorrowerId = borrower,
+                    LoanDate = b.LoanDate,
+                    DueDate = b.DueDate,
+                    ReturnedAt = b.ReturnedAt,
+                    Status = b.ReturnedAt.HasValue
+                        ? LendingEntryStatus.Returned
+                        : (b.DueDate is { } due && due.Date < DateTime.Today
+                            ? LendingEntryStatus.Overdue : LendingEntryStatus.Active),
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    Items = b.Items.Select((name, i) => new LendingItem { Name = name, SortOrder = i }).ToList(),
+                });
+            }
+            overwritten.Add("loans");
+        }
+
+        if (doc.Matches is not null)
+        {
+            var games = await _db.Games.Where(g => g.HouseholdId == householdId).ToListAsync(ct);
+            _db.GameMatches.RemoveRange(_db.GameMatches.Where(m => m.HouseholdId == householdId));
+            foreach (var b in doc.Matches)
+            {
+                var game = games.FirstOrDefault(g =>
+                    string.Equals(g.Name, b.GameName, StringComparison.OrdinalIgnoreCase));
+                if (game is null) continue; // FK needs a known game
+                _db.GameMatches.Add(new GameMatch
+                {
+                    GameId = game.Id,
+                    HouseholdId = householdId,
+                    PlayedOn = b.PlayedOn,
+                    StartedAt = b.PlayedOn,
+                    IsCompleted = true,
+                    Notes = b.Note,
+                    Participants = b.Participants
+                        .Select(p => (UserId: ResolveUserId(users, p.PersonName), p.Score))
+                        .Where(x => x.UserId is not null)
+                        .Select(x => new GameMatchParticipant { PersonId = x.UserId!, Score = x.Score })
+                        .ToList(),
+                });
+            }
+            overwritten.Add("matches");
         }
 
         await _db.SaveChangesAsync(ct);

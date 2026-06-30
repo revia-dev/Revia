@@ -20,6 +20,8 @@ public sealed class BackupDocument
     public List<MovieBak>? Movies { get; set; }
     public List<WatchProgressBak>? WatchProgress { get; set; }
     public List<BmiBak>? BmiRecords { get; set; }
+    public List<LoanBak>? Loans { get; set; }
+    public List<MatchBak>? Matches { get; set; }
 
     /// <summary>Table keys actually present (non-null) — the ones a restore overwrites.</summary>
     public List<string> PresentTables()
@@ -28,6 +30,8 @@ public sealed class BackupDocument
         if (Movies is not null) t.Add("movies");
         if (WatchProgress is not null) t.Add("watchProgress");
         if (BmiRecords is not null) t.Add("bmiRecords");
+        if (Loans is not null) t.Add("loans");
+        if (Matches is not null) t.Add("matches");
         return t;
     }
 }
@@ -76,4 +80,41 @@ public sealed class BmiBak
     public double WeightKg { get; set; }
     public double HeightCm { get; set; }
     public byte[]? PhotoData { get; set; }
+}
+
+/// <summary>A loan. Lender/borrower reconcile by name; the names are also stored
+/// denormalised so the record stays readable even if a person can't be resolved.</summary>
+public sealed class LoanBak
+{
+    public Guid Id { get; set; }
+    public string? Title { get; set; }
+    public List<string> Items { get; set; } = new();
+    public Guid LenderPersonId { get; set; }
+    public string LenderName { get; set; } = string.Empty;
+    public Guid BorrowerPersonId { get; set; }
+    public string BorrowerName { get; set; } = string.Empty;
+    public DateTime LoanDate { get; set; }
+    public DateTime? DueDate { get; set; }
+    public DateTime? ReturnedAt { get; set; }
+    public byte[]? PhotoData { get; set; }
+}
+
+/// <summary>A game match. The game reconciles by name; participants by name (+score).</summary>
+public sealed class MatchBak
+{
+    public Guid Id { get; set; }
+    public Guid GameId { get; set; }
+    public string GameName { get; set; } = string.Empty;
+    public DateTime PlayedOn { get; set; }
+    public string? Note { get; set; }
+    public byte[]? PhotoData { get; set; }
+    public List<ParticipantBak> Participants { get; set; } = new();
+}
+
+public sealed class ParticipantBak
+{
+    public Guid Id { get; set; }
+    public Guid PersonId { get; set; }
+    public string PersonName { get; set; } = string.Empty;
+    public double Score { get; set; }
 }
