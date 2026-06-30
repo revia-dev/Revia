@@ -33,8 +33,14 @@ public sealed class TvProgramEntry
     public int TvProgramId { get; set; }
     public TvProgram? TvProgram { get; set; }
 
-    public Guid MovieId { get; set; }
+    /// <summary>The linked movie, or null for a custom (movie-less) entry — then
+    /// <see cref="CustomTitle"/> carries the name.</summary>
+    public Guid? MovieId { get; set; }
     public Movie? Movie { get; set; }
+
+    /// <summary>Title for a custom entry that isn't tied to a movie (e.g. a live show).</summary>
+    [StringLength(200)]
+    public string? CustomTitle { get; set; }
 
     /// <summary>Scheduled date and time of this slot (the program is shown sorted by it).</summary>
     public DateTime StartsAt { get; set; }

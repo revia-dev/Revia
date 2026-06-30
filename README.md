@@ -83,7 +83,7 @@ works offline and syncs changes as soon as a connection is available again.
 - **Demo mode** without credentials, with seeded sample data (reset on every restart).
 - **Security:** JWT (access + rotating refresh tokens, **hashed at rest**), login
   lockout **and edge rate limiting** on the auth endpoints, household-scoped data
-  access; **69 unit + 22 integration tests**, 0 build warnings.
+  access; **69 unit + 23 integration tests**, 0 build warnings.
 - **Operations & observability:** structured request logging, a global
   RFC 7807 ProblemDetails error handler (no stack traces leak to clients),
   `/health` + `/health/ready` (DB) probes, baseline security headers, and OpenAPI

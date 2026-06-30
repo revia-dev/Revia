@@ -34,11 +34,11 @@ public sealed class TvController(TvGuideService guide) : ControllerBase
     {
         if (request.Household)
         {
-            await _guide.AddHouseholdEntryAsync(request.MovieId, request.StartsAt, request.Channel, request.Note, ct);
+            await _guide.AddHouseholdEntryAsync(request.MovieId, request.CustomTitle, request.StartsAt, request.Channel, request.Note, ct);
         }
         else
         {
-            await _guide.AddPrivateEntryAsync(request.MovieId, request.StartsAt, request.Channel, request.Note, request.Shared, ct);
+            await _guide.AddPrivateEntryAsync(request.MovieId, request.CustomTitle, request.StartsAt, request.Channel, request.Note, request.Shared, ct);
         }
         return NoContent();
     }
@@ -89,7 +89,8 @@ public sealed class TvController(TvGuideService guide) : ControllerBase
     {
         Id = e.Id,
         MovieId = e.MovieId,
-        MovieTitle = e.Movie?.Titel ?? "Unbekannt",
+        CustomTitle = e.CustomTitle,
+        MovieTitle = e.Movie?.Titel ?? e.CustomTitle ?? "Unbekannt",
         PosterPath = e.Movie?.PosterPath,
         StartsAt = e.StartsAt,
         Channel = e.Channel,

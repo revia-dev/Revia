@@ -78,7 +78,7 @@ public sealed class AuthAndHealthTests(ReviaApiFactory factory) : IClassFixture<
         // The "auth" fixed-window limiter permits 10/min; a burst beyond that must be
         // throttled at the edge (independently of per-account lockout). Uses its own
         // host so exhausting the window can't make the other auth tests flaky.
-        using var factory = new ReviaApiFactory();
+        using var factory = new ReviaApiFactory { AuthPermitLimit = 10 };
         var client = factory.CreateClient();
         var statuses = new List<HttpStatusCode>();
         for (var i = 0; i < 15; i++)

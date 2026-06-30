@@ -225,11 +225,11 @@
         {
             if (_tab == Tab.Private)
             {
-                await Guide.AddPrivateEntryAsync(_selectedMovie.Id, _newStartsAt, _newChannel, _newNote, _newShared);
+                await Guide.AddPrivateEntryAsync(_selectedMovie.Id, null, _newStartsAt, _newChannel, _newNote, _newShared);
             }
             else
             {
-                await Guide.AddHouseholdEntryAsync(_selectedMovie.Id, _newStartsAt, _newChannel, _newNote);
+                await Guide.AddHouseholdEntryAsync(_selectedMovie.Id, null, _newStartsAt, _newChannel, _newNote);
             }
 
             _selectedMovie = null;

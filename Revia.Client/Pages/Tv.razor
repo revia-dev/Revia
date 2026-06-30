@@ -32,10 +32,14 @@
                 <option value="@m.Id">@m.Title @(string.IsNullOrWhiteSpace(m.Year) ? "" : $"({m.Year})")</option>
             }
         </select>
+        @* No movie? Schedule a custom entry (e.g. a live show) by its title. *@
+        <input class="form-control" placeholder="…oder eigener Titel" @bind="_customTitle" @bind:event="oninput"
+               disabled="@(!string.IsNullOrEmpty(_movieId))" />
         <input class="form-control" type="datetime-local" @bind="_startsAt" @bind:event="oninput" />
         <input class="form-control" placeholder="Sender" @bind="_channel" @bind:event="oninput" />
         <label class="tv-share"><input type="checkbox" @bind="_shared" /> Freigeben</label>
-        <button class="btn btn-primary" @onclick="AddAsync" disabled="@(string.IsNullOrEmpty(_movieId))">Hinzufügen</button>
+        <button class="btn btn-primary" @onclick="AddAsync"
+                disabled="@(string.IsNullOrEmpty(_movieId) && string.IsNullOrWhiteSpace(_customTitle))">Hinzufügen</button>
     </div>
 }
 
@@ -106,6 +110,7 @@ else
     private List<TvEntryDto> _entries = new();
     private List<TvMovieOptionDto> _options = new();
     private string _movieId = string.Empty;
+    private string? _customTitle;
     private DateTime _startsAt = DateTime.Now.Date.AddHours(20).AddMinutes(15);
     private string? _channel;
     private bool _shared;
@@ -195,10 +200,14 @@ else
 
     private async Task AddAsync()
     {
-        if (string.IsNullOrEmpty(_movieId) || !Guid.TryParse(_movieId, out var mid)) { return; }
-        var title = _options.FirstOrDefault(o => o.Id == mid)?.Title ?? "Film";
-        await TvSvc.AddPrivateAsync(mid, title, _startsAt, _channel, null, _shared);
-        _movieId = string.Empty; _channel = null; _shared = false;
+        Guid? movieId = Guid.TryParse(_movieId, out var mid) ? mid : null;
+        var custom = movieId is null ? _customTitle?.Trim() : null;
+        if (movieId is null && string.IsNullOrWhiteSpace(custom)) { return; }
+        var title = movieId is { } id
+            ? _options.FirstOrDefault(o => o.Id == id)?.Title ?? "Film"
+            : custom!;
+        await TvSvc.AddPrivateAsync(movieId, custom, title, _startsAt, _channel, null, _shared);
+        _movieId = string.Empty; _customTitle = null; _channel = null; _shared = false;
         await AfterWriteAsync();
     }
 

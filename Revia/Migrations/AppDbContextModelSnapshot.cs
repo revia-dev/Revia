@@ -821,7 +821,11 @@ namespace Revia.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("MovieId")
+                    b.Property<string>("CustomTitle")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("MovieId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Note")
@@ -1360,8 +1364,7 @@ namespace Revia.Migrations
                     b.HasOne("Revia.Data.Movie", "Movie")
                         .WithMany()
                         .HasForeignKey("MovieId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.HasOne("Revia.Data.TvProgram", "TvProgram")
                         .WithMany("Entries")

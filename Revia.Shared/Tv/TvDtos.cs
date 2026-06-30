@@ -6,7 +6,10 @@ namespace Revia.Shared.Tv;
 public sealed class TvEntryDto
 {
     public int Id { get; set; }
-    public Guid MovieId { get; set; }
+    /// <summary>Linked movie, or null for a custom (movie-less) entry.</summary>
+    public Guid? MovieId { get; set; }
+    /// <summary>Title for a custom entry that isn't tied to a movie.</summary>
+    public string? CustomTitle { get; set; }
     public string MovieTitle { get; set; } = string.Empty;
     public string? PosterPath { get; set; }
     public DateTime StartsAt { get; set; }
@@ -41,8 +44,11 @@ public sealed class TvMovieOptionDto
 
 public sealed class AddTvEntryRequest
 {
-    [Required]
-    public Guid MovieId { get; set; }
+    /// <summary>The movie to schedule, or null to add a custom entry (then set
+    /// <see cref="CustomTitle"/>).</summary>
+    public Guid? MovieId { get; set; }
+    /// <summary>Title for a custom, movie-less entry.</summary>
+    public string? CustomTitle { get; set; }
     public DateTime StartsAt { get; set; }
     public string? Channel { get; set; }
     public string? Note { get; set; }

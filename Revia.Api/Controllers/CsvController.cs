@@ -518,7 +518,7 @@ public sealed class CsvController(
                 result.Skipped++; continue;
             }
 
-            await guide.AddPrivateEntryAsync(movie.Id, startsAt,
+            await guide.AddPrivateEntryAsync(movie.Id, null, startsAt,
                 Clean(row.GetValueOrDefault("Sender")), Clean(row.GetValueOrDefault("Notiz")),
                 IsYes(row.GetValueOrDefault("Freigegeben")), ct);
             result.Imported++;

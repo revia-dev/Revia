@@ -218,9 +218,9 @@ public sealed class BackupEndpointTests(ReviaApiFactory factory) : IClassFixture
             wishlists = new[]
             {
                 new { id = Guid.NewGuid(), householdId = Guid.Empty, name = ownedName,
-                      createdAt = DateTime.UtcNow, ownerName = owner,
+                      createdAt = DateTime.UtcNow, ownerName = (string?)owner,
                       items = new[] { new { id = Guid.NewGuid(), title = "Book",
-                                            note = "hardcover", url = "https://x", fulfilled = false } } },
+                                            note = (string?)"hardcover", url = (string?)"https://x", fulfilled = false } } },
                 // no owner (native-style) → the importing admin becomes the owner
                 new { id = Guid.NewGuid(), householdId = Guid.Empty, name = ownerlessName,
                       createdAt = DateTime.UtcNow, ownerName = (string?)null,
@@ -268,11 +268,11 @@ public sealed class BackupEndpointTests(ReviaApiFactory factory) : IClassFixture
             tvAirings = new[]
             {
                 new { id = Guid.NewGuid(), movieId = (Guid?)movieId, customTitle = (string?)null,
-                      channel = "ARD", note = "record", startsAt = DateTime.UtcNow,
+                      channel = (string?)"ARD", note = (string?)"record", startsAt = DateTime.UtcNow,
                       scope = "family", ownerName = (string?)owner, programName = (string?)programName },
                 // unknown movie → its program has no showable entry → dropped
                 new { id = Guid.NewGuid(), movieId = (Guid?)Guid.NewGuid(), customTitle = (string?)null,
-                      channel = "ZDF", note = (string?)null, startsAt = DateTime.UtcNow,
+                      channel = (string?)"ZDF", note = (string?)null, startsAt = DateTime.UtcNow,
                       scope = "privateProgram", ownerName = (string?)null,
                       programName = (string?)("Ghost " + Guid.NewGuid().ToString("N")[..6]) },
             },
@@ -403,6 +403,33 @@ public sealed class BackupEndpointTests(ReviaApiFactory factory) : IClassFixture
         var match = doc.RootElement.GetProperty("matches").EnumerateArray()
             .Single(m => m.GetProperty("gameName").GetString() == gameName);
         Assert.Equal(matchPhoto, match.GetProperty("photoData").GetBytesFromBase64());
+    }
+
+    [Fact]
+    public async Task Tv_CustomTitleEntry_WithoutMovie_IsAcceptedAndShown()
+    {
+        var client = _factory.CreateClient();
+        var token = await LoginAsAdminAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var title = "Tagesschau " + Guid.NewGuid().ToString("N")[..6];
+        var add = await client.PostAsJsonAsync("/api/tv", new
+        {
+            movieId = (Guid?)null,
+            customTitle = title,
+            startsAt = DateTime.UtcNow.AddHours(1),
+            channel = "ARD",
+            shared = false,
+            household = false,
+        });
+        Assert.Equal(HttpStatusCode.NoContent, add.StatusCode);
+
+        // The private guide lists it, titled by the custom title, with no movie link.
+        using var doc = JsonDocument.Parse(await client.GetStringAsync("/api/tv/private"));
+        var entry = doc.RootElement.EnumerateArray()
+            .Single(e => e.GetProperty("movieTitle").GetString() == title);
+        Assert.Equal(title, entry.GetProperty("customTitle").GetString());
+        Assert.True(entry.GetProperty("movieId").ValueKind == JsonValueKind.Null);
     }
 
     private static async Task<string> LoginAsAdminAsync(HttpClient client)

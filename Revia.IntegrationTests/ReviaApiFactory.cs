@@ -22,6 +22,11 @@ public sealed class ReviaApiFactory : WebApplicationFactory<ApiAssemblyMarker>
     public const string AdminUser = "admin";
     public const string AdminPassword = "Integr@tionTest-Admin-Pw-9999";
 
+    /// <summary>Auth rate-limit permit/minute for this host. Relaxed by default so the
+    /// many logins across the suite don't exhaust the window (a flaky 429); the
+    /// dedicated rate-limit test sets it low to assert throttling.</summary>
+    public int AuthPermitLimit { get; init; } = 1000;
+
     static ReviaApiFactory()
     {
         // A single throwaway DB shared by all hosts in the run; the seeder is
@@ -39,5 +44,6 @@ public sealed class ReviaApiFactory : WebApplicationFactory<ApiAssemblyMarker>
     {
         // Run as Production so the host mirrors a real deployment (no dev shortcuts).
         builder.UseEnvironment("Production");
+        builder.UseSetting("RateLimit:AuthPermitLimit", AuthPermitLimit.ToString());
     }
 }

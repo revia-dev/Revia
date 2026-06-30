@@ -62,7 +62,9 @@ builder.Services.AddRateLimiter(options =>
     options.AddFixedWindowLimiter("auth", o =>
     {
         o.Window = TimeSpan.FromMinutes(1);
-        o.PermitLimit = 10;
+        // Configurable so integration tests can relax it (many logins share one host);
+        // production keeps the default of 10/min.
+        o.PermitLimit = builder.Configuration.GetValue<int?>("RateLimit:AuthPermitLimit") ?? 10;
         o.QueueLimit = 0;
     });
 });

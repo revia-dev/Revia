@@ -133,7 +133,7 @@ public sealed class BackupService(
             {
                 Id = Guid.NewGuid(),
                 MovieId = e.MovieId,
-                CustomTitle = null, // web entries always reference a movie
+                CustomTitle = e.CustomTitle,
                 PhotoData = null,
                 Channel = e.Channel,
                 Note = e.Note,
@@ -476,10 +476,14 @@ public sealed class BackupService(
             {
                 var first = group.First().a;
                 var entries = group.Select(x => x.a)
-                    .Where(a => a.MovieId is { } mid && mid != Guid.Empty && movieIds.Contains(mid))
+                    // keep entries with a known movie OR a custom title (movie-less)
+                    .Where(a => (a.MovieId is { } mid && mid != Guid.Empty && movieIds.Contains(mid))
+                                || !string.IsNullOrWhiteSpace(a.CustomTitle))
                     .Select(a => new TvProgramEntry
                     {
-                        MovieId = a.MovieId!.Value,
+                        MovieId = a.MovieId is { } mid && mid != Guid.Empty && movieIds.Contains(mid) ? mid : null,
+                        CustomTitle = (a.MovieId is { } m && m != Guid.Empty && movieIds.Contains(m))
+                            ? null : a.CustomTitle,
                         StartsAt = a.StartsAt,
                         Channel = a.Channel,
                         Note = a.Note,

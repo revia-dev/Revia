@@ -75,12 +75,13 @@ public sealed class TvClientService
         return await _store.CacheGetAsync<List<TvEntryDto>>(key) ?? new();
     }
 
-    public async Task AddPrivateAsync(Guid movieId, string movieTitle, DateTime startsAt, string? channel, string? note, bool shared)
+    public async Task AddPrivateAsync(Guid? movieId, string? customTitle, string displayTitle,
+        DateTime startsAt, string? channel, string? note, bool shared)
     {
         var list = await _store.CacheGetAsync<List<TvEntryDto>>(PrivateKey) ?? new();
         list.Add(new TvEntryDto
         {
-            Id = TempId(), MovieId = movieId, MovieTitle = movieTitle,
+            Id = TempId(), MovieId = movieId, CustomTitle = customTitle, MovieTitle = displayTitle,
             StartsAt = startsAt, Channel = channel, Note = note,
             SharedWithHousehold = shared, HasPrivateOwner = true
         });
@@ -88,7 +89,7 @@ public sealed class TvClientService
 
         await EnqueueAsync(MutationKind.Create, null, new AddTvEntryRequest
         {
-            MovieId = movieId, StartsAt = startsAt, Channel = channel, Note = note,
+            MovieId = movieId, CustomTitle = customTitle, StartsAt = startsAt, Channel = channel, Note = note,
             Shared = shared, Household = false
         });
     }

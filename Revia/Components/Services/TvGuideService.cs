@@ -88,15 +88,16 @@ public sealed class TvGuideService(AppDbContext db, CurrentUserContext currentUs
             .ToListAsync(cancellationToken);
     }
 
-    public async Task AddPrivateEntryAsync(Guid movieId, DateTime startsAt, string? channel, string? note, bool shared, CancellationToken cancellationToken = default)
+    public async Task AddPrivateEntryAsync(Guid? movieId, string? customTitle, DateTime startsAt, string? channel, string? note, bool shared, CancellationToken cancellationToken = default)
     {
         var program = await GetPrivateProgramAsync(cancellationToken);
-        await EnsureMovieInHouseholdAsync(movieId, cancellationToken);
+        var (resolvedMovieId, resolvedTitle) = await ResolveEntryTargetAsync(movieId, customTitle, cancellationToken);
 
         _db.TvProgramEntries.Add(new TvProgramEntry
         {
             TvProgramId = program.Id,
-            MovieId = movieId,
+            MovieId = resolvedMovieId,
+            CustomTitle = resolvedTitle,
             StartsAt = startsAt,
             Channel = channel?.Trim(),
             Note = note?.Trim(),
@@ -105,20 +106,38 @@ public sealed class TvGuideService(AppDbContext db, CurrentUserContext currentUs
         await _db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task AddHouseholdEntryAsync(Guid movieId, DateTime startsAt, string? channel, string? note, CancellationToken cancellationToken = default)
+    public async Task AddHouseholdEntryAsync(Guid? movieId, string? customTitle, DateTime startsAt, string? channel, string? note, CancellationToken cancellationToken = default)
     {
         var program = await GetHouseholdProgramAsync(cancellationToken);
-        await EnsureMovieInHouseholdAsync(movieId, cancellationToken);
+        var (resolvedMovieId, resolvedTitle) = await ResolveEntryTargetAsync(movieId, customTitle, cancellationToken);
 
         _db.TvProgramEntries.Add(new TvProgramEntry
         {
             TvProgramId = program.Id,
-            MovieId = movieId,
+            MovieId = resolvedMovieId,
+            CustomTitle = resolvedTitle,
             StartsAt = startsAt,
             Channel = channel?.Trim(),
             Note = note?.Trim()
         });
         await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>An entry is either tied to a household movie OR carries a custom title.</summary>
+    private async Task<(Guid? movieId, string? customTitle)> ResolveEntryTargetAsync(
+        Guid? movieId, string? customTitle, CancellationToken cancellationToken)
+    {
+        if (movieId is { } id && id != Guid.Empty)
+        {
+            await EnsureMovieInHouseholdAsync(id, cancellationToken);
+            return (id, null);
+        }
+        var title = customTitle?.Trim();
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new InvalidOperationException("Entweder ein Film oder ein eigener Titel ist erforderlich.");
+        }
+        return (null, title);
     }
 
     public async Task<bool> DeleteEntryAsync(int entryId, CancellationToken cancellationToken = default)
