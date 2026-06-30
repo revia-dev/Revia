@@ -86,11 +86,11 @@ public sealed class WishlistClientService
         }
     }
 
-    public async Task AddItemAsync(int wishlistId, string title, string? url, string? notes, decimal? price)
+    public async Task AddItemAsync(int wishlistId, string title, string? url, string? notes, decimal? price, byte[]? photoData = null)
     {
         var list = await CachedAsync();
         var w = list.FirstOrDefault(x => x.Id == wishlistId);
-        w?.Items.Add(new WishlistItemDto { Id = TempId(), Title = title, Url = url, Notes = notes, Price = price });
+        w?.Items.Add(new WishlistItemDto { Id = TempId(), Title = title, Url = url, Notes = notes, Price = price, PhotoData = photoData });
         await _store.CacheSetAsync(CacheKey, list);
 
         await EnqueueAsync(MutationKind.Create, "items", new AddWishlistItemRequest
@@ -99,7 +99,8 @@ public sealed class WishlistClientService
             Title = title,
             Url = url,
             Notes = notes,
-            Price = price
+            Price = price,
+            PhotoData = photoData
         });
     }
 

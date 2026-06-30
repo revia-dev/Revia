@@ -61,6 +61,10 @@ else
                     @foreach (var item in list.Items)
                     {
                         <li class="wl-item @(item.IsFulfilled ? "is-done" : "")" @key="item.Id">
+                            @if (item.PhotoData is { Length: > 0 })
+                            {
+                                <img class="wl-item-photo" src="@PhotoUrl(item.PhotoData)" alt="@item.Title" />
+                            }
                             <span class="wl-item-title">
                                 @if (!string.IsNullOrEmpty(item.Url))
                                 {
@@ -88,6 +92,12 @@ else
                 <div class="wl-add">
                     <input class="form-control" placeholder="Wunsch hinzufügen…" value="@GetDraft(list.Id)"
                            @oninput="e => SetDraft(list.Id, e.Value?.ToString())" />
+                    <input class="form-control" placeholder="Link (optional)" value="@_urlDrafts.GetValueOrDefault(list.Id)"
+                           @oninput="e => _urlDrafts[list.Id] = e.Value?.ToString()" />
+                    <label class="btn btn-outline-secondary btn-sm wl-photo-btn" title="Foto (optional)">
+                        @(_photoDrafts.GetValueOrDefault(list.Id) is null ? "📷 Foto" : "✓ Foto")
+                        <InputFile OnChange="e => OnPhotoSelectedAsync(list.Id, e)" accept="image/*" hidden />
+                    </label>
                     <button class="btn btn-primary btn-sm" @onclick="() => AddItemAsync(list.Id)"
                             disabled="@string.IsNullOrWhiteSpace(GetDraft(list.Id))">Hinzufügen</button>
                 </div>
@@ -101,6 +111,8 @@ else
 @code {
     private List<WishlistDto> _lists = new();
     private readonly Dictionary<int, string> _drafts = new();
+    private readonly Dictionary<int, string?> _urlDrafts = new();
+    private readonly Dictionary<int, byte[]?> _photoDrafts = new();
     private string _newListName = string.Empty;
     private bool _loading = true;
     private int _pending;
@@ -138,10 +150,30 @@ else
     {
         var draft = GetDraft(listId);
         if (string.IsNullOrWhiteSpace(draft)) return;
-        await WishlistSvc.AddItemAsync(listId, draft.Trim(), null, null, null);
+        var url = _urlDrafts.GetValueOrDefault(listId);
+        var photo = _photoDrafts.GetValueOrDefault(listId);
+        await WishlistSvc.AddItemAsync(listId, draft.Trim(),
+            string.IsNullOrWhiteSpace(url) ? null : url.Trim(), null, null, photo);
         _drafts[listId] = string.Empty;
+        _urlDrafts[listId] = null;
+        _photoDrafts[listId] = null;
         await AfterWriteAsync();
     }
+
+    /// <summary>Reads an item photo (≤5 MB) into bytes for the next add.</summary>
+    private async Task OnPhotoSelectedAsync(int listId, InputFileChangeEventArgs e)
+    {
+        try
+        {
+            await using var stream = e.File.OpenReadStream(maxAllowedSize: 5L * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            _photoDrafts[listId] = ms.ToArray();
+        }
+        catch { _photoDrafts[listId] = null; }
+    }
+
+    private static string PhotoUrl(byte[] data) => $"data:image/jpeg;base64,{Convert.ToBase64String(data)}";
 
     private async Task ToggleAsync(int listId, WishlistItemDto item)
     {

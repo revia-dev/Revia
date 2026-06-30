@@ -125,7 +125,7 @@ public sealed class BackupService(
                     Title = i.Title,
                     Note = i.Notes,
                     Url = i.Url,
-                    PhotoData = null, // the web wishlist item has no photo
+                    PhotoData = i.PhotoData,
                     Fulfilled = i.IsFulfilled,
                 }).ToList(),
             }).ToList(),
@@ -439,6 +439,7 @@ public sealed class BackupService(
                         Url = i.Url,
                         Notes = i.Note,
                         IsFulfilled = i.Fulfilled,
+                        PhotoData = i.PhotoData,
                         SortOrder = idx,
                         CreatedAt = DateTime.UtcNow,
                     }).ToList(),

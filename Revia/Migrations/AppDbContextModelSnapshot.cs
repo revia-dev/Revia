@@ -941,6 +941,9 @@ namespace Revia.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
+                    b.Property<byte[]>("PhotoData")
+                        .HasColumnType("BLOB");
+
                     b.Property<decimal?>("Price")
                         .HasColumnType("TEXT");
 

@@ -21,6 +21,8 @@ public sealed class WishlistItemDto
     public string? Notes { get; set; }
     public decimal? Price { get; set; }
     public bool IsFulfilled { get; set; }
+    /// <summary>Optional inline photo bytes (base64 over JSON).</summary>
+    public byte[]? PhotoData { get; set; }
 }
 
 public sealed class CreateWishlistRequest
@@ -44,6 +46,9 @@ public sealed class AddWishlistItemRequest
     public string? Notes { get; set; }
 
     public decimal? Price { get; set; }
+
+    /// <summary>Optional inline photo bytes (base64 over JSON).</summary>
+    public byte[]? PhotoData { get; set; }
 }
 
 public sealed class SetItemFulfilledRequest

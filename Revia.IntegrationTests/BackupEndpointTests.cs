@@ -432,6 +432,35 @@ public sealed class BackupEndpointTests(ReviaApiFactory factory) : IClassFixture
         Assert.True(entry.GetProperty("movieId").ValueKind == JsonValueKind.Null);
     }
 
+    [Fact]
+    public async Task Backup_WishlistItemPhoto_RoundTrips()
+    {
+        var client = _factory.CreateClient();
+        var token = await LoginAsAdminAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var owner = "WPhoto " + Guid.NewGuid().ToString("N")[..6];
+        (await client.PostAsJsonAsync("/api/persons", new { firstName = owner })).EnsureSuccessStatusCode();
+
+        var listName = "Photos " + Guid.NewGuid().ToString("N")[..6];
+        var photo = new byte[] { 3, 1, 4, 1, 5, 9 };
+        var document = new
+        {
+            formatVersion = 1,
+            wishlists = new[] { new { id = Guid.NewGuid(), householdId = Guid.Empty, name = listName,
+                createdAt = DateTime.UtcNow, ownerName = (string?)owner,
+                items = new[] { new { id = Guid.NewGuid(), title = "Camera", note = (string?)null,
+                    url = (string?)null, photoData = photo, fulfilled = false } } } },
+        };
+        (await client.PostAsJsonAsync("/api/backup", document)).EnsureSuccessStatusCode();
+
+        using var doc = JsonDocument.Parse(await client.GetStringAsync("/api/backup"));
+        var list = doc.RootElement.GetProperty("wishlists").EnumerateArray()
+            .Single(w => w.GetProperty("name").GetString() == listName);
+        var item = list.GetProperty("items").EnumerateArray().Single();
+        Assert.Equal(photo, item.GetProperty("photoData").GetBytesFromBase64());
+    }
+
     private static async Task<string> LoginAsAdminAsync(HttpClient client)
     {
         var res = await client.PostAsJsonAsync("/api/auth/login",

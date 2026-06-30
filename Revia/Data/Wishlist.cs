@@ -41,6 +41,10 @@ public sealed class WishlistItem
 
     public bool IsFulfilled { get; set; }
 
+    /// <summary>Optional inline photo for the wish (small images; mirrors the native
+    /// app's per-item photo). Stored inline so it round-trips through the backup as bytes.</summary>
+    public byte[]? PhotoData { get; set; }
+
     public int SortOrder { get; set; }
     public DateTime CreatedAt { get; set; }
 }

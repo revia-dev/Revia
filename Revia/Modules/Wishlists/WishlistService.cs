@@ -70,7 +70,7 @@ public sealed class WishlistService(AppDbContext db, CurrentUserContext currentU
         return true;
     }
 
-    public async Task AddItemAsync(int wishlistId, string title, string? url, string? notes, decimal? price, CancellationToken cancellationToken = default)
+    public async Task AddItemAsync(int wishlistId, string title, string? url, string? notes, decimal? price, byte[]? photoData = null, CancellationToken cancellationToken = default)
     {
         var owned = await LoadOwnedAsync(wishlistId, cancellationToken)
             ?? throw new InvalidOperationException("Wunschzettel nicht gefunden oder keine Berechtigung.");
@@ -85,6 +85,7 @@ public sealed class WishlistService(AppDbContext db, CurrentUserContext currentU
             Url = string.IsNullOrWhiteSpace(url) ? null : url.Trim(),
             Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
             Price = price,
+            PhotoData = photoData is { Length: > 0 } ? photoData : null,
             SortOrder = next + 1,
             CreatedAt = DateTime.UtcNow
         });

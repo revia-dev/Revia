@@ -199,8 +199,10 @@ code {
 .wl-item { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.5rem 0.7rem; border: 1px solid #eee; border-radius: 10px; }
 .wl-item.is-done .wl-item-title { text-decoration: line-through; color: var(--text-muted); }
 .wl-item-actions { display: flex; gap: 0.35rem; flex: 0 0 auto; }
+.wl-item-photo { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; flex: 0 0 auto; }
 .wl-price { margin-left: 0.5rem; color: var(--accent); font-weight: 600; }
-.wl-add { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
+.wl-add { display: flex; gap: 0.5rem; margin-top: 0.7rem; flex-wrap: wrap; }
+.wl-photo-btn { flex: 0 0 auto; cursor: pointer; }
 .wl-add .form-control { flex: 1 1 auto; padding: 0.45rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 10px; }
 .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.85rem; border-radius: 8px; }
 .btn-outline-danger { color: var(--danger); background: transparent; border: 1px solid rgba(181,58,45,0.4); }

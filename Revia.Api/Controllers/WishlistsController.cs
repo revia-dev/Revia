@@ -48,7 +48,7 @@ public sealed class WishlistsController(
     [HttpPost("items")]
     public async Task<IActionResult> AddItem([FromBody] AddWishlistItemRequest request, CancellationToken ct)
     {
-        await _wishlists.AddItemAsync(request.WishlistId, request.Title, request.Url, request.Notes, request.Price, ct);
+        await _wishlists.AddItemAsync(request.WishlistId, request.Title, request.Url, request.Notes, request.Price, request.PhotoData, ct);
         return NoContent();
     }
 
@@ -82,7 +82,8 @@ public sealed class WishlistsController(
                 Url = i.Url,
                 Notes = i.Notes,
                 Price = i.Price,
-                IsFulfilled = i.IsFulfilled
+                IsFulfilled = i.IsFulfilled,
+                PhotoData = i.PhotoData
             }).ToList()
     };
 }
