@@ -294,6 +294,74 @@ public sealed class BackupEndpointTests(ReviaApiFactory factory) : IClassFixture
             (a.GetProperty("programName").GetString() ?? "").StartsWith("Ghost"));
     }
 
+    [Fact]
+    public async Task Backup_Games_RoundTripWithFilesAndUpsertByName()
+    {
+        var client = _factory.CreateClient();
+        var token = await LoginAsAdminAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var gameName = "Catan " + Guid.NewGuid().ToString("N")[..6];
+        var rules = new byte[] { 1, 2, 3, 4 };
+        var mapFile = new byte[] { 9, 8, 7 };
+        var document = new
+        {
+            formatVersion = 1,
+            games = new[]
+            {
+                new
+                {
+                    id = Guid.NewGuid(), name = gameName, publisher = "Kosmos",
+                    minPlayers = 3, maxPlayers = 4, types = new[] { "board", "card" },
+                    hasRules = true, rulesData = rules, rulesFileName = "rules.pdf",
+                    scoreDefinitions = new[] { new { id = Guid.NewGuid(), name = "Points",
+                                                     unit = (string?)null, higherIsBetter = true } },
+                    expansions = new[]
+                    {
+                        new { id = Guid.NewGuid(), name = "Seafarers", notes = "ocean",
+                              files = new[] { new { id = Guid.NewGuid(), fileName = "map.pdf",
+                                                    contentType = "application/pdf", data = mapFile } } },
+                    },
+                },
+            },
+        };
+        (await client.PostAsJsonAsync("/api/backup", document)).EnsureSuccessStatusCode();
+
+        var raw = await client.GetStringAsync("/api/backup");
+        using (var doc = JsonDocument.Parse(raw))
+        {
+            var game = doc.RootElement.GetProperty("games").EnumerateArray()
+                .Single(g => g.GetProperty("name").GetString() == gameName);
+            Assert.Equal("Kosmos", game.GetProperty("publisher").GetString());
+            var types = game.GetProperty("types").EnumerateArray().Select(t => t.GetString()).ToList();
+            Assert.Contains("board", types);
+            Assert.Contains("card", types);  // German enum mapped back to native strings
+            Assert.Equal(rules, game.GetProperty("rulesData").GetBytesFromBase64()); // file round-trip
+            Assert.Equal("Points", game.GetProperty("scoreDefinitions")[0].GetProperty("name").GetString());
+            var exp = game.GetProperty("expansions")[0];
+            Assert.Equal("Seafarers", exp.GetProperty("name").GetString());
+            Assert.Equal(mapFile, exp.GetProperty("files")[0].GetProperty("data").GetBytesFromBase64());
+        }
+
+        // Re-import the same name with a changed publisher → upsert, not a duplicate.
+        var update = new { formatVersion = 1, games = new[] { new
+        {
+            id = Guid.NewGuid(), name = gameName, publisher = "Ravensburger",
+            minPlayers = 2, maxPlayers = 5, types = new[] { "other" },
+            hasRules = false, rulesData = (byte[]?)null, rulesFileName = (string?)null,
+            scoreDefinitions = Array.Empty<object>(), expansions = Array.Empty<object>(),
+        } } };
+        (await client.PostAsJsonAsync("/api/backup", update)).EnsureSuccessStatusCode();
+
+        using (var doc = JsonDocument.Parse(await client.GetStringAsync("/api/backup")))
+        {
+            var matching = doc.RootElement.GetProperty("games").EnumerateArray()
+                .Where(g => g.GetProperty("name").GetString() == gameName).ToList();
+            Assert.Single(matching);
+            Assert.Equal("Ravensburger", matching[0].GetProperty("publisher").GetString());
+        }
+    }
+
     private static async Task<string> LoginAsAdminAsync(HttpClient client)
     {
         var res = await client.PostAsJsonAsync("/api/auth/login",

@@ -24,6 +24,7 @@ public sealed class BackupDocument
     public List<MatchBak>? Matches { get; set; }
     public List<WishlistBak>? Wishlists { get; set; }
     public List<TvAiringBak>? TvAirings { get; set; }
+    public List<GameBak>? Games { get; set; }
 
     /// <summary>Table keys actually present (non-null) — the ones a restore overwrites.</summary>
     public List<string> PresentTables()
@@ -36,6 +37,7 @@ public sealed class BackupDocument
         if (Matches is not null) t.Add("matches");
         if (Wishlists is not null) t.Add("wishlists");
         if (TvAirings is not null) t.Add("tvAirings");
+        if (Games is not null) t.Add("games");
         return t;
     }
 }
@@ -164,4 +166,46 @@ public sealed class TvAiringBak
     public string? OwnerName { get; set; }
     public int? BaseEpisode { get; set; }
     public string? ProgramName { get; set; }
+}
+
+/// <summary>A game in the catalogue. Reconciles by <c>name</c> (web int ids ≠ native
+/// UUIDs); types are the native strings (board/console/card/other); rules &amp; expansion
+/// files travel inline as bytes (both apps store them as files).</summary>
+public sealed class GameBak
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Publisher { get; set; }
+    public int? MinPlayers { get; set; }
+    public int? MaxPlayers { get; set; }
+    public List<string> Types { get; set; } = new();
+    public bool HasRules { get; set; }
+    public byte[]? RulesData { get; set; }
+    public string? RulesFileName { get; set; }
+    public List<ExpansionBak> Expansions { get; set; } = new();
+    public List<ScoreDefBak> ScoreDefinitions { get; set; } = new();
+}
+
+public sealed class ExpansionBak
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Notes { get; set; }
+    public List<ExpansionFileBak> Files { get; set; } = new();
+}
+
+public sealed class ExpansionFileBak
+{
+    public Guid Id { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public byte[]? Data { get; set; }
+}
+
+public sealed class ScoreDefBak
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Unit { get; set; }
+    public bool HigherIsBetter { get; set; } = true;
 }

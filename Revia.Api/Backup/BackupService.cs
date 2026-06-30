@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Revia.Data;
 using Revia.Modules.Bmi;
+using Revia.Modules.Games;
 using Revia.Modules.Lending.Models;
 using Revia.Services;
 using Revia.Shared.Backup;
@@ -14,11 +15,14 @@ namespace Revia.Api.Backup;
 /// native app reads, plus the per-person watch progress and BMI tables — the latter
 /// reconcile by <c>personName</c> (the web's Identity ids ≠ the native UUIDs).
 /// </summary>
-public sealed class BackupService(AppDbContext db, CurrentUserContext currentUser, IBmiPhotoStorage photoStorage)
+public sealed class BackupService(
+    AppDbContext db, CurrentUserContext currentUser,
+    IBmiPhotoStorage photoStorage, IGameFileStorage gameFiles)
 {
     private readonly AppDbContext _db = db;
     private readonly CurrentUserContext _currentUser = currentUser;
     private readonly IBmiPhotoStorage _photoStorage = photoStorage;
+    private readonly IGameFileStorage _gameFiles = gameFiles;
 
     public async Task<BackupDocument> ExportAsync(CancellationToken ct = default)
     {
@@ -44,6 +48,10 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
             .Where(w => w.HouseholdId == householdId).ToListAsync(ct);
         var tvPrograms = await _db.TvPrograms.AsNoTracking().Include(p => p.Entries)
             .Where(p => p.HouseholdId == householdId).ToListAsync(ct);
+        var games = await _db.Games.AsNoTracking()
+            .Include(g => g.Types).Include(g => g.ScoreDefinitions)
+            .Include(g => g.Expansions).ThenInclude(e => e.Files)
+            .Where(g => g.HouseholdId == householdId).ToListAsync(ct);
 
         return new BackupDocument
         {
@@ -132,6 +140,35 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
                 BaseEpisode = null,
                 ProgramName = p.Name,
             })).ToList(),
+            Games = games.Select(g => new GameBak
+            {
+                Id = Guid.NewGuid(), // web game ids are ints; games reconcile by name
+                Name = g.Name,
+                Publisher = g.Publisher,
+                MinPlayers = g.MinPlayers,
+                MaxPlayers = g.MaxPlayers,
+                Types = g.Types.Select(t => TypeToString(t.Type)).ToList(),
+                HasRules = g.RulesFileName is not null,
+                RulesData = ReadGameFile(g.RulesFileName),
+                RulesFileName = g.RulesOriginalName ?? g.RulesFileName,
+                ScoreDefinitions = g.ScoreDefinitions.Select(s => new ScoreDefBak
+                {
+                    Id = Guid.NewGuid(), Name = s.Name, Unit = s.Unit, HigherIsBetter = s.HigherIsBetter,
+                }).ToList(),
+                Expansions = g.Expansions.Select(e => new ExpansionBak
+                {
+                    Id = Guid.NewGuid(),
+                    Name = e.Name,
+                    Notes = e.Notes,
+                    Files = e.Files.Select(f => new ExpansionFileBak
+                    {
+                        Id = Guid.NewGuid(),
+                        FileName = f.OriginalName ?? f.FileName,
+                        ContentType = f.ContentType,
+                        Data = ReadGameFile(f.FileName),
+                    }).ToList(),
+                }).ToList(),
+            }).ToList(),
         };
     }
 
@@ -239,9 +276,98 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
             overwritten.Add("loans");
         }
 
+        if (doc.Games is not null)
+        {
+            // Upsert by name (don't delete games that matches still reference, which would
+            // break their FK): update an existing game in place, or add a new one, and
+            // replace its types/score-defs/expansions + rules/expansion files.
+            var existingGames = await _db.Games
+                .Include(g => g.Types).Include(g => g.ScoreDefinitions)
+                .Include(g => g.Expansions).ThenInclude(e => e.Files)
+                .Where(g => g.HouseholdId == householdId).ToListAsync(ct);
+
+            foreach (var b in doc.Games)
+            {
+                var game = existingGames.FirstOrDefault(g =>
+                    string.Equals(g.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+                if (game is null)
+                {
+                    game = new Game { HouseholdId = householdId, Name = b.Name, CreatedAt = DateTime.UtcNow };
+                    _db.Games.Add(game);
+                }
+                game.Publisher = b.Publisher;
+                game.MinPlayers = b.MinPlayers;
+                game.MaxPlayers = b.MaxPlayers;
+
+                _db.GameTypeAssignments.RemoveRange(game.Types);
+                game.Types = b.Types
+                    .Select(t => new GameTypeAssignment { Type = StringToType(t) }).ToList();
+
+                _db.GameScoreDefinitions.RemoveRange(game.ScoreDefinitions);
+                game.ScoreDefinitions = b.ScoreDefinitions.Select(s => new GameScoreDefinition
+                {
+                    Name = s.Name, Unit = s.Unit, HigherIsBetter = s.HigherIsBetter,
+                }).ToList();
+
+                // expansions (+ files): drop the old physical files, then rebuild
+                foreach (var oldFile in game.Expansions.SelectMany(e => e.Files))
+                {
+                    try { _gameFiles.Delete(oldFile.FileName); } catch { /* best effort */ }
+                }
+                _db.GameExpansionFiles.RemoveRange(game.Expansions.SelectMany(e => e.Files));
+                _db.GameExpansions.RemoveRange(game.Expansions);
+                var rebuilt = new List<GameExpansion>();
+                foreach (var eb in b.Expansions)
+                {
+                    var exp = new GameExpansion
+                    {
+                        Name = eb.Name, Notes = eb.Notes, CreatedAt = DateTime.UtcNow,
+                        Files = new List<GameExpansionFile>(),
+                    };
+                    foreach (var fb in eb.Files)
+                    {
+                        if (fb.Data is not { Length: > 0 }) continue;
+                        using var ms = new MemoryStream(fb.Data);
+                        var saved = await _gameFiles.SaveAsync(ms, ExtensionFor(fb.FileName, fb.ContentType), ct);
+                        exp.Files.Add(new GameExpansionFile
+                        {
+                            FileName = saved, ContentType = fb.ContentType,
+                            OriginalName = fb.FileName, CreatedAt = DateTime.UtcNow,
+                        });
+                    }
+                    rebuilt.Add(exp);
+                }
+                game.Expansions = rebuilt;
+
+                // rules file
+                if (game.RulesFileName is not null)
+                {
+                    try { _gameFiles.Delete(game.RulesFileName); } catch { /* best effort */ }
+                }
+                if (b.RulesData is { Length: > 0 })
+                {
+                    using var ms = new MemoryStream(b.RulesData);
+                    game.RulesFileName = await _gameFiles.SaveAsync(ms, ExtensionFor(b.RulesFileName, null), ct);
+                    game.RulesOriginalName = b.RulesFileName;
+                    game.RulesContentType ??= "application/octet-stream";
+                }
+                else
+                {
+                    game.RulesFileName = null;
+                    game.RulesOriginalName = null;
+                    game.RulesContentType = null;
+                }
+            }
+            overwritten.Add("games");
+        }
+
         if (doc.Matches is not null)
         {
             var games = await _db.Games.Where(g => g.HouseholdId == householdId).ToListAsync(ct);
+            // include games just upserted in this restore but not yet saved
+            games.AddRange(_db.ChangeTracker.Entries<Game>()
+                .Where(e => e.State == EntityState.Added && !games.Contains(e.Entity))
+                .Select(e => e.Entity));
             _db.GameMatches.RemoveRange(_db.GameMatches.Where(m => m.HouseholdId == householdId));
             foreach (var b in doc.Matches)
             {
@@ -375,6 +501,47 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
             return File.Exists(path) ? File.ReadAllBytes(path) : null;
         }
         catch { return null; }
+    }
+
+    private byte[]? ReadGameFile(string? fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName)) return null;
+        try
+        {
+            var path = _gameFiles.GetPath(fileName);
+            return File.Exists(path) ? File.ReadAllBytes(path) : null;
+        }
+        catch { return null; }
+    }
+
+    // GameType is German+int-backed on the web, board/console/card/other on native.
+    private static string TypeToString(GameType type) => type switch
+    {
+        GameType.Brettspiel => "board",
+        GameType.Konsolenspiel => "console",
+        GameType.Kartenspiel => "card",
+        _ => "other",
+    };
+
+    private static GameType StringToType(string value) => value.ToLowerInvariant() switch
+    {
+        "board" => GameType.Brettspiel,
+        "console" => GameType.Konsolenspiel,
+        "card" => GameType.Kartenspiel,
+        _ => GameType.Sonstiges,
+    };
+
+    private static string ExtensionFor(string? originalName, string? contentType)
+    {
+        var ext = Path.GetExtension(originalName ?? string.Empty);
+        if (!string.IsNullOrWhiteSpace(ext)) return ext;
+        return contentType switch
+        {
+            "application/pdf" => ".pdf",
+            "image/png" => ".png",
+            "image/jpeg" => ".jpg",
+            _ => ".bin",
+        };
     }
 
     // ---- mapping (mirrors the native MovieBak + the CSV transfer rules) ----
