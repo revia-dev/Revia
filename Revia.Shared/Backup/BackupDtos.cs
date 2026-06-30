@@ -22,6 +22,7 @@ public sealed class BackupDocument
     public List<BmiBak>? BmiRecords { get; set; }
     public List<LoanBak>? Loans { get; set; }
     public List<MatchBak>? Matches { get; set; }
+    public List<WishlistBak>? Wishlists { get; set; }
 
     /// <summary>Table keys actually present (non-null) — the ones a restore overwrites.</summary>
     public List<string> PresentTables()
@@ -32,6 +33,7 @@ public sealed class BackupDocument
         if (BmiRecords is not null) t.Add("bmiRecords");
         if (Loans is not null) t.Add("loans");
         if (Matches is not null) t.Add("matches");
+        if (Wishlists is not null) t.Add("wishlists");
         return t;
     }
 }
@@ -117,4 +119,27 @@ public sealed class ParticipantBak
     public Guid PersonId { get; set; }
     public string PersonName { get; set; } = string.Empty;
     public double Score { get; set; }
+}
+
+/// <summary>A wishlist. The native app keeps lists household-wide (no owner); the web
+/// app owns them per user, so <c>ownerName</c> carries the owner across (null = no owner,
+/// the importer becomes the owner on the web side).</summary>
+public sealed class WishlistBak
+{
+    public Guid Id { get; set; }
+    public Guid HouseholdId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public string? OwnerName { get; set; }
+    public List<WishlistItemBak> Items { get; set; } = new();
+}
+
+public sealed class WishlistItemBak
+{
+    public Guid Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Note { get; set; }
+    public string? Url { get; set; }
+    public byte[]? PhotoData { get; set; } // native only; the web item has no photo field
+    public bool Fulfilled { get; set; }
 }

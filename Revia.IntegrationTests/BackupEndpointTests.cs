@@ -200,6 +200,53 @@ public sealed class BackupEndpointTests(ReviaApiFactory factory) : IClassFixture
         Assert.DoesNotContain(matches, m => m.GetProperty("gameName").GetString() == "No Such Game " + suffix);
     }
 
+    [Fact]
+    public async Task Backup_Wishlists_ResolveOwnerByNameWithImporterFallback()
+    {
+        var client = _factory.CreateClient();
+        var token = await LoginAsAdminAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var owner = "Owner " + Guid.NewGuid().ToString("N")[..6];
+        (await client.PostAsJsonAsync("/api/persons", new { firstName = owner })).EnsureSuccessStatusCode();
+
+        var ownedName = "Gifts " + Guid.NewGuid().ToString("N")[..6];
+        var ownerlessName = "Household " + Guid.NewGuid().ToString("N")[..6];
+        var document = new
+        {
+            formatVersion = 1,
+            wishlists = new[]
+            {
+                new { id = Guid.NewGuid(), householdId = Guid.Empty, name = ownedName,
+                      createdAt = DateTime.UtcNow, ownerName = owner,
+                      items = new[] { new { id = Guid.NewGuid(), title = "Book",
+                                            note = "hardcover", url = "https://x", fulfilled = false } } },
+                // no owner (native-style) → the importing admin becomes the owner
+                new { id = Guid.NewGuid(), householdId = Guid.Empty, name = ownerlessName,
+                      createdAt = DateTime.UtcNow, ownerName = (string?)null,
+                      items = new[] { new { id = Guid.NewGuid(), title = "Socks",
+                                            note = (string?)null, url = (string?)null, fulfilled = true } } },
+            },
+        };
+        var post = await client.PostAsJsonAsync("/api/backup", document);
+        Assert.Equal(HttpStatusCode.OK, post.StatusCode);
+
+        var raw = await client.GetStringAsync("/api/backup");
+        using var doc = JsonDocument.Parse(raw);
+        var lists = doc.RootElement.GetProperty("wishlists").EnumerateArray().ToList();
+
+        var owned = lists.Single(w => w.GetProperty("name").GetString() == ownedName);
+        Assert.Equal(owner, owned.GetProperty("ownerName").GetString());
+        var item = owned.GetProperty("items").EnumerateArray().Single();
+        Assert.Equal("Book", item.GetProperty("title").GetString());
+        Assert.Equal("https://x", item.GetProperty("url").GetString());
+
+        // The ownerless list survived (assigned to the importer), with its item.
+        var household = lists.Single(w => w.GetProperty("name").GetString() == ownerlessName);
+        Assert.True(household.GetProperty("items").EnumerateArray()
+            .Single().GetProperty("fulfilled").GetBoolean());
+    }
+
     private static async Task<string> LoginAsAdminAsync(HttpClient client)
     {
         var res = await client.PostAsJsonAsync("/api/auth/login",

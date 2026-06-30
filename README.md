@@ -70,16 +70,17 @@ works offline and syncs changes as soon as a connection is available again.
   and native databases can be kept consistent by exchanging one file. Restore is
   **selective** — only the tables present in the file are overwritten. Covers the movie
   catalogue (shared Guid ids) plus the per-person tables — **watch progress**, **BMI**,
-  **loans** and **game matches** — which **reconcile by name** (web Identity ids ≠ native
-  UUIDs, so each row re-attaches to the local person/game of the same name; rows whose
-  person/game can't be resolved are dropped rather than mis-attached). (See
-  `Revia.Shared/Backup` for the shared contract.)
+  **loans**, **game matches** and **wishlists** — which **reconcile by name** (web Identity
+  ids ≠ native UUIDs, so each row re-attaches to the local person/game of the same name;
+  rows whose person/game can't be resolved are dropped rather than mis-attached).
+  Wishlists are per-user on the web and household-wide on native, so the owner travels as a
+  name (the importer becomes the owner when none is given). (See `Revia.Shared/Backup`.)
 - **Light/dark mode** automatically following the system setting; **consistent,
   responsive design**; **localization** (German / English) via resource files.
 - **Demo mode** without credentials, with seeded sample data (reset on every restart).
 - **Security:** JWT (access + rotating refresh tokens, **hashed at rest**), login
   lockout **and edge rate limiting** on the auth endpoints, household-scoped data
-  access; **69 unit + 18 integration tests**, 0 build warnings.
+  access; **69 unit + 19 integration tests**, 0 build warnings.
 - **Operations & observability:** structured request logging, a global
   RFC 7807 ProblemDetails error handler (no stack traces leak to clients),
   `/health` + `/health/ready` (DB) probes, baseline security headers, and OpenAPI

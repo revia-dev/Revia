@@ -40,6 +40,8 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
         var matches = await _db.GameMatches.AsNoTracking()
             .Include(m => m.Game).Include(m => m.Participants)
             .Where(m => m.HouseholdId == householdId).ToListAsync(ct);
+        var wishlists = await _db.Wishlists.AsNoTracking().Include(w => w.Items)
+            .Where(w => w.HouseholdId == householdId).ToListAsync(ct);
 
         return new BackupDocument
         {
@@ -94,6 +96,23 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
                     PersonId = Guid.TryParse(p.PersonId, out var pg) ? pg : Guid.Empty,
                     PersonName = nameOf.GetValueOrDefault(p.PersonId, string.Empty),
                     Score = p.Score ?? 0,
+                }).ToList(),
+            }).ToList(),
+            Wishlists = wishlists.Select(w => new WishlistBak
+            {
+                Id = Guid.NewGuid(), // web wishlist ids are ints
+                HouseholdId = Guid.Empty, // household is resolved locally on import
+                Name = w.Name,
+                CreatedAt = w.CreatedAt,
+                OwnerName = nameOf.GetValueOrDefault(w.OwnerUserId, string.Empty),
+                Items = w.Items.OrderBy(i => i.SortOrder).Select(i => new WishlistItemBak
+                {
+                    Id = Guid.NewGuid(),
+                    Title = i.Title,
+                    Note = i.Notes,
+                    Url = i.Url,
+                    PhotoData = null, // the web wishlist item has no photo
+                    Fulfilled = i.IsFulfilled,
                 }).ToList(),
             }).ToList(),
         };
@@ -228,6 +247,36 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
                 });
             }
             overwritten.Add("matches");
+        }
+
+        if (doc.Wishlists is not null)
+        {
+            // The native app keeps lists household-wide; on the web every list needs an
+            // owner — resolve by name, else fall back to the importing admin.
+            var importerId = await _currentUser.GetUserIdAsync();
+            _db.Wishlists.RemoveRange(_db.Wishlists.Where(w => w.HouseholdId == householdId));
+            foreach (var b in doc.Wishlists)
+            {
+                var ownerId = ResolveUserId(users, b.OwnerName ?? string.Empty) ?? importerId;
+                if (ownerId is null) continue; // no usable owner
+                _db.Wishlists.Add(new Wishlist
+                {
+                    HouseholdId = householdId,
+                    OwnerUserId = ownerId,
+                    Name = b.Name,
+                    CreatedAt = b.CreatedAt == default ? DateTime.UtcNow : b.CreatedAt,
+                    Items = b.Items.Select((i, idx) => new WishlistItem
+                    {
+                        Title = i.Title,
+                        Url = i.Url,
+                        Notes = i.Note,
+                        IsFulfilled = i.Fulfilled,
+                        SortOrder = idx,
+                        CreatedAt = DateTime.UtcNow,
+                    }).ToList(),
+                });
+            }
+            overwritten.Add("wishlists");
         }
 
         await _db.SaveChangesAsync(ct);
