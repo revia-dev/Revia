@@ -23,6 +23,7 @@ public sealed class BackupDocument
     public List<LoanBak>? Loans { get; set; }
     public List<MatchBak>? Matches { get; set; }
     public List<WishlistBak>? Wishlists { get; set; }
+    public List<TvAiringBak>? TvAirings { get; set; }
 
     /// <summary>Table keys actually present (non-null) — the ones a restore overwrites.</summary>
     public List<string> PresentTables()
@@ -34,6 +35,7 @@ public sealed class BackupDocument
         if (Loans is not null) t.Add("loans");
         if (Matches is not null) t.Add("matches");
         if (Wishlists is not null) t.Add("wishlists");
+        if (TvAirings is not null) t.Add("tvAirings");
         return t;
     }
 }
@@ -142,4 +144,24 @@ public sealed class WishlistItemBak
     public string? Url { get; set; }
     public byte[]? PhotoData { get; set; } // native only; the web item has no photo field
     public bool Fulfilled { get; set; }
+}
+
+/// <summary>A single TV airing. Native keeps these flat; the web groups them under a
+/// named <c>TvProgram</c> with an owner, so <c>programName</c>/<c>ownerName</c> let the
+/// web rebuild its programs. Web entries always reference a movie (no custom title) and
+/// require it to exist locally; <c>scope</c> is "family" (shared) or "privateProgram".</summary>
+public sealed class TvAiringBak
+{
+    public Guid Id { get; set; }
+    public Guid? MovieId { get; set; }
+    public string? CustomTitle { get; set; }
+    public byte[]? PhotoData { get; set; }
+    public string? Channel { get; set; }
+    public string? Note { get; set; }
+    public DateTime StartsAt { get; set; }
+    public string Scope { get; set; } = "privateProgram";
+    public Guid? OwnerPersonId { get; set; }
+    public string? OwnerName { get; set; }
+    public int? BaseEpisode { get; set; }
+    public string? ProgramName { get; set; }
 }

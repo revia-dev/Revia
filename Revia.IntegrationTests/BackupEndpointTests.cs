@@ -247,6 +247,53 @@ public sealed class BackupEndpointTests(ReviaApiFactory factory) : IClassFixture
             .Single().GetProperty("fulfilled").GetBoolean());
     }
 
+    [Fact]
+    public async Task Backup_TvAirings_RebuildProgramsAndRequireKnownMovie()
+    {
+        var client = _factory.CreateClient();
+        var token = await LoginAsAdminAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var owner = "TV Owner " + Guid.NewGuid().ToString("N")[..6];
+        (await client.PostAsJsonAsync("/api/persons", new { firstName = owner })).EnsureSuccessStatusCode();
+
+        var movieId = Guid.NewGuid();
+        var programName = "Krimi " + Guid.NewGuid().ToString("N")[..6];
+        var document = new
+        {
+            formatVersion = 1,
+            // the movie is restored before TV, so the entry's movie exists
+            movies = new[] { new { id = movieId, title = "Tatort", category = "tv",
+                                   providers = Array.Empty<string>(), tags = Array.Empty<string>() } },
+            tvAirings = new[]
+            {
+                new { id = Guid.NewGuid(), movieId = (Guid?)movieId, customTitle = (string?)null,
+                      channel = "ARD", note = "record", startsAt = DateTime.UtcNow,
+                      scope = "family", ownerName = (string?)owner, programName = (string?)programName },
+                // unknown movie → its program has no showable entry → dropped
+                new { id = Guid.NewGuid(), movieId = (Guid?)Guid.NewGuid(), customTitle = (string?)null,
+                      channel = "ZDF", note = (string?)null, startsAt = DateTime.UtcNow,
+                      scope = "privateProgram", ownerName = (string?)null,
+                      programName = (string?)("Ghost " + Guid.NewGuid().ToString("N")[..6]) },
+            },
+        };
+        var post = await client.PostAsJsonAsync("/api/backup", document);
+        Assert.Equal(HttpStatusCode.OK, post.StatusCode);
+
+        var raw = await client.GetStringAsync("/api/backup");
+        using var doc = JsonDocument.Parse(raw);
+        var airings = doc.RootElement.GetProperty("tvAirings").EnumerateArray().ToList();
+
+        var mine = airings.Single(a => a.GetProperty("programName").GetString() == programName);
+        Assert.Equal(movieId, mine.GetProperty("movieId").GetGuid());
+        Assert.Equal("family", mine.GetProperty("scope").GetString());
+        Assert.Equal("ARD", mine.GetProperty("channel").GetString());
+        Assert.Equal(owner, mine.GetProperty("ownerName").GetString());
+        // the unknown-movie program was not created
+        Assert.DoesNotContain(airings, a =>
+            (a.GetProperty("programName").GetString() ?? "").StartsWith("Ghost"));
+    }
+
     private static async Task<string> LoginAsAdminAsync(HttpClient client)
     {
         var res = await client.PostAsJsonAsync("/api/auth/login",

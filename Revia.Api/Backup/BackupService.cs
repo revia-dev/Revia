@@ -42,6 +42,8 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
             .Where(m => m.HouseholdId == householdId).ToListAsync(ct);
         var wishlists = await _db.Wishlists.AsNoTracking().Include(w => w.Items)
             .Where(w => w.HouseholdId == householdId).ToListAsync(ct);
+        var tvPrograms = await _db.TvPrograms.AsNoTracking().Include(p => p.Entries)
+            .Where(p => p.HouseholdId == householdId).ToListAsync(ct);
 
         return new BackupDocument
         {
@@ -115,6 +117,21 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
                     Fulfilled = i.IsFulfilled,
                 }).ToList(),
             }).ToList(),
+            TvAirings = tvPrograms.SelectMany(p => p.Entries.Select(e => new TvAiringBak
+            {
+                Id = Guid.NewGuid(),
+                MovieId = e.MovieId,
+                CustomTitle = null, // web entries always reference a movie
+                PhotoData = null,
+                Channel = e.Channel,
+                Note = e.Note,
+                StartsAt = e.StartsAt,
+                Scope = e.SharedWithHousehold ? "family" : "privateProgram",
+                OwnerPersonId = Guid.TryParse(p.OwnerUserId, out var og) ? og : null,
+                OwnerName = p.OwnerUserId is null ? null : nameOf.GetValueOrDefault(p.OwnerUserId, string.Empty),
+                BaseEpisode = null,
+                ProgramName = p.Name,
+            })).ToList(),
         };
     }
 
@@ -277,6 +294,56 @@ public sealed class BackupService(AppDbContext db, CurrentUserContext currentUse
                 });
             }
             overwritten.Add("wishlists");
+        }
+
+        if (doc.TvAirings is not null)
+        {
+            // Web entries need a known movie; rebuild programs by grouping flat airings
+            // on programName (a nameless airing — e.g. from native — becomes its own
+            // single-entry program).
+            var importerId = await _currentUser.GetUserIdAsync();
+            var movieIds = (await _db.Movies.Where(m => m.HouseholdId == householdId)
+                .Select(m => m.Id).ToListAsync(ct)).ToHashSet();
+            // include movies added earlier in THIS restore (same backup), not yet saved
+            foreach (var added in _db.ChangeTracker.Entries<Movie>()
+                .Where(e => e.State == EntityState.Added))
+            {
+                movieIds.Add(added.Entity.Id);
+            }
+
+            var oldProgramIds = await _db.TvPrograms.Where(p => p.HouseholdId == householdId)
+                .Select(p => p.Id).ToListAsync(ct);
+            _db.TvProgramEntries.RemoveRange(
+                _db.TvProgramEntries.Where(e => oldProgramIds.Contains(e.TvProgramId)));
+            _db.TvPrograms.RemoveRange(_db.TvPrograms.Where(p => p.HouseholdId == householdId));
+
+            var groups = doc.TvAirings
+                .Select((a, idx) => (a, key: string.IsNullOrWhiteSpace(a.ProgramName)
+                    ? $"\0solo:{idx}" : a.ProgramName!))
+                .GroupBy(x => x.key);
+            foreach (var group in groups)
+            {
+                var first = group.First().a;
+                var entries = group.Select(x => x.a)
+                    .Where(a => a.MovieId is { } mid && mid != Guid.Empty && movieIds.Contains(mid))
+                    .Select(a => new TvProgramEntry
+                    {
+                        MovieId = a.MovieId!.Value,
+                        StartsAt = a.StartsAt,
+                        Channel = a.Channel,
+                        Note = a.Note,
+                        SharedWithHousehold = a.Scope == "family",
+                    }).ToList();
+                if (entries.Count == 0) continue; // nothing the web can show
+                _db.TvPrograms.Add(new TvProgram
+                {
+                    HouseholdId = householdId,
+                    OwnerUserId = ResolveUserId(users, first.OwnerName ?? string.Empty) ?? importerId,
+                    Name = first.ProgramName ?? first.CustomTitle ?? "TV",
+                    Entries = entries,
+                });
+            }
+            overwritten.Add("tvAirings");
         }
 
         await _db.SaveChangesAsync(ct);
