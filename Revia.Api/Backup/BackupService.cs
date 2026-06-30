@@ -3,6 +3,7 @@ using Revia.Data;
 using Revia.Modules.Bmi;
 using Revia.Modules.Games;
 using Revia.Modules.Lending.Models;
+using Revia.Modules.Lending.Services;
 using Revia.Services;
 using Revia.Shared.Backup;
 
@@ -17,12 +18,13 @@ namespace Revia.Api.Backup;
 /// </summary>
 public sealed class BackupService(
     AppDbContext db, CurrentUserContext currentUser,
-    IBmiPhotoStorage photoStorage, IGameFileStorage gameFiles)
+    IBmiPhotoStorage photoStorage, IGameFileStorage gameFiles, ILendingPhotoStorage lendingPhotos)
 {
     private readonly AppDbContext _db = db;
     private readonly CurrentUserContext _currentUser = currentUser;
     private readonly IBmiPhotoStorage _photoStorage = photoStorage;
     private readonly IGameFileStorage _gameFiles = gameFiles;
+    private readonly ILendingPhotoStorage _lendingPhotos = lendingPhotos;
 
     public async Task<BackupDocument> ExportAsync(CancellationToken ct = default)
     {
@@ -39,10 +41,10 @@ public sealed class BackupService(
             .Where(w => w.HouseholdId == householdId).ToListAsync(ct);
         var bmis = await _db.BmiRecords.AsNoTracking()
             .Where(b => b.HouseholdId == householdId).ToListAsync(ct);
-        var loans = await _db.LendingEntries.AsNoTracking().Include(l => l.Items)
+        var loans = await _db.LendingEntries.AsNoTracking().Include(l => l.Items).Include(l => l.Photos)
             .Where(l => l.HouseholdId == householdId).ToListAsync(ct);
         var matches = await _db.GameMatches.AsNoTracking()
-            .Include(m => m.Game).Include(m => m.Participants)
+            .Include(m => m.Game).Include(m => m.Participants).Include(m => m.Photos)
             .Where(m => m.HouseholdId == householdId).ToListAsync(ct);
         var wishlists = await _db.Wishlists.AsNoTracking().Include(w => w.Items)
             .Where(w => w.HouseholdId == householdId).ToListAsync(ct);
@@ -90,7 +92,8 @@ public sealed class BackupService(
                 LoanDate = l.LoanDate,
                 DueDate = l.DueDate,
                 ReturnedAt = l.ReturnedAt,
-                PhotoData = null, // loan photos are not bridged yet
+                PhotoData = ReadFirstPhoto(l.Photos.OrderBy(p => p.SortOrder).Select(p => p.FileName),
+                                           _lendingPhotos.GetPath),
             }).ToList(),
             Matches = matches.Select(m => new MatchBak
             {
@@ -99,7 +102,8 @@ public sealed class BackupService(
                 GameName = m.Game?.Name ?? string.Empty,
                 PlayedOn = m.PlayedOn,
                 Note = m.Notes,
-                PhotoData = null,
+                PhotoData = ReadFirstPhoto(m.Photos.OrderBy(p => p.SortOrder).Select(p => p.FileName),
+                                           _gameFiles.GetPath),
                 Participants = m.Participants.Select(p => new ParticipantBak
                 {
                     Id = Guid.NewGuid(),
@@ -255,7 +259,7 @@ public sealed class BackupService(
                 var lender = ResolveUserId(users, b.LenderName);
                 var borrower = ResolveUserId(users, b.BorrowerName);
                 if (lender is null || borrower is null) continue; // FK needs real users
-                _db.LendingEntries.Add(new LendingEntry
+                var entry = new LendingEntry
                 {
                     HouseholdId = householdId,
                     Title = b.Title ?? b.Items.FirstOrDefault(),
@@ -271,7 +275,18 @@ public sealed class BackupService(
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
                     Items = b.Items.Select((name, i) => new LendingItem { Name = name, SortOrder = i }).ToList(),
-                });
+                };
+                if (b.PhotoData is { Length: > 0 })
+                {
+                    using var ms = new MemoryStream(b.PhotoData);
+                    var saved = await _lendingPhotos.SaveAsync(ms, ".jpg", ct);
+                    entry.Photos.Add(new LendingPhoto
+                    {
+                        FileName = saved, ContentType = "image/jpeg",
+                        SizeBytes = b.PhotoData.Length, SortOrder = 0, CreatedAt = DateTime.UtcNow,
+                    });
+                }
+                _db.LendingEntries.Add(entry);
             }
             overwritten.Add("loans");
         }
@@ -374,7 +389,7 @@ public sealed class BackupService(
                 var game = games.FirstOrDefault(g =>
                     string.Equals(g.Name, b.GameName, StringComparison.OrdinalIgnoreCase));
                 if (game is null) continue; // FK needs a known game
-                _db.GameMatches.Add(new GameMatch
+                var match = new GameMatch
                 {
                     GameId = game.Id,
                     HouseholdId = householdId,
@@ -387,7 +402,17 @@ public sealed class BackupService(
                         .Where(x => x.UserId is not null)
                         .Select(x => new GameMatchParticipant { PersonId = x.UserId!, Score = x.Score })
                         .ToList(),
-                });
+                };
+                if (b.PhotoData is { Length: > 0 })
+                {
+                    using var ms = new MemoryStream(b.PhotoData);
+                    var saved = await _gameFiles.SaveAsync(ms, ".jpg", ct);
+                    match.Photos.Add(new GameMatchPhoto
+                    {
+                        FileName = saved, ContentType = "image/jpeg", SortOrder = 0, CreatedAt = DateTime.UtcNow,
+                    });
+                }
+                _db.GameMatches.Add(match);
             }
             overwritten.Add("matches");
         }
@@ -498,6 +523,19 @@ public sealed class BackupService(
         try
         {
             var path = _photoStorage.GetPath(fileName);
+            return File.Exists(path) ? File.ReadAllBytes(path) : null;
+        }
+        catch { return null; }
+    }
+
+    /// Reads the bytes of the first file in a list, via the given storage's path resolver.
+    private static byte[]? ReadFirstPhoto(IEnumerable<string> fileNames, Func<string, string> pathOf)
+    {
+        var first = fileNames.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(first)) return null;
+        try
+        {
+            var path = pathOf(first);
             return File.Exists(path) ? File.ReadAllBytes(path) : null;
         }
         catch { return null; }

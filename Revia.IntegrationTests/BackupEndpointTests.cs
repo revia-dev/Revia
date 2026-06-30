@@ -362,6 +362,49 @@ public sealed class BackupEndpointTests(ReviaApiFactory factory) : IClassFixture
         }
     }
 
+    [Fact]
+    public async Task Backup_LoanAndMatchPhotos_RoundTrip()
+    {
+        var client = _factory.CreateClient();
+        var token = await LoginAsAdminAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var suffix = Guid.NewGuid().ToString("N")[..6];
+        var lender = "PL " + suffix;
+        var borrower = "PB " + suffix;
+        var gameName = "PG " + suffix;
+        (await client.PostAsJsonAsync("/api/persons", new { firstName = lender })).EnsureSuccessStatusCode();
+        (await client.PostAsJsonAsync("/api/persons", new { firstName = borrower })).EnsureSuccessStatusCode();
+        (await client.PostAsJsonAsync("/api/games", new { name = gameName,
+            types = Array.Empty<object>(), scoreDefinitions = Array.Empty<object>() })).EnsureSuccessStatusCode();
+
+        var loanPhoto = new byte[] { 10, 20, 30, 40 };
+        var matchPhoto = new byte[] { 50, 60, 70 };
+        var document = new
+        {
+            formatVersion = 1,
+            loans = new[] { new { id = Guid.NewGuid(), title = "Cam", items = new[] { "Cam" },
+                lenderPersonId = Guid.NewGuid(), lenderName = lender,
+                borrowerPersonId = Guid.NewGuid(), borrowerName = borrower,
+                loanDate = DateTime.UtcNow, dueDate = (DateTime?)null, returnedAt = (DateTime?)null,
+                photoData = loanPhoto } },
+            matches = new[] { new { id = Guid.NewGuid(), gameId = Guid.NewGuid(), gameName,
+                playedOn = DateTime.UtcNow, note = (string?)null, photoData = matchPhoto,
+                participants = new[] { new { id = Guid.NewGuid(), personId = Guid.NewGuid(),
+                    personName = lender, score = 1.0 } } } },
+        };
+        (await client.PostAsJsonAsync("/api/backup", document)).EnsureSuccessStatusCode();
+
+        using var doc = JsonDocument.Parse(await client.GetStringAsync("/api/backup"));
+        var loan = doc.RootElement.GetProperty("loans").EnumerateArray()
+            .Single(l => l.GetProperty("lenderName").GetString() == lender);
+        Assert.Equal(loanPhoto, loan.GetProperty("photoData").GetBytesFromBase64());
+
+        var match = doc.RootElement.GetProperty("matches").EnumerateArray()
+            .Single(m => m.GetProperty("gameName").GetString() == gameName);
+        Assert.Equal(matchPhoto, match.GetProperty("photoData").GetBytesFromBase64());
+    }
+
     private static async Task<string> LoginAsAdminAsync(HttpClient client)
     {
         var res = await client.PostAsJsonAsync("/api/auth/login",
