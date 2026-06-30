@@ -190,6 +190,7 @@ code {
 .glass { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
 .wl-create { display: flex; gap: 0.6rem; padding: 0.9rem; margin-bottom: 1rem; }
 .wl-create .form-control { flex: 1 1 auto; padding: 0.5rem 0.8rem; border: 1px solid var(--border-strong); border-radius: 10px; }
+.mv-sort { flex: 0 0 auto !important; max-width: 220px; }
 .wl-card { padding: 1rem; margin-bottom: 1rem; }
 .wl-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.6rem; }
 .wl-card-title { font-weight: 700; font-size: 1.1rem; }

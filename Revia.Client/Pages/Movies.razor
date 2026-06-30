@@ -10,6 +10,7 @@
 @inject ConnectivityService Connectivity
 @inject NavigationManager Navigation
 @inject SyncEngine Sync
+@inject IJSRuntime JS
 @inject Microsoft.Extensions.Localization.IStringLocalizer<Revia.Client.Resources.AppStrings> Loc
 @implements IDisposable
 
@@ -64,9 +65,15 @@
     </div>
 }
 
-<div class="wl-create glass">
+<div class="wl-create glass mv-toolbar">
     <input class="form-control" placeholder="Nach Titel oder Tag suchen…"
            @bind="_search" @bind:event="oninput" @bind:after="ApplyFilter" />
+    @* Sort choice, remembered per user (browser-local), mirroring the native app. *@
+    <select class="form-control mv-sort" @bind="_sort" @bind:after="OnSortChangedAsync">
+        <option value="@MovieSort.TitleAsc">Titel A–Z</option>
+        <option value="@MovieSort.TitleDesc">Titel Z–A</option>
+        <option value="@MovieSort.YearDesc">Jahr (neueste zuerst)</option>
+    </select>
 </div>
 
 @if (_loading)
@@ -113,6 +120,10 @@ else
     private bool _loading = true;
     private int _pending;
 
+    private enum MovieSort { TitleAsc, TitleDesc, YearDesc }
+    private MovieSort _sort = MovieSort.TitleAsc;
+    private const string SortStorageKey = "revia.movieSort";
+
     // Admin-only editor state.
     private SaveMovieRequest? _edit;
     private string _tagsText = string.Empty;
@@ -122,6 +133,7 @@ else
         Connectivity.Changed += OnConnectivityChanged;
         Sync.Synced += OnSynced;
         await Access.GetMyAccessAsync();
+        await LoadSortPreferenceAsync();
         await ReloadAsync();
         _pending = await Sync.PendingCountAsync();
         _loading = false;
@@ -235,19 +247,39 @@ else
 
     private void ApplyFilter()
     {
-        if (string.IsNullOrWhiteSpace(_search))
-        {
-            _filtered = _all;
-        }
-        else
+        IEnumerable<MovieDto> result = _all;
+        if (!string.IsNullOrWhiteSpace(_search))
         {
             var q = _search.Trim();
-            _filtered = _all.Where(f =>
+            result = result.Where(f =>
                 (f.Titel?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (f.Tags?.Any(t => t.Contains(q, StringComparison.OrdinalIgnoreCase)) ?? false))
-                .ToList();
+                (f.Tags?.Any(t => t.Contains(q, StringComparison.OrdinalIgnoreCase)) ?? false));
         }
+        result = _sort switch
+        {
+            MovieSort.TitleDesc => result.OrderByDescending(f => f.Titel ?? string.Empty, StringComparer.OrdinalIgnoreCase),
+            MovieSort.YearDesc => result.OrderByDescending(f => f.Jahr ?? string.Empty).ThenBy(f => f.Titel ?? string.Empty, StringComparer.OrdinalIgnoreCase),
+            _ => result.OrderBy(f => f.Titel ?? string.Empty, StringComparer.OrdinalIgnoreCase),
+        };
+        _filtered = result.ToList();
         StateHasChanged();
+    }
+
+    private async Task LoadSortPreferenceAsync()
+    {
+        try
+        {
+            var saved = await JS.InvokeAsync<string?>("localStorage.getItem", SortStorageKey);
+            if (Enum.TryParse<MovieSort>(saved, out var s)) { _sort = s; }
+        }
+        catch { /* storage unavailable — keep the default */ }
+    }
+
+    private async Task OnSortChangedAsync()
+    {
+        try { await JS.InvokeVoidAsync("localStorage.setItem", SortStorageKey, _sort.ToString()); }
+        catch { /* ignore */ }
+        ApplyFilter();
     }
 
     private static string PosterUrl(MovieDto f)
