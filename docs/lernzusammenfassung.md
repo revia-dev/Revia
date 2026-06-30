@@ -133,6 +133,24 @@ ist in beiden Fällen identisch — **die UI verzweigt nie auf Verfügbarkeit**.
 
 ---
 
+## 4. Feature-Parität & Datenübertragung (Revia → ReviaApple)
+
+ReviaApple deckt **alle acht Module** des Web-PWA nativ ab und hat jetzt zusätzlich
+**Watch-Progress**, **CSV-Import/-Export** und **On-Device-KI** (die das Web gar nicht
+hat). Bewusst **nicht** portiert (weil ReviaApple offline-first ohne Backend ist):
+TMDB-Poster-Abruf (deterministische Platzhalter), server-gespeicherte Fotos,
+Cross-Household-Linking, der Analytics-Widget-Builder.
+
+**Geschlossene Lücke:** CSV-**Import-UI** in ReviaApple (vorher nur Export). Das ist
+zugleich der **Datenübertragungs-Weg**:
+1. Server-SQLite → CSV im ReviaApple-Format
+   (`Title, Year, Category, AgeRating, Runtime, Series, Providers, Tags, Watched`;
+   `#`-Tag → Serienname, `,`-Listen → `;`).
+2. In ReviaApple **Filme → „CSV importieren"** die Datei wählen.
+3. Dedup nach Titel+Jahr → erneuter Import ist gefahrlos.
+
+So sind die **888 Filme** des Servers 1:1 in die native App übertragbar.
+
 ## Querschnitt-Lektionen
 
 1. **Geteilt vs. persönlich** ist eine Datenmodell-Entscheidung — eigene Tabelle mit
