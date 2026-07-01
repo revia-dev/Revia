@@ -14,26 +14,14 @@ namespace Revia.Client.Features.Bmi;
 /// rides along as base64 in the queued JSON payload, so it syncs with everything
 /// else; the photo image itself is served (and viewable) when online.
 /// </summary>
-public sealed class BmiClientService
+public sealed class BmiClientService : OfflineClientService
 {
     public const string Collection = "bmi";
     private const string CacheKey = "col:bmi";
 
-    private readonly HttpClient _http;
-    private readonly OfflineStore _store;
-    private readonly ConnectivityService _connectivity;
-    private readonly SyncEngine _sync;
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     public BmiClientService(IHttpClientFactory httpFactory, OfflineStore store,
         ConnectivityService connectivity, SyncEngine sync)
-    {
-        _http = httpFactory.CreateClient("api");
-        _store = store;
-        _connectivity = connectivity;
-        _sync = sync;
-        _sync.RegisterHandler(Collection, ReplayAsync);
-    }
+        : base(Collection, httpFactory, store, connectivity, sync) { }
 
     public async Task<List<BmiRecordDto>> GetAllAsync()
     {
@@ -105,23 +93,7 @@ public sealed class BmiClientService
         }
     }
 
-    private async Task EnqueueAsync(MutationKind kind, string? entityId, object? payload)
-    {
-        await _store.OutboxAddAsync(new OutboxMutation
-        {
-            Collection = Collection,
-            Kind = kind,
-            EntityId = entityId,
-            PayloadJson = payload is null ? null : JsonSerializer.Serialize(payload, Json)
-        });
-        _sync.NotifyQueued();
-        if (_connectivity.IsOnline)
-        {
-            await _sync.FlushAsync();
-        }
-    }
-
-    private async Task<bool> ReplayAsync(OutboxMutation m)
+    protected override async Task<bool> ReplayAsync(OutboxMutation m)
     {
         try
         {
@@ -142,7 +114,4 @@ public sealed class BmiClientService
     }
 
     private static StringContent Body(string? json) => new(json ?? "{}", Encoding.UTF8, "application/json");
-
-    private static int _temp = -1;
-    private static int TempId() => _temp--;
 }

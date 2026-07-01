@@ -15,25 +15,13 @@ namespace Revia.Client.Features.Games;
 /// reconnect (server-wins). Person lookup is cached so the participant picker works
 /// offline. Match photos are deferred to a later hardening step.
 /// </summary>
-public sealed class GameMatchClientService
+public sealed class GameMatchClientService : OfflineClientService
 {
     public const string Collection = "game-matches";
 
-    private readonly HttpClient _http;
-    private readonly OfflineStore _store;
-    private readonly ConnectivityService _connectivity;
-    private readonly SyncEngine _sync;
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     public GameMatchClientService(IHttpClientFactory httpFactory, OfflineStore store,
         ConnectivityService connectivity, SyncEngine sync)
-    {
-        _http = httpFactory.CreateClient("api");
-        _store = store;
-        _connectivity = connectivity;
-        _sync = sync;
-        _sync.RegisterHandler(Collection, ReplayAsync);
-    }
+        : base(Collection, httpFactory, store, connectivity, sync) { }
 
     private static string Key(int gameId) => $"col:matches:{gameId}";
 
@@ -152,21 +140,7 @@ public sealed class GameMatchClientService
         }
     }
 
-    private async Task EnqueueAsync(MutationKind kind, string path, object? payload)
-    {
-        await _store.OutboxAddAsync(new OutboxMutation
-        {
-            Collection = Collection, Kind = kind, EntityId = path,
-            PayloadJson = payload is null ? null : JsonSerializer.Serialize(payload, Json)
-        });
-        _sync.NotifyQueued();
-        if (_connectivity.IsOnline)
-        {
-            await _sync.FlushAsync();
-        }
-    }
-
-    private async Task<bool> ReplayAsync(OutboxMutation m)
+    protected override async Task<bool> ReplayAsync(OutboxMutation m)
     {
         try
         {
@@ -190,7 +164,4 @@ public sealed class GameMatchClientService
     }
 
     private static StringContent Body(string? json) => new(json ?? "{}", Encoding.UTF8, "application/json");
-
-    private static int _temp = -1;
-    private static int TempId() => _temp--;
 }

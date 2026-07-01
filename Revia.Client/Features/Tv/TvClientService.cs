@@ -13,28 +13,16 @@ namespace Revia.Client.Features.Tv;
 /// (add private/household, toggle share, delete) apply optimistically to the private
 /// cache and queue in the outbox, syncing on reconnect (server-wins).
 /// </summary>
-public sealed class TvClientService
+public sealed class TvClientService : OfflineClientService
 {
     public const string Collection = "tv";
     private const string PrivateKey = "col:tv-private";
     private const string FamilyKey = "col:tv-family";
     private const string OptionsKey = "col:tv-options";
 
-    private readonly HttpClient _http;
-    private readonly OfflineStore _store;
-    private readonly ConnectivityService _connectivity;
-    private readonly SyncEngine _sync;
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     public TvClientService(IHttpClientFactory httpFactory, OfflineStore store,
         ConnectivityService connectivity, SyncEngine sync)
-    {
-        _http = httpFactory.CreateClient("api");
-        _store = store;
-        _connectivity = connectivity;
-        _sync = sync;
-        _sync.RegisterHandler(Collection, ReplayAsync);
-    }
+        : base(Collection, httpFactory, store, connectivity, sync) { }
 
     public Task<List<TvEntryDto>> GetPrivateAsync() => GetCachedOrFetchAsync(PrivateKey, "api/tv/private");
     public Task<List<TvEntryDto>> GetFamilyAsync() => GetCachedOrFetchAsync(FamilyKey, "api/tv/family");
@@ -121,21 +109,7 @@ public sealed class TvClientService
         }
     }
 
-    private async Task EnqueueAsync(MutationKind kind, string? entityId, object? payload)
-    {
-        await _store.OutboxAddAsync(new OutboxMutation
-        {
-            Collection = Collection, Kind = kind, EntityId = entityId,
-            PayloadJson = payload is null ? null : JsonSerializer.Serialize(payload, Json)
-        });
-        _sync.NotifyQueued();
-        if (_connectivity.IsOnline)
-        {
-            await _sync.FlushAsync();
-        }
-    }
-
-    private async Task<bool> ReplayAsync(OutboxMutation m)
+    protected override async Task<bool> ReplayAsync(OutboxMutation m)
     {
         try
         {
@@ -158,7 +132,4 @@ public sealed class TvClientService
     }
 
     private static StringContent Body(string? json) => new(json ?? "{}", Encoding.UTF8, "application/json");
-
-    private static int _temp = -1;
-    private static int TempId() => _temp--;
 }

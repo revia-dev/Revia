@@ -14,30 +14,17 @@ namespace Revia.Client.Features.Wishlists;
 /// replays them on reconnect (server-wins). Wishlists and their items are handled
 /// here together because they use distinct endpoints.
 /// </summary>
-public sealed class WishlistClientService
+public sealed class WishlistClientService : OfflineClientService
 {
     public const string Collection = "wishlists";
     private const string CacheKey = "col:wishlists";
-
-    private readonly HttpClient _http;
-    private readonly OfflineStore _store;
-    private readonly ConnectivityService _connectivity;
-    private readonly SyncEngine _sync;
-
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     public WishlistClientService(
         IHttpClientFactory httpFactory,
         OfflineStore store,
         ConnectivityService connectivity,
         SyncEngine sync)
-    {
-        _http = httpFactory.CreateClient("api");
-        _store = store;
-        _connectivity = connectivity;
-        _sync = sync;
-        _sync.RegisterHandler(Collection, ReplayAsync);
-    }
+        : base(Collection, httpFactory, store, connectivity, sync) { }
 
     // ---- reads ----
 
@@ -131,27 +118,9 @@ public sealed class WishlistClientService
         }
     }
 
-    private async Task EnqueueAsync(MutationKind kind, string? entityId, object? payload)
-    {
-        await _store.OutboxAddAsync(new OutboxMutation
-        {
-            Collection = Collection,
-            Kind = kind,
-            EntityId = entityId,
-            PayloadJson = payload is null ? null : JsonSerializer.Serialize(payload, Json)
-        });
-
-        _sync.NotifyQueued();
-
-        if (_connectivity.IsOnline)
-        {
-            await _sync.FlushAsync();
-        }
-    }
-
     // ---- replay (called by the SyncEngine) ----
 
-    private async Task<bool> ReplayAsync(OutboxMutation m)
+    protected override async Task<bool> ReplayAsync(OutboxMutation m)
     {
         try
         {
@@ -184,8 +153,4 @@ public sealed class WishlistClientService
 
     private static StringContent Body(string? json)
         => new(json ?? "{}", Encoding.UTF8, "application/json");
-
-    // Temp negative ids for optimistic, not-yet-synced entities.
-    private static int _temp = -1;
-    private static int TempId() => _temp--;
 }
