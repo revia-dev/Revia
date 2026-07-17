@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -45,7 +46,12 @@ public sealed class AuthService(
 
             if (!response.IsSuccessStatusCode)
             {
-                return (false, "Benutzername oder Passwort ist falsch.");
+                return response.StatusCode switch
+                {
+                    HttpStatusCode.Unauthorized => (false, "Benutzername oder Passwort ist falsch."),
+                    HttpStatusCode.TooManyRequests => (false, "Zu viele Anmeldeversuche. Bitte kurz warten."),
+                    _ => (false, "Der Anmeldedienst ist momentan nicht verfügbar.")
+                };
             }
 
             var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();

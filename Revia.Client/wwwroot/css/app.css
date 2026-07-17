@@ -1,7 +1,7 @@
 /* ===========================================================================
    Design tokens. Light by default; the system dark scheme overrides them via
    prefers-color-scheme. Components reference these variables so light/dark and
-   the shared look stay consistent in one place.
+   the visual design stays consistent in one place.
    =========================================================================== */
 :root {
     color-scheme: light dark;
@@ -20,7 +20,15 @@
     --warning-bg: #fff3cd;
     --warning-text: #8a6d3b;
     --shadow: 0 16px 48px rgba(0, 0, 0, 0.10);
-    --radius: 14px;
+    --radius: 20px;
+    --radius-card: 20px;
+    --radius-tile: 18px;
+    --radius-chip: 10px;
+    --space-xs: 4px;
+    --space-s: 8px;
+    --space-m: 16px;
+    --space-l: 24px;
+    --space-xl: 32px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -171,8 +179,8 @@ code {
 .app-content { flex: 1 1 auto; padding: 1.5rem 1.25rem; max-width: 1100px; width: 100%; margin: 0 auto; }
 .auth-loading { padding: 2rem; text-align: center; color: var(--text-muted); }
 
-.login-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; background: var(--bg); }
-.login-card { width: 100%; max-width: 380px; background: var(--surface); border-radius: 18px; padding: 2rem; box-shadow: 0 16px 48px rgba(0,0,0,0.10); display: grid; gap: 1.25rem; }
+.login-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--space-l); background: radial-gradient(circle at top left, rgba(0,122,255,.22), transparent 42%), radial-gradient(circle at bottom right, rgba(175,82,222,.18), transparent 46%), radial-gradient(circle at 50% 35%, rgba(48,176,199,.12), transparent 38%), var(--bg); }
+.login-card { width: 100%; max-width: 380px; background: color-mix(in srgb, var(--surface) 86%, transparent); backdrop-filter: saturate(160%) blur(14px); border: 1px solid var(--border); border-radius: var(--radius-card); padding: var(--space-m); box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 10px 36px rgba(0,0,0,.12); display: grid; gap: var(--space-m); }
 .login-brand { display: flex; align-items: center; gap: 0.8rem; }
 .login-logo { width: 2.75rem; height: 2.75rem; border-radius: 12px; }
 .login-eyebrow { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
@@ -416,13 +424,13 @@ a.mv-card:hover { transform: translateY(-2px); }
 .sb-receive-form .form-control { flex: 1; }
 
 /* ===========================================================================
-   shared design layer. Refines the existing components on top of the design
+   Shared design layer. Refines the existing components on top of the design
    tokens: translucent "glass" surfaces, a frosted sticky top bar, larger radii,
    softer shadows, consistent controls, generous tap targets and safe-area insets.
    Kept additive (overrides earlier rules) so component markup is unchanged.
    =========================================================================== */
 :root {
-    --radius-lg: 18px;
+    --radius-lg: var(--radius-card);
     --radius-pill: 999px;
     --tap: 44px; /* minimum comfortable touch target */
     font-synthesis: none;
@@ -459,7 +467,7 @@ html.wco-active .app-topbar a { -webkit-app-region: no-drag; app-region: no-drag
     @view-transition { navigation: auto; }
 }
 
-/* Frosted, sticky top bar (iOS large-title navigation feel). */
+/* Frosted, sticky top bar. */
 .app-topbar {
     position: sticky; top: 0; z-index: 20;
     background: color-mix(in srgb, var(--surface) 72%, transparent);
@@ -482,11 +490,11 @@ html.wco-active .app-topbar a { -webkit-app-region: no-drag; app-region: no-drag
     -webkit-backdrop-filter: saturate(160%) blur(14px);
     backdrop-filter: saturate(160%) blur(14px);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05);
+    border-radius: var(--radius-card);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 10px 36px rgba(0,0,0,0.12);
 }
 
-/* Headings: iOS large-title scale. */
+/* Headings. */
 .wl-head h1 { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em; }
 .ui-section-title { font-weight: 700; letter-spacing: -0.01em; }
 

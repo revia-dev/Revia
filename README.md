@@ -2,7 +2,7 @@
 
 **Revia** is an offline-capable **Progressive Web App (PWA)** for the household:
 movies, TV guide, games & matches, lending, BMI tracking and wishlists — all in
-one installable app, with light/dark mode and an consistent design.
+one installable app, with light/dark mode and a consistent responsive design.
 
 Originally a Blazor Server app, Revia was rebuilt into a standalone
 **Blazor WebAssembly PWA** with a clean **Client / Api / Shared** layering that
@@ -57,7 +57,7 @@ works offline and syncs changes as soon as a connection is available again.
   with credentials** (username/password/role) or later **grant a login** to an
   existing login-less person. Share people with other households via QR/link
   (household linking).
-- **Live scoring & cross-device point transfer:** card game/board game-style
+- **Live scoring & cross-device point transfer:** configurable scoring
   scoreboard; one payer can transfer points/money to **1..n** recipients via
   **QR code (with camera scan), code, or Web Share** (AirDrop where available).
 - **Permissions & layouts:** per-user module read/write rights (enforced in the

@@ -1,7 +1,7 @@
 namespace Revia.Shared.Games;
 
 /// <summary>
-/// A points/money transfer in a running match (card game, board game, …), encoded into
+/// A points or money transfer in a running match, encoded into
 /// a QR code / share payload so one device can hand points to others. It carries a
 /// list of per-player deltas, so it supports 1..n players in a single payload
 /// (e.g. one sender paying several receivers, or any multi-party adjustment). The
