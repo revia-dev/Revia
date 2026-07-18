@@ -63,16 +63,15 @@ async function onFetch(event) {
 
     const cache = await caches.open(cacheName);
 
-    // For navigations (opening the app, following links): serve the cached shell
-    // immediately so the WASM app boots even when the server is unreachable.
-    // Only fall back to the network when we have no cached shell yet.
+    // For navigations prefer the live shell. This makes renamed/rebranded builds
+    // visible immediately while retaining the cached shell as an offline fallback.
     if (request.mode === 'navigate') {
-        const cachedIndex = await cache.match('index.html');
-        if (cachedIndex) {
-            return cachedIndex;
+        try {
+            return await fetch(request);
+        } catch {
+            const cachedIndex = await cache.match('index.html');
+            return cachedIndex ?? Response.error();
         }
-        // First ever load — no cache yet, must go to network.
-        return fetch(request);
     }
 
     // For all other GETs: cache-first, network fallback.

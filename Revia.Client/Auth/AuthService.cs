@@ -50,6 +50,8 @@ public sealed class AuthService(
                 {
                     HttpStatusCode.Unauthorized => (false, "Benutzername oder Passwort ist falsch."),
                     HttpStatusCode.TooManyRequests => (false, "Zu viele Anmeldeversuche. Bitte kurz warten."),
+                    HttpStatusCode.MethodNotAllowed or HttpStatusCode.NotFound =>
+                        (false, "Die API läuft nicht. Bitte Revia.Api statt Revia.Client starten."),
                     _ => (false, "Der Anmeldedienst ist momentan nicht verfügbar.")
                 };
             }

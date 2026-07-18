@@ -112,7 +112,8 @@ dotnet run --project Revia.Api
 ```
 
 Default login: `admin` / `Admin123!` (seeded on first start; changeable via
-`Seed:AdminPassword`).
+`Seed:AdminPassword`). In an IDE, start **Revia.Api**. Starting
+**Revia.Client** alone serves only the WebAssembly UI and has no login API.
 
 > Note: in the Development build the service worker is a no-op. For **true
 > offline** use the published build (see below / `run-lan.sh`).
