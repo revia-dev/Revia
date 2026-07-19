@@ -6,7 +6,7 @@
 # Open http://localhost:${REVIA_PORT}  (default 8080). For a LAN/Domain/HTTPS setup
 # see README and docs/local-domain-https.md.
 #
-# All settings come from .env; the defaults after ":-" make it run out of the box.
+# Secrets are required in .env and are not stored in the repository.
 
 services:
   revia:
@@ -19,7 +19,7 @@ services:
       - "${REVIA_PORT:-8080}:8080"
     environment:
       Jwt__SigningKey: "${REVIA_JWT_KEY:-change-me-to-a-long-random-32+char-secret-please}"
-      Seed__AdminPassword: "${REVIA_ADMIN_PASSWORD:-Admin123!}"
+      Seed__AdminPassword: "${REVIA_ADMIN_PASSWORD:?Set REVIA_ADMIN_PASSWORD in .env}"
       Demo__Enabled: "${REVIA_DEMO_ENABLED:-false}"
       # Default false so data PERSISTS across restarts. Only set true for a throwaway
       # demo that should wipe everything visitors changed on each start.

@@ -61,16 +61,17 @@ Start the API project; it hosts both the API and the WebAssembly client:
 
 ```bash
 dotnet restore Revia.slnx
+dotnet user-secrets set "Seed:AdminPassword" "<your-local-admin-password>" --project Revia.Api
 dotnet run --project Revia.Api
 ```
 
 Open `http://localhost:5223`.
 
-Default development account:
+The initial development account is:
 
 ```text
 Username: admin
-Password: Admin123!
+Password: the value configured with user secrets
 ```
 
 For an isolated walkthrough, choose **Demo starten** on the login screen. The
@@ -81,7 +82,8 @@ In an IDE, select `Revia.Api` as the startup project. `Revia.Client` alone only
 serves static WebAssembly assets and cannot process login requests.
 
 Configuration belongs in environment variables, user secrets or an untracked
-`.env` file. Copy `.env.example` for Docker/LAN settings.
+`.env` file. Copy `.env.example` for Docker/LAN settings; the template deliberately
+contains no credentials.
 
 ## Tests
 
