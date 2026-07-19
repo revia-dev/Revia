@@ -62,9 +62,17 @@ coverage/
 *.trx
 
 # ============================================================
-#  Runtime user uploads (lending photos)
+#  Runtime data and user uploads
 # ============================================================
+**/[Dd]ata/**/*.db
+**/[Dd]ata/**/*.db-shm
+**/[Dd]ata/**/*.db-wal
+**/[Dd]ata/bmi-photos/
 **/data/lending-photos/
+**/[Dd]ata/person-photos/
+**/[Dd]ata/game-files/
+**/[Dd]ata/uploads/
+**/[Dd]ata/backups/
 
 # ============================================================
 #  Agent worktrees

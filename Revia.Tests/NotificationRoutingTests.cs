@@ -7,34 +7,6 @@ public class NotificationRoutingTests
     private static AppNotification Sample(bool allowDevice = true)
         => new() { Title = "Test", AllowDevice = allowDevice };
 
-    [Fact]
-    public void FocusedPage_AlwaysRoutesInApp()
-    {
-        var channel = NotificationRouter.Route(Sample(), pageFocused: true, permissionGranted: true);
-        Assert.Equal(NotificationChannel.InApp, channel);
-    }
-
-    [Fact]
-    public void BackgroundPage_WithPermission_RoutesToDevice()
-    {
-        var channel = NotificationRouter.Route(Sample(), pageFocused: false, permissionGranted: true);
-        Assert.Equal(NotificationChannel.Device, channel);
-    }
-
-    [Fact]
-    public void BackgroundPage_WithoutPermission_FallsBackToInApp()
-    {
-        var channel = NotificationRouter.Route(Sample(), pageFocused: false, permissionGranted: false);
-        Assert.Equal(NotificationChannel.InApp, channel);
-    }
-
-    [Fact]
-    public void BackgroundPage_DeviceDisallowed_StaysInApp()
-    {
-        var channel = NotificationRouter.Route(Sample(allowDevice: false), pageFocused: false, permissionGranted: true);
-        Assert.Equal(NotificationChannel.InApp, channel);
-    }
-
     [Theory]
     // pageFocused, permission, allowDevice -> expectDevice
     [InlineData(true,  true,  true,  false)]
