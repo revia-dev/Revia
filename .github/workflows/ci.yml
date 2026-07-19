@@ -19,13 +19,13 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check repository hygiene
         run: bash scripts/check-repository-hygiene.sh
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
@@ -33,7 +33,7 @@ jobs:
         run: dotnet restore Revia.slnx
 
       - name: Build
-        run: dotnet build Revia.slnx -c Release --no-restore -warnaserror
+        run: dotnet build Revia.slnx -c Release --no-restore -warnaserror -m:1
 
       - name: Test
         run: dotnet test Revia.slnx -c Release --no-build --verbosity normal
