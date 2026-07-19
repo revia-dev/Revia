@@ -13,6 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check repository hygiene
+        run: bash scripts/check-repository-hygiene.sh
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -21,14 +24,9 @@ jobs:
       - name: Restore
         run: dotnet restore Revia.slnx
 
-      # Build the whole solution (Api + WASM Client + Shared + domain + tests),
-      # not just the legacy project, and treat warnings as errors so the
-      # "0 warnings" guarantee is actually enforced in CI.
       - name: Build
         run: dotnet build Revia.slnx -c Release --no-restore -warnaserror
 
-      # Runs both the unit tests (Revia.Tests) and the API integration tests
-      # (Revia.IntegrationTests, via WebApplicationFactory) in the solution.
       - name: Test
         run: dotnet test Revia.slnx -c Release --no-build --verbosity normal
         env:
