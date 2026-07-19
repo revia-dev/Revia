@@ -83,6 +83,8 @@ public sealed class AuthController(
     [HttpPost("demo")]
     public async Task<ActionResult<AuthResponse>> Demo(
         [FromServices] IConfiguration configuration,
+        [FromServices] RoleManager<IdentityRole> roleManager,
+        [FromServices] AppDbContext db,
         CancellationToken ct)
     {
         if (!configuration.GetValue<bool>("Demo:Enabled"))
@@ -90,11 +92,9 @@ public sealed class AuthController(
             return NotFound();
         }
 
-        var demo = await _userManager.FindByNameAsync(DemoSeeder.DemoUserName);
-        if (demo is null)
-        {
-            return NotFound(new { message = "Demo nicht verfügbar." });
-        }
+        // Every entry starts from the same isolated sample state. Changes made during
+        // a demo session disappear the next time the demo is opened.
+        var demo = await DemoSeeder.SeedAsync(_userManager, roleManager, db, reset: true, ct);
 
         return await _tokens.IssueAsync(demo, ct);
     }

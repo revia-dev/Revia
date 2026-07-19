@@ -5,7 +5,7 @@ PWA with an ASP.NET Core API. It combines a movie library, TV guide, games,
 lending, BMI tracking, wishlists and household members in one installable
 application.
 
-![Dashboard](docs/screenshots/dashboard-light.png)
+![Dashboard with isolated sample data](docs/screenshots/dashboard-demo.png)
 
 ## What this repository demonstrates
 
@@ -72,6 +72,10 @@ Default development account:
 Username: admin
 Password: Admin123!
 ```
+
+For an isolated walkthrough, choose **Demo starten** on the login screen. The
+demo uses a separate household with fictional sample data and is rebuilt on
+every entry. Changes made there never affect regular household data.
 
 In an IDE, select `Revia.Api` as the startup project. `Revia.Client` alone only
 serves static WebAssembly assets and cannot process login requests.

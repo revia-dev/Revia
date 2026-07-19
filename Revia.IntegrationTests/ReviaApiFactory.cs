@@ -26,6 +26,7 @@ public sealed class ReviaApiFactory : WebApplicationFactory<ApiAssemblyMarker>
     /// many logins across the suite don't exhaust the window (a flaky 429); the
     /// dedicated rate-limit test sets it low to assert throttling.</summary>
     public int AuthPermitLimit { get; init; } = 1000;
+    public bool DemoEnabled { get; init; }
 
     static ReviaApiFactory()
     {
@@ -45,5 +46,6 @@ public sealed class ReviaApiFactory : WebApplicationFactory<ApiAssemblyMarker>
         // Run as Production so the host mirrors a real deployment (no dev shortcuts).
         builder.UseEnvironment("Production");
         builder.UseSetting("RateLimit:AuthPermitLimit", AuthPermitLimit.ToString());
+        builder.UseSetting("Demo:Enabled", DemoEnabled.ToString());
     }
 }

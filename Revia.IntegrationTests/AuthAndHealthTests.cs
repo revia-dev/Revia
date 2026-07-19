@@ -1,6 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Revia.Api.Auth;
+using Revia.Data;
 
 namespace Revia.IntegrationTests;
 
@@ -70,6 +74,49 @@ public sealed class AuthAndHealthTests(ReviaApiFactory factory) : IClassFixture<
         // Logout requires [Authorize]; without a bearer token it must be rejected.
         var res = await client.PostAsJsonAsync("/api/auth/logout", new { refreshToken = "x" });
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task DemoLogin_RebuildsOnlyTheIsolatedDemoHousehold()
+    {
+        using var factory = new ReviaApiFactory { DemoEnabled = true };
+        var client = factory.CreateClient();
+
+        var firstLogin = await client.PostAsync("/api/auth/demo", content: null);
+        Assert.Equal(HttpStatusCode.OK, firstLogin.StatusCode);
+
+        int regularHouseholdId;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            regularHouseholdId = await db.Households
+                .Where(x => x.Name == IdentitySeeder.DefaultHouseholdName)
+                .Select(x => x.Id)
+                .SingleAsync();
+            var demoHouseholdId = await db.Households
+                .Where(x => x.Name == DemoSeeder.DemoHouseholdName)
+                .Select(x => x.Id)
+                .SingleAsync();
+
+            db.Movies.Add(new Movie { HouseholdId = demoHouseholdId, Titel = "Temporärer Eintrag" });
+            db.Movies.Add(new Movie { HouseholdId = regularHouseholdId, Titel = "Unverändert" });
+            await db.SaveChangesAsync();
+        }
+
+        var secondLogin = await client.PostAsync("/api/auth/demo", content: null);
+        Assert.Equal(HttpStatusCode.OK, secondLogin.StatusCode);
+
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var demoId = await verificationDb.Households
+            .Where(x => x.Name == DemoSeeder.DemoHouseholdName)
+            .Select(x => x.Id)
+            .SingleAsync();
+
+        Assert.Equal(4, await verificationDb.Movies.CountAsync(x => x.HouseholdId == demoId));
+        Assert.True(await verificationDb.Movies.AnyAsync(x =>
+            x.HouseholdId == regularHouseholdId && x.Titel == "Unverändert"));
+        Assert.False(await verificationDb.Movies.AnyAsync(x => x.Titel == "Temporärer Eintrag"));
     }
 
     [Fact]
