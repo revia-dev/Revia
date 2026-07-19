@@ -21,7 +21,7 @@ public static class IdentitySeeder
         var adminPassword = configuration["Seed:AdminPassword"]
             ?? throw new InvalidOperationException(
                 "Seed:AdminPassword is not configured. Set it via User Secrets (development) " +
-                "or the SEED__ADMINPASSWORD environment variable (production).");
+                "or the Seed__AdminPassword environment variable (production).");
 
         await EnsureRoleExistsAsync(roleManager, AdminRoleName);
         await EnsureRoleExistsAsync(roleManager, UserRoleName);
