@@ -77,8 +77,7 @@ In an IDE, select `Revia.Api` as the startup project. `Revia.Client` alone only
 serves static WebAssembly assets and cannot process login requests.
 
 Configuration belongs in environment variables, user secrets or an untracked
-`.env` file. Copy `.env.example` for Docker/LAN settings. Never commit production
-passwords, signing keys, databases or uploaded files.
+`.env` file. Copy `.env.example` for Docker/LAN settings.
 
 ## Tests
 
@@ -131,14 +130,7 @@ directories and are included only in explicit application backups.
 Production requires a unique admin password and a JWT signing key of at least
 32 characters. The API rejects missing or weak production signing keys.
 
-## Repository status
+## Production considerations
 
-The repository is intended as a portfolio project and reference implementation,
-not as a hosted multi-tenant service. Before public deployment, add environment-
-specific infrastructure, external secret management, monitoring retention and a
-documented backup/restore runbook.
-
-## License
-
-Personal portfolio project. Third-party client libraries retain their respective
-licenses.
+Public deployment requires environment-specific infrastructure, external secret
+management, monitoring retention and a documented backup/restore runbook.
