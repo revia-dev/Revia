@@ -98,25 +98,6 @@ health probes and cross-application backup reconciliation.
 
 CI restores, builds with warnings treated as errors and runs both test projects.
 
-## Published LAN build
-
-`0.0.0.0` is a bind address, not a browser address.
-
-```bash
-./setup-https.sh        # one-time local certificate setup
-./run-lan.sh --publish  # publish and serve on HTTPS port 5047
-```
-
-Open `https://localhost:5047` on the host or
-`https://<host-ip>:5047` from another device. The local CA must be trusted on
-each client device for the service worker to work.
-
-Stop the server with:
-
-```bash
-kill "$(lsof -tiTCP:5047 -sTCP:LISTEN)"
-```
-
 ## Docker
 
 ```bash
@@ -124,8 +105,8 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-The database and uploads live in a Docker volume. For LAN access, terminate TLS
-at a reverse proxy so the PWA remains in a secure browser context.
+The database and uploads live in a Docker volume. For network access, terminate
+TLS at a reverse proxy so the PWA remains in a secure browser context.
 
 ## Data and security
 

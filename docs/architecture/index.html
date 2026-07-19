@@ -132,13 +132,9 @@ app.<span class="f">MapHealthChecks</span>(<span class="s">"/health/ready"</span
 <span class="t">Assert</span>.<span class="f">Contains</span>(<span class="t">HttpStatusCode</span>.TooManyRequests, statuses);   <span class="c">// 429</span>`
 },
 {
-  id:"ops", kicker:"06 · Run & ship", title:"From localhost to a real LAN PWA, and Docker",
-  narration:`Finally, how it runs. In development a single dotnet run serves the API and the WASM client. For real offline on the home network there is a published build: a script publishes the Api — which bundles the client and its service worker — and serves it over HTTPS, because browsers only register a service worker, the offline app-shell cache, in a secure context. A plain HTTP LAN address silently never caches, so HTTPS with a locally-trusted certificate is mandatory, and the script falls back to HTTP only with a loud warning. For deployment, a multi-stage Docker image publishes the Api, ships a health-check, and is driven entirely by environment variables with safe defaults, so pulling the project and setting a JWT key is enough to run. The continuous-integration workflow builds the whole solution and deploy publishes the Api host — not the legacy project — and the architecture decisions behind all of this are recorded as A-D-Rs in the docs folder.`,
-  code:`<span class="c"># Real offline on the LAN needs HTTPS (service worker = secure context only).</span>
-./setup-https.sh        <span class="c"># once: local CA + cert via mkcert</span>
-./run-lan.sh            <span class="c"># publish Api (+ WASM + service worker), serve https:5047</span>
-
-<span class="c"># Docker: config-driven, ships a health probe.</span>
+  id:"ops", kicker:"06 · Run & ship", title:"From localhost to a containerized deployment",
+  narration:`Finally, how it runs. In development a single dotnet run serves the API and the WASM client. For deployment, a multi-stage Docker image publishes the Api, ships a health-check, and receives credentials through environment variables. TLS belongs at a reverse proxy so the PWA runs in a secure browser context. The continuous-integration workflow builds the whole solution and deploy publishes the Api host — not the legacy project — and the architecture decisions behind all of this are recorded as A-D-Rs in the docs folder.`,
+  code:`<span class="c"># Docker: config-driven, ships a health probe.</span>
 HEALTHCHECK CMD curl -fsS http://localhost:8080/health || exit 1</span>`
 }
 ];

@@ -3,8 +3,7 @@
 #   cp .env.example .env   # then edit .env (at least REVIA_JWT_KEY)
 #   docker compose up -d --build
 #
-# Open http://localhost:${REVIA_PORT}  (default 8080). For a LAN/Domain/HTTPS setup
-# see README and docs/local-domain-https.md.
+# Open http://localhost:${REVIA_PORT} (default 8080).
 #
 # Secrets are required in .env and are not stored in the repository.
 
