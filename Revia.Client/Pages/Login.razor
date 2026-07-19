@@ -25,11 +25,11 @@
         <EditForm Model="this" OnValidSubmit="SubmitAsync">
             <div class="login-field">
                 <label for="user">@Loc["Login_Username"]</label>
-                <input id="user" class="form-control" @bind="_userName" autocomplete="username" />
+                <input id="user" class="form-control" @bind="_userName" @bind:event="oninput" autocomplete="username" />
             </div>
             <div class="login-field">
                 <label for="pw">@Loc["Login_Password"]</label>
-                <input id="pw" type="password" class="form-control" @bind="_password" autocomplete="current-password" />
+                <input id="pw" type="password" class="form-control" @bind="_password" @bind:event="oninput" autocomplete="current-password" />
             </div>
             <button type="submit" class="btn btn-primary login-submit" disabled="@_busy">
                 @(_busy ? Loc["Login_Submit"].Value + "…" : Loc["Login_Submit"].Value)

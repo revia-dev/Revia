@@ -45,7 +45,9 @@
     </div>
     <script src="_framework/blazor.webassembly.js"></script>
     <script>
-        navigator.serviceWorker.register('service-worker.js');
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js');
+        }
         // Ask the OS to keep our offline data (IndexedDB cache + outbox) from being
         // evicted. Best-effort and fire-and-forget — the app works either way.
         if (window.reviaPersistStorage) { window.reviaPersistStorage(); }

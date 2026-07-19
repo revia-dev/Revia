@@ -1,0 +1,20 @@
+<span class="module-icon module-icon-@Module" aria-hidden="true">
+    <span class="module-glyph">@Glyph</span>
+</span>
+
+@code {
+    [Parameter, EditorRequired] public string Module { get; set; } = "dashboard";
+
+    private string Glyph => Module switch
+    {
+        "dashboard" => "▦",
+        "movies" => "▤",
+        "tv" => "▰",
+        "games" => "✣",
+        "lending" => "◇",
+        "bmi" => "⌁",
+        "wishlists" => "◆",
+        "persons" => "●●",
+        _ => "•"
+    };
+}

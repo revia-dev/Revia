@@ -2,32 +2,124 @@
 @inject AuthService Auth
 @inject NavigationManager Navigation
 @inject Microsoft.Extensions.Localization.IStringLocalizer<Revia.Client.Resources.AppStrings> Loc
+@implements IDisposable
 
-<div class="app-shell">
-    <header class="app-topbar">
-        <a class="app-brand" href="/">
-            <img src="icon-192.png" alt="Revia" />
+<div class="app-shell module-@CurrentModule">
+    <aside class="app-sidebar">
+        <a class="sidebar-brand" href="/" aria-label="Revia">
+            <img src="icon-192.png" alt="" />
             <span>Revia</span>
         </a>
-        <div class="app-topbar-spacer"></div>
+
+        <nav class="module-nav" aria-label="Module">
+            <NavLink class="module-nav-link" href="/" Match="NavLinkMatch.All">
+                <ModuleIcon Module="dashboard" /><span>@Loc["Dashboard_Title"]</span>
+            </NavLink>
+            <NavLink class="module-nav-link" href="/movies">
+                <ModuleIcon Module="movies" /><span>@Loc["Page_Movies"]</span>
+            </NavLink>
+            <NavLink class="module-nav-link" href="/tv">
+                <ModuleIcon Module="tv" /><span>@Loc["Page_Tv"]</span>
+            </NavLink>
+            <NavLink class="module-nav-link" href="/games">
+                <ModuleIcon Module="games" /><span>@Loc["Page_Games"]</span>
+            </NavLink>
+            <NavLink class="module-nav-link" href="/lending">
+                <ModuleIcon Module="lending" /><span>@Loc["Page_Lending"]</span>
+            </NavLink>
+            <NavLink class="module-nav-link" href="/bmi">
+                <ModuleIcon Module="bmi" /><span>@Loc["Page_Bmi"]</span>
+            </NavLink>
+            <NavLink class="module-nav-link" href="/wishlists">
+                <ModuleIcon Module="wishlists" /><span>@Loc["Page_Wishlists"]</span>
+            </NavLink>
+            <NavLink class="module-nav-link" href="/persons">
+                <ModuleIcon Module="persons" /><span>@Loc["Page_Persons"]</span>
+            </NavLink>
+        </nav>
+
         <AuthorizeView>
             <Authorized>
-                <Revia.Client.Features.Sync.SyncStatus />
-                <span class="app-user">@context.User.Identity?.Name</span>
-                <button class="btn btn-outline-secondary btn-sm" @onclick="LogoutAsync">@Loc["App_Logout"]</button>
+                <div class="sidebar-account">
+                    <span class="sidebar-avatar">@Initials(context.User.Identity?.Name)</span>
+                    <span class="sidebar-account-copy">
+                        <strong>@context.User.Identity?.Name</strong>
+                        <button class="sidebar-logout" @onclick="LogoutAsync">@Loc["App_Logout"]</button>
+                    </span>
+                </div>
             </Authorized>
         </AuthorizeView>
-    </header>
+    </aside>
 
-    <main class="app-content">
-        @Body
-    </main>
+    <section class="app-main">
+        <header class="app-topbar">
+            <a class="app-brand app-brand-mobile" href="/">
+                <img src="icon-192.png" alt="" />
+                <span>Revia</span>
+            </a>
+            <strong class="app-section-title">@CurrentTitle</strong>
+            <div class="app-topbar-spacer"></div>
+            <AuthorizeView>
+                <Authorized>
+                    <Revia.Client.Features.Sync.SyncStatus />
+                    <span class="app-user">@context.User.Identity?.Name</span>
+                </Authorized>
+            </AuthorizeView>
+        </header>
+
+        <main class="app-content">
+            @Body
+        </main>
+    </section>
 </div>
 
 @code {
+    private string CurrentModule => ResolveModule(new Uri(Navigation.Uri).AbsolutePath);
+    private string CurrentTitle => CurrentModule switch
+    {
+        "movies" => Loc["Page_Movies"],
+        "tv" => Loc["Page_Tv"],
+        "games" => Loc["Page_Games"],
+        "lending" => Loc["Page_Lending"],
+        "bmi" => Loc["Page_Bmi"],
+        "wishlists" => Loc["Page_Wishlists"],
+        "persons" => Loc["Page_Persons"],
+        _ => Loc["Dashboard_Title"]
+    };
+
+    protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+        => InvokeAsync(StateHasChanged);
+
+    private static string ResolveModule(string path)
+    {
+        var segment = path.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        return segment switch
+        {
+            "movies" => "movies",
+            "tv" => "tv",
+            "games" => "games",
+            "lending" => "lending",
+            "bmi" => "bmi",
+            "wishlists" => "wishlists",
+            "persons" or "admin" => "persons",
+            _ => "dashboard"
+        };
+    }
+
+    private static string Initials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "R";
+        return string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Take(2).Select(part => char.ToUpperInvariant(part[0])));
+    }
+
     private async Task LogoutAsync()
     {
         await Auth.LogoutAsync();
         Navigation.NavigateTo("/login", forceLoad: true);
     }
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
 }

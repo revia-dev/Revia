@@ -65,12 +65,12 @@
   <data name="App_Empty" xml:space="preserve"><value>Keine Einträge.</value></data>
 
   <data name="Page_Movies" xml:space="preserve"><value>Filme</value></data>
-  <data name="Page_Tv" xml:space="preserve"><value>Fernsehprogramm</value></data>
+  <data name="Page_Tv" xml:space="preserve"><value>Fernsehen</value></data>
   <data name="Page_Lending" xml:space="preserve"><value>Ausleihen</value></data>
   <data name="Page_Games" xml:space="preserve"><value>Spiele</value></data>
   <data name="Page_Matches" xml:space="preserve"><value>Partien</value></data>
-  <data name="Page_Bmi" xml:space="preserve"><value>Gewicht &amp; BMI</value></data>
-  <data name="Page_Wishlists" xml:space="preserve"><value>Wünsche</value></data>
+  <data name="Page_Bmi" xml:space="preserve"><value>BMI</value></data>
+  <data name="Page_Wishlists" xml:space="preserve"><value>Wunschlisten</value></data>
   <data name="Page_Persons" xml:space="preserve"><value>Personen</value></data>
   <data name="Page_Permissions" xml:space="preserve"><value>Berechtigungen</value></data>
 
@@ -80,7 +80,7 @@
   <data name="Login_Submit" xml:space="preserve"><value>Anmelden</value></data>
   <data name="Login_Error" xml:space="preserve"><value>Benutzername oder Passwort ist falsch.</value></data>
 
-  <data name="Dashboard_Title" xml:space="preserve"><value>Dashboard</value></data>
+  <data name="Dashboard_Title" xml:space="preserve"><value>Übersicht</value></data>
   <data name="Dashboard_Customize" xml:space="preserve"><value>Anpassen</value></data>
   <data name="Dashboard_Done" xml:space="preserve"><value>Fertig</value></data>
   <data name="Dashboard_Permissions" xml:space="preserve"><value>Berechtigungen</value></data>
