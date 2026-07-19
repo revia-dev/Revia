@@ -38,6 +38,7 @@ bld/
 #  Secrets / local configuration
 # ============================================================
 appsettings.*.local.json
+Revia/appsettings.Development.json
 secrets.json
 *.pfx
 *.key

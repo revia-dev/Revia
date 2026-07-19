@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Revia.Api.Auth;
@@ -7,10 +6,7 @@ using Revia.Api.Infrastructure;
 namespace Revia.IntegrationTests;
 
 /// <summary>
-/// Verifies the fail-fast config rules directly (no host needed): the JWT signing key
-/// is hard-validated in Production, while the default admin password is only a warning
-/// — so the documented out-of-the-box Docker/LAN flow (Production + default password)
-/// still starts.
+/// Verifies the fail-fast JWT configuration rules directly without starting a host.
 /// </summary>
 public sealed class StartupValidationTests
 {
@@ -22,12 +18,6 @@ public sealed class StartupValidationTests
         public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 
-    private static IConfiguration Config(params (string key, string value)[] values)
-        => new ConfigurationBuilder()
-            .AddInMemoryCollection(values.Select(v =>
-                new KeyValuePair<string, string?>(v.key, v.value)))
-            .Build();
-
     private const string StrongKey = "this-is-a-strong-enough-signing-key-1234567890";
 
     [Fact]
@@ -35,7 +25,7 @@ public sealed class StartupValidationTests
     {
         var jwt = new JwtOptions { SigningKey = "" };
         Assert.Throws<InvalidOperationException>(() =>
-            StartupValidation.ValidateAndHardenJwt(jwt, new FakeEnv("Production"), Config()));
+            StartupValidation.ValidateAndHardenJwt(jwt, new FakeEnv("Production")));
     }
 
     [Fact]
@@ -43,31 +33,22 @@ public sealed class StartupValidationTests
     {
         var jwt = new JwtOptions { SigningKey = "too-short" };
         Assert.Throws<InvalidOperationException>(() =>
-            StartupValidation.ValidateAndHardenJwt(jwt, new FakeEnv("Production"), Config()));
+            StartupValidation.ValidateAndHardenJwt(jwt, new FakeEnv("Production")));
     }
 
     [Fact]
-    public void Production_StrongKey_DefaultAdminPassword_DoesNotThrow()
+    public void Production_StrongKey_DoesNotThrow()
     {
-        // This is the Docker/LAN out-of-the-box case: it must still start.
         var jwt = new JwtOptions { SigningKey = StrongKey };
-        var cfg = Config(("Seed:AdminPassword", StartupValidation.DefaultAdminPassword));
-        StartupValidation.ValidateAndHardenJwt(jwt, new FakeEnv("Production"), cfg);
-        Assert.True(StartupValidation.UsesDefaultAdminPassword(new FakeEnv("Production"), cfg));
+        StartupValidation.ValidateAndHardenJwt(jwt, new FakeEnv("Production"));
+        Assert.Equal(StrongKey, jwt.SigningKey);
     }
 
     [Fact]
     public void Development_MissingKey_GetsDevFallback()
     {
         var jwt = new JwtOptions { SigningKey = "" };
-        StartupValidation.ValidateAndHardenJwt(jwt, new FakeEnv("Development"), Config());
+        StartupValidation.ValidateAndHardenJwt(jwt, new FakeEnv("Development"));
         Assert.True(jwt.SigningKey.Length >= StartupValidation.MinSigningKeyLength);
-    }
-
-    [Fact]
-    public void Development_DefaultAdminPassword_NotFlagged()
-    {
-        var cfg = Config(("Seed:AdminPassword", StartupValidation.DefaultAdminPassword));
-        Assert.False(StartupValidation.UsesDefaultAdminPassword(new FakeEnv("Development"), cfg));
     }
 }

@@ -95,7 +95,7 @@ builder.Services
 
 // ---- JWT auth ----
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
-StartupValidation.ValidateAndHardenJwt(jwt, builder.Environment, builder.Configuration);
+StartupValidation.ValidateAndHardenJwt(jwt, builder.Environment);
 builder.Services.AddSingleton(jwt);
 builder.Services.AddScoped<JwtTokenService>();
 
@@ -160,13 +160,6 @@ using (var scope = app.Services.CreateScope())
         var db = sp.GetRequiredService<AppDbContext>();
         var userManager = sp.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = sp.GetRequiredService<RoleManager<IdentityRole>>();
-
-        if (StartupValidation.UsesDefaultAdminPassword(app.Environment, app.Configuration))
-        {
-            log.LogWarning(
-                "Seed:AdminPassword is still the shipped default in a non-Development " +
-                "environment. Set a unique admin password via Seed__AdminPassword.");
-        }
 
         log.LogInformation("Applying migrations and seeding identity…");
         await db.Database.MigrateAsync();
